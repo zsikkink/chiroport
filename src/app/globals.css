@@ -1,0 +1,91 @@
+/* Import Tailwind's base styles */
+@tailwind base;
+/* Import Tailwind's component styles */
+@tailwind components;
+/* Import Tailwind's utility styles */
+@tailwind utilities;
+
+/* Root CSS variables for theming - accessible throughout the application */
+:root {
+  /* Color scheme - can be modified for different brand colors */
+  --color-primary: #56655A; /* Soft green background color */
+  --color-primary-dark: #475549; /* Darker green for hover states */
+  --color-primary-light: #677569; /* Lighter green for accents */
+  
+  --color-text-primary: #ffffff; /* White text for dark backgrounds */
+  --color-text-secondary: #f0f0f0; /* Off-white for secondary text */
+  --color-text-dark: #333333; /* Dark text for light backgrounds */
+  
+  --color-ui-border: #ffffff; /* White borders */
+  --color-ui-shadow: rgba(0, 0, 0, 0.1); /* Subtle shadows */
+  --color-ui-background: #ffffff; /* White backgrounds for cards */
+
+  /* Font variables - dynamically provided by Next.js font loader in layout.tsx */
+  --font-sans: var(--font-lato); /* Main body font */
+  --font-logo: var(--font-libre-baskerville); /* Decorative font for logo/headings */
+}
+
+/* Dark mode settings - maintain same color scheme for simplicity */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: #56655A;
+    --color-primary-dark: #475549;
+    --color-primary-light: #677569;
+    
+    --color-text-primary: #ffffff;
+    --color-text-secondary: #f0f0f0;
+    --color-text-dark: #333333;
+    
+    /* Font settings stay consistent across color schemes */
+    --font-sans: var(--font-lato);
+    --font-logo: var(--font-libre-baskerville);
+  }
+}
+
+/* Base styles applied using Tailwind's layering system */
+@layer base {
+  /* Global reset to ensure no cutoff content */
+  html, body {
+    min-height: 100%;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    overflow-x: hidden; /* Prevent horizontal scrolling at root level */
+    box-sizing: border-box;
+  }
+  
+  /* Apply box-sizing to all elements */
+  *, *::before, *::after {
+    box-sizing: inherit;
+  }
+  
+  body {
+    background-color: var(--color-primary);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    min-height: 100vh; /* Ensure minimum full viewport height */
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* Custom utility classes */
+@layer utilities {
+  .font-lato {
+    font-family: var(--font-lato), sans-serif;
+  }
+  
+  .font-libre-baskerville {
+    font-family: var(--font-libre-baskerville), serif;
+  }
+}
+
+/* Custom utility class for logo font - apply to headings that need the decorative font */
+.logo-font {
+  font-family: var(--font-libre-baskerville), serif !important; /* Force font regardless of inheritance */
+  word-break: break-word; /* Allow long words to break across lines */
+  overflow-wrap: break-word; /* Ensure text wraps within containers */
+  padding-top: 0.1em; /* Add slight top padding to prevent cutoff */
+  padding-bottom: 0.1em; /* Balance the text within its container */
+  text-rendering: optimizeLegibility; /* Improve text rendering */
+}
