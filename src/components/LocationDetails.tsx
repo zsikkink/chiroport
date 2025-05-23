@@ -24,9 +24,10 @@ export default function LocationDetails({ locationInfo, className = '' }: Locati
           <BodyText size="2xl" className="font-medium text-white">{locationInfo.customLocation}</BodyText>
         </div>
         
-        <div className="flex flex-col">
-          <Heading size="2xl" className="font-bold mb-2">Hours</Heading>
-          <BodyText size="2xl" className="font-medium text-white">{locationInfo.customHours}</BodyText>
+        <div>
+          <BodyText size="2xl" className="font-medium text-white">
+            <span className="font-bold">Hours:</span> {locationInfo.customHours}
+          </BodyText>
         </div>
       </div>
     </ResponsiveCard>

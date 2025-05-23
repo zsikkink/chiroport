@@ -74,7 +74,7 @@ export default function LocationsPage() {
 
   return (
     <ResponsiveLayout>
-      <main className="flex min-h-screen flex-col items-center py-6 sm:py-8 md:py-10 px-4 overflow-x-hidden bg-[#56655A]">
+      <main className="flex min-h-screen flex-col items-center py-6 sm:py-8 md:py-10 px-4 overflow-x-hidden bg-primary">
         <div className="w-full max-w-3xl relative mb-8">
           <div className="w-full text-center mb-2">
             <Heading className="text-4xl sm:text-5xl md:text-6xl font-semibold text-white">

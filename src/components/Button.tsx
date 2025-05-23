@@ -34,12 +34,12 @@ export default function Button({
   // Base classes for all buttons
   const baseClasses = 'font-lato rounded transition-colors';
   
-  // Variant-specific styling
+  // Variant-specific styling using Tailwind's class format
   const variantClasses: Record<ButtonVariant, string> = {
-    primary: `bg-[${COLORS.primary.main}] hover:bg-[${COLORS.primary.dark}] text-white py-4 px-8 text-3xl sm:text-4xl md:text-5xl font-bold border-2 border-white shadow-lg`,
-    secondary: `bg-white hover:bg-gray-100 text-[${COLORS.primary.main}] py-3 px-6 text-lg font-medium border border-[${COLORS.primary.main}]`,
-    location: `bg-[${COLORS.primary.main}] hover:bg-[${COLORS.primary.dark}] text-white py-3 px-6 text-xl sm:text-2xl font-medium shadow-sm border border-white border-opacity-20`,
-    back: `bg-[${COLORS.primary.main}] hover:bg-[${COLORS.primary.dark}] text-white py-2 px-4 text-base font-medium`
+    primary: 'bg-primary hover:bg-primary-dark text-white py-4 px-8 text-3xl sm:text-4xl md:text-5xl font-bold border-2 border-white shadow-lg',
+    secondary: 'bg-white hover:bg-gray-100 text-primary py-3 px-6 text-lg font-medium border border-primary',
+    location: 'bg-primary hover:bg-primary-dark text-white py-3 px-6 text-xl sm:text-2xl font-medium shadow-sm border border-white border-opacity-20',
+    back: 'bg-primary hover:bg-primary-dark text-white py-2 px-4 text-base font-medium'
   };
   
   // Width classes

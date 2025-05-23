@@ -57,6 +57,25 @@ export default function ConcoursePage() {
     router.back();
   };
 
+  // Custom image settings based on location
+  const getImageSettings = () => {
+    if (location === 'atlanta' && concourse === 'concourse-a') {
+      return {
+        preserveAspectRatio: true,
+        objectPosition: 'center center'
+      };
+    }
+    
+    // Default settings for other images
+    return {
+      aspectRatio: '16/9',
+      objectFit: 'cover' as const,
+      objectPosition: 'center center'
+    };
+  };
+
+  const imageSettings = getImageSettings();
+
   return (
     <ResponsiveLayout>
       <main className="flex min-h-screen flex-col items-center py-6 sm:py-8 md:py-10 px-4 overflow-x-hidden">
@@ -71,6 +90,10 @@ export default function ConcoursePage() {
           <LocationImage 
             src={imageUrl}
             alt={`${locationName} ${concourseName} Chiroport location`}
+            aspectRatio={imageSettings.aspectRatio}
+            objectFit={imageSettings.objectFit}
+            objectPosition={imageSettings.objectPosition}
+            preserveAspectRatio={imageSettings.preserveAspectRatio}
           />
           
           <LocationDetails locationInfo={locationInfo} />
