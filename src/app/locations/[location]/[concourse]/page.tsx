@@ -111,10 +111,7 @@ export default function ConcoursePage() {
   );
   
   // NAVIGATION HANDLERS
-  // Handle back button functionality (returns to previous page in history)
-  const handleBackClick = () => {
-    router.back();
-  };
+  // Note: Back button functionality has been removed from the application
 
   /**
    * IMAGE DISPLAY CONFIGURATION
@@ -170,7 +167,6 @@ export default function ConcoursePage() {
           locationName={locationName}      // e.g., "Minneapolis"
           concourseName={concourseName}    // e.g., "Concourse G"
           airportCode={airportCode}        // e.g., "MSP"
-          onBackClick={handleBackClick}    // Navigation handler
         />
       </main>
 

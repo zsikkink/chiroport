@@ -17,6 +17,7 @@ type TypographyProps = {
   color?: string;
   className?: string;
   as?: ElementType;
+  style?: React.CSSProperties;
 };
 
 type VariantConfig = {
@@ -31,6 +32,7 @@ type VariantConfig = {
  * 
  * A reusable component for consistent text styling across the application.
  * Supports various text variants, sizes, weights, and fonts.
+ * Enhanced with text cutoff prevention for mobile devices.
  */
 export default function Typography({
   children,
@@ -41,6 +43,7 @@ export default function Typography({
   color = 'text-white',
   className = '',
   as,
+  style = {},
 }: TypographyProps) {
   // Default styling and element mapping based on variant
   const variantConfig: Record<TextVariant, VariantConfig> = {
@@ -63,17 +66,32 @@ export default function Typography({
   // Use provided element type or default from variant config
   const Component = as || config.element;
   
-  // Generate class string with non-empty values only
-  const classes = [
+  // Generate class string with non-empty values only + text cutoff prevention
+  const baseClasses = [
     `text-${textSize}`,
     `font-${fontWeight}`,
     `font-${fontFamily}`,
     color,
+    'mobile-text-safe', // Apply mobile text protection to all typography
     className
   ].filter(Boolean).join(' ');
 
+  // Enhanced inline styles that prevent text cutoff
+  const enhancedStyle = {
+    wordWrap: 'break-word' as const,
+    overflowWrap: 'anywhere' as const,
+    wordBreak: 'break-word' as const,
+    hyphens: 'auto' as const,
+    maxWidth: '100%',
+    width: '100%',
+    ...style, // Allow custom styles to override
+  };
+
   return (
-    <Component className={classes}>
+    <Component 
+      className={baseClasses}
+      style={enhancedStyle}
+    >
       {children}
     </Component>
   );
@@ -81,10 +99,24 @@ export default function Typography({
 
 /**
  * Specialized typography components for common use cases
+ * All enhanced with text cutoff prevention
  */
-export function Title({ children, className = '', ...props }: Omit<TypographyProps, 'variant'>) {
+export function Title({ children, className = '', style = {}, ...props }: Omit<TypographyProps, 'variant'>) {
+  const titleStyle = {
+    // Extra protection for title text which is most likely to have cutoff issues
+    overflow: 'visible',
+    textOverflow: 'clip',
+    whiteSpace: 'normal' as const,
+    ...style,
+  };
+
   return (
-    <Typography variant="title" className={`font-libre-baskerville ${className}`} {...props}>
+    <Typography 
+      variant="title" 
+      className={`font-libre-baskerville no-text-cutoff ${className}`}
+      style={titleStyle}
+      {...props}
+    >
       {children}
     </Typography>
   );
@@ -92,7 +124,7 @@ export function Title({ children, className = '', ...props }: Omit<TypographyPro
 
 export function Heading({ children, className = '', ...props }: Omit<TypographyProps, 'variant'>) {
   return (
-    <Typography variant="heading" className={className} {...props}>
+    <Typography variant="heading" className={`no-text-cutoff ${className}`} {...props}>
       {children}
     </Typography>
   );
@@ -100,7 +132,7 @@ export function Heading({ children, className = '', ...props }: Omit<TypographyP
 
 export function SubHeading({ children, className = '', ...props }: Omit<TypographyProps, 'variant'>) {
   return (
-    <Typography variant="subheading" className={className} {...props}>
+    <Typography variant="subheading" className={`no-text-cutoff ${className}`} {...props}>
       {children}
     </Typography>
   );

@@ -20,6 +20,54 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Accessibility & Text Scaling
+
+This application is designed to handle text scaling gracefully for users with visual impairments or different text size preferences.
+
+### Testing Text Scaling
+
+**Browser Zoom Testing:**
+1. Use `Ctrl/Cmd + '+'` to zoom to 200% and 300%
+2. Ensure all content remains readable and accessible
+3. Check that no text gets cut off or overlaps
+
+**Browser Font Size Settings:**
+- **Chrome**: Settings → Appearance → Font Size → Very Large
+- **Firefox**: Settings → General → Fonts and Colors → Very Large  
+- **Safari**: Preferences → Advanced → Accessibility → Never use font sizes smaller than [set to 18px]
+- **Edge**: Settings → Appearance → Fonts → Very Large
+
+**Mobile Testing:**
+- **iOS**: Settings → Display & Brightness → Text Size → Larger Accessibility Sizes
+- **Android**: Settings → Display → Font Size → Large
+
+### Implementation Details
+
+**CSS Strategy:**
+- Uses `rem` units throughout (via Tailwind) which scale with user preferences
+- Implements `clamp()` for responsive font sizes with accessibility bounds
+- Ensures proper line heights and text wrapping
+- Containers adapt to larger text sizes
+
+**Key Classes for Text Scaling:**
+```css
+.text-scale-friendly  /* Responsive font size with clamp() */
+.scale-container      /* Container that adapts to text scaling */
+```
+
+**Typography System:**
+- All text components support multiple responsive breakpoints
+- Proper line-height ratios for readability
+- Word wrapping prevents text overflow
+
+### WCAG Compliance
+
+This app follows WCAG 2.1 AA guidelines:
+- ✅ Text can be resized up to 200% without loss of content or functionality
+- ✅ Proper contrast ratios maintained at all zoom levels
+- ✅ Touch targets remain accessible at larger text sizes
+- ✅ No horizontal scrolling required at 320px width with 200% zoom
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

@@ -3,7 +3,7 @@
 import ResponsiveLayout from '@/components/ResponsiveLayout';
 import { useRouter } from 'next/navigation';
 import { Heading } from '@/components/Typography';
-import { BackButton, LocationButton } from '@/components/Button';
+import { LocationButton } from '@/components/Button';
 import DropdownCard from '@/components/DropdownCard';
 
 // Airport data structure for organizing concourses by airport
@@ -67,26 +67,15 @@ export default function LocationsPage() {
     router.push(`/locations/${route}`);
   };
 
-  // Handle back to home navigation
-  const handleBackClick = () => {
-    router.push('/');
-  };
-
   return (
     <ResponsiveLayout>
       <main className="flex min-h-screen flex-col items-center py-6 sm:py-8 md:py-10 px-4 overflow-x-hidden bg-primary">
-        <div className="w-full max-w-3xl relative mb-8">
-          <div className="w-full text-center mb-2">
+        <div className="w-full max-w-3xl mb-8">
+          <div className="w-full text-center">
             <Heading className="text-4xl sm:text-5xl md:text-6xl font-semibold text-white">
               Locations
             </Heading>
           </div>
-          <BackButton 
-            onClick={handleBackClick}
-            className="absolute left-0 top-1/2 -translate-y-1/2"
-          >
-            Back
-          </BackButton>
         </div>
         
         <div className="w-full max-w-3xl">
