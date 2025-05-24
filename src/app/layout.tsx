@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Lato, Libre_Baskerville } from "next/font/google";
+import Script from 'next/script';
 import "./globals.css";
 
 /**
@@ -66,6 +67,11 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="icon" href="/icons/favicon-32x32.png" sizes="32x32" type="image/png" />
+        {/* Waitwhile inline-embed library */}
+        <Script
+          src="https://cdn.jsdelivr.net/npm/@waitwhile/waitwhile-embed/dist/waitwhile-embed.min.js"
+          strategy="beforeInteractive"
+        />
       </head>
       <body className={`${lato.variable} ${libreBaskerville.variable} antialiased max-w-full overflow-x-hidden`}>
         {children}
