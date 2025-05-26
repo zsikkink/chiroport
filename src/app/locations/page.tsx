@@ -2,110 +2,53 @@
 
 import ResponsiveLayout from '@/components/ResponsiveLayout';
 import { useRouter } from 'next/navigation';
-import { Heading } from '@/components/Typography';
 import { LocationButton } from '@/components/Button';
 import DropdownCard from '@/components/DropdownCard';
-
-// Airport data structure for organizing concourses by airport
-interface AirportLocation {
-  name: string;
-  code: string;
-  concourses: {
-    name: string;
-    route: string;
-    displayName: string;
-  }[];
-}
-
-// All airport locations and their concourses
-const airportLocations: AirportLocation[] = [
-  {
-    name: 'Atlanta',
-    code: 'ATL',
-    concourses: [
-      { name: 'concourse-a', route: 'atlanta/concourse-a', displayName: 'Concourse A' }
-    ]
-  },
-  {
-    name: 'Dallas',
-    code: 'DFW',
-    concourses: [
-      { name: 'concourse-a', route: 'dallas/concourse-a', displayName: 'Concourse A' }
-    ]
-  },
-  {
-    name: 'Houston',
-    code: 'HOU',
-    concourses: [
-      { name: 'concourse-a', route: 'houston/concourse-a', displayName: 'West Concourse' }
-    ]
-  },
-  {
-    name: 'Las Vegas',
-    code: 'LAS',
-    concourses: [
-      { name: 'concourse-b', route: 'las-vegas/concourse-b', displayName: 'Concourse B' },
-      { name: 'concourse-c', route: 'las-vegas/concourse-c', displayName: 'Concourse C' }
-    ]
-  },
-  {
-    name: 'Minneapolis',
-    code: 'MSP',
-    concourses: [
-      { name: 'concourse-c', route: 'minneapolis/concourse-c', displayName: 'Concourse C' },
-      { name: 'concourse-f', route: 'minneapolis/concourse-f', displayName: 'Concourse F' },
-      { name: 'concourse-g', route: 'minneapolis/concourse-g', displayName: 'Concourse G' }
-    ]
-  }
-];
+import ScrollHeader from '@/components/ScrollHeader';
+import { airportLocations, getLocationRoute } from '@/utils/locationData';
 
 export default function LocationsPage() {
   const router = useRouter();
 
-  // Handle concourse selection with location and concourse parameters
-  const handleConcourseClick = (route: string) => {
-    router.push(`/locations/${route}`);
+  const handleConcourseClick = (airportSlug: string, concourseSlug: string) => {
+    router.push(getLocationRoute(airportSlug, concourseSlug));
   };
 
   return (
-    <ResponsiveLayout>
-      <main className="flex min-h-screen flex-col items-center py-6 sm:py-8 md:py-10 px-4 overflow-x-hidden bg-primary">
-        <div className="w-full max-w-3xl mb-8">
-          <div className="w-full text-center">
-            <Heading className="text-4xl sm:text-5xl md:text-6xl font-semibold text-white">
-              Locations
-            </Heading>
+    <>
+      <ScrollHeader title="Locations" />
+      
+      <ResponsiveLayout>
+        <main className="flex min-h-screen flex-col items-center pt-20 py-6 sm:py-8 md:py-10 px-4 overflow-x-hidden bg-primary">
+          <div className="w-full max-w-3xl">
+            {airportLocations.map((airport, index) => {
+              const hasSingleConcourse = airport.concourses.length === 1;
+              
+              return (
+                <DropdownCard 
+                  key={airport.code} 
+                  title={`${airport.name} (${airport.code})`}
+                  initiallyOpen={index === 0 && !hasSingleConcourse}
+                  className={hasSingleConcourse ? 'cursor-pointer' : ''}
+                  onClick={hasSingleConcourse ? () => handleConcourseClick(airport.slug, airport.concourses[0].slug) : undefined}
+                >
+                  <div className="space-y-4">
+                    {airport.concourses.map((concourse) => (
+                      <LocationButton 
+                        key={concourse.slug}
+                        fullWidth
+                        onClick={() => handleConcourseClick(airport.slug, concourse.slug)}
+                      >
+                        <span className="text-xl sm:text-2xl font-medium">{concourse.displayName}</span>
+                      </LocationButton>
+                    ))}
+                  </div>
+                </DropdownCard>
+              );
+            })}
           </div>
-        </div>
-        
-        <div className="w-full max-w-3xl">
-          {airportLocations.map((airport, index) => {
-            const hasSingleConcourse = airport.concourses.length === 1;
-            
-            return (
-              <DropdownCard 
-                key={airport.code} 
-                title={`${airport.name} (${airport.code})`}
-                initiallyOpen={index === 0 && !hasSingleConcourse}
-                className={hasSingleConcourse ? 'cursor-pointer' : ''}
-                onClick={hasSingleConcourse ? () => handleConcourseClick(airport.concourses[0].route) : undefined}
-              >
-                <div className="space-y-4">
-                  {airport.concourses.map((concourse) => (
-                    <LocationButton 
-                      key={concourse.name}
-                      fullWidth
-                      onClick={() => handleConcourseClick(concourse.route)}
-                    >
-                      <span className="text-xl sm:text-2xl font-medium">{concourse.displayName}</span>
-                    </LocationButton>
-                  ))}
-                </div>
-              </DropdownCard>
-            );
-          })}
-        </div>
-      </main>
-    </ResponsiveLayout>
+        </main>
+      </ResponsiveLayout>
+    </>
   );
 } 

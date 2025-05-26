@@ -113,7 +113,7 @@ export function Title({ children, className = '', style = {}, ...props }: Omit<T
   return (
     <Typography 
       variant="title" 
-      className={`font-libre-baskerville no-text-cutoff ${className}`}
+      className={`no-text-cutoff ${className}`}
       style={titleStyle}
       {...props}
     >

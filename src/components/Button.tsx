@@ -1,8 +1,7 @@
 'use client';
 
-import { ReactNode, ButtonHTMLAttributes } from 'react';
-import { ChevronRightIcon, ChevronLeftIcon } from '@heroicons/react/24/solid';
-import { COLORS } from '@/utils/theme';
+import { ReactNode, ButtonHTMLAttributes, forwardRef } from 'react';
+import { ChevronRightIcon, ChevronLeftIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 
 type ButtonVariant = 'primary' | 'secondary' | 'location' | 'back';
 type IconPosition = 'left' | 'right';
@@ -22,7 +21,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  * A reusable button component with consistent styling across the application.
  * Supports various variants and optional icons.
  */
-export default function Button({
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   children,
   variant = 'primary',
   icon,
@@ -30,7 +29,7 @@ export default function Button({
   fullWidth = false,
   className = '',
   ...props
-}: ButtonProps) {
+}, ref) => {
   // Base classes for all buttons
   const baseClasses = 'font-lato rounded transition-colors';
   
@@ -78,6 +77,8 @@ export default function Button({
       return <ChevronRightIcon className="w-5 h-5" />;
     } else if (icon === '←') {
       return <ChevronLeftIcon className="w-5 h-5" />;
+    } else if (icon === '↓') {
+      return <ChevronDownIcon className="w-5 h-5" />;
     }
     
     return icon;
@@ -86,7 +87,7 @@ export default function Button({
   const iconComponent = getIconComponent();
 
   return (
-    <button className={classes} {...props}>
+    <button ref={ref} className={classes} {...props}>
       {iconPosition === 'left' && iconComponent && (
         <span className={iconSpacing}>{iconComponent}</span>
       )}
@@ -96,14 +97,20 @@ export default function Button({
       )}
     </button>
   );
-}
+});
+
+Button.displayName = 'Button';
+
+export default Button;
 
 /**
  * Specialized button components for common use cases
  */
-export function PrimaryButton(props: Omit<ButtonProps, 'variant'>) {
-  return <Button variant="primary" {...props} />;
-}
+export const PrimaryButton = forwardRef<HTMLButtonElement, Omit<ButtonProps, 'variant'>>((props, ref) => {
+  return <Button ref={ref} variant="primary" {...props} />;
+});
+
+PrimaryButton.displayName = 'PrimaryButton';
 
 export function SecondaryButton(props: Omit<ButtonProps, 'variant'>) {
   return <Button variant="secondary" {...props} />;

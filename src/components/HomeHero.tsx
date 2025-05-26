@@ -1,87 +1,64 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { Title } from './Typography';
-import { PrimaryButton } from './Button';
 
 interface HomeHeroProps {
   title: string;
-  buttonText: string;
-  buttonLink: string;
 }
 
 /**
  * HomeHero Component 
  * 
- * Displays a large title and primary CTA button.
- * Optimized to prevent text cutoff on any device size.
+ * Displays just the large title.
+ * Optimized to span maximum visual width regardless of font size settings.
  */
 export default function HomeHero({ 
-  title, 
-  buttonText, 
-  buttonLink 
+  title
 }: HomeHeroProps) {
-  const router = useRouter();
-  
-  // Classes for responsive layout and spacing - mobile-first approach
+  // Classes for responsive layout - minimal padding to maximize title width
   const titleSectionClasses = [
     'w-full text-center',
     'pt-3 sm:pt-4 md:pt-5',
     'pb-4 sm:pb-6',
-    'px-4 sm:px-2', // More padding on mobile to prevent edge cutoff
-    'scale-container', // Use our new scale-friendly container
+    'px-2 sm:px-1', // Minimal padding to maximize width
+    'scale-container',
   ].join(' ');
   
-  // Mobile-first title classes that prevent cutoff
+  // Optimized title classes for maximum visual width
   const titleClasses = [
-    // Mobile-first responsive sizing - starts smaller, scales up
-    'text-[clamp(2.5rem,12vw,8rem)]', // Fluid scaling from 2.5rem to 8rem
+    // Increased viewport width percentage for larger visual presence
+    'text-[clamp(2.5rem,15vw,10rem)]', // Increased from 12vw to 15vw, max from 8rem to 10rem
     'text-center',
     'mb-4 sm:mb-6',
-    'leading-[1.1]',
+    'leading-[1.05]', // Tighter line height for larger appearance
     'tracking-tight',
-    'w-full', // Full width instead of max-w constraint
+    'w-full',
     'py-1',
-    'mobile-text-safe', // Apply our mobile text protection
-    'no-text-cutoff', // Ensure no cutoff ever happens
+    'mobile-text-safe',
+    'no-text-cutoff',
   ].join(' ');
   
-  // Container for button
-  const buttonContainerClasses = 'flex justify-center w-full mb-8 sm:mb-10';
-  
-  // Function to handle button click and navigate
-  const handleButtonClick = () => {
-    router.push(buttonLink);
-  };
-  
   return (
-    <>
-      <div className={titleSectionClasses}>
-        <Title 
-          size="6xl" 
-          className={titleClasses}
-          style={{
-            // Additional inline styles for maximum compatibility
-            wordWrap: 'break-word',
-            overflowWrap: 'anywhere',
-            wordBreak: 'break-word',
-            hyphens: 'auto',
-            maxWidth: '100%',
-            width: '100%',
-          }}
-        >
-          {title}
-        </Title>
-      </div>
-      
-      <div className={buttonContainerClasses}>
-        <PrimaryButton
-          onClick={handleButtonClick}
-          icon="→"
-        >
-          {buttonText}
-        </PrimaryButton>
-      </div>
-    </>
+    <div className={titleSectionClasses}>
+      <Title 
+        size="6xl" 
+        className={titleClasses}
+        style={{
+          // Enhanced styles for maximum width utilization
+          wordWrap: 'break-word',
+          overflowWrap: 'anywhere',
+          wordBreak: 'break-word',
+          hyphens: 'auto',
+          maxWidth: '100%',
+          width: '100%',
+          // Force maximum visual impact
+          display: 'block',
+          textAlign: 'center',
+          margin: '0 auto',
+        }}
+      >
+        {title}
+      </Title>
+    </div>
   );
 } 

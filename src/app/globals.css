@@ -47,83 +47,33 @@
 
 /* Base styles applied using Tailwind's layering system */
 @layer base {
-  /* Global reset to ensure no cutoff content */
+  /* Global reset with responsive font scaling */
   html {
-    /* More flexible font size scaling to prevent cutoff */
-    font-size: clamp(12px, 4vw, 20px); /* Wider range, uses viewport width for better mobile scaling */
-    min-height: 100%;
-    width: 100%;
-    padding: 0;
-    margin: 0;
-    overflow-x: hidden; /* Prevent horizontal scrolling at root level */
+    font-size: clamp(14px, 4vw, 18px); /* Responsive base font size */
     box-sizing: border-box;
   }
   
   body {
-    min-height: 100%;
-    width: 100%;
-    padding: 0;
-    margin: 0;
-    overflow-x: hidden; /* Prevent horizontal scrolling at root level */
-    box-sizing: border-box;
     background-color: var(--color-primary);
     color: var(--color-text-primary);
     font-family: var(--font-sans);
-    min-height: 100vh; /* Ensure minimum full viewport height */
-    display: flex;
-    flex-direction: column;
-    
-    /* Enhanced text wrapping to prevent cutoff */
-    line-height: 1.6; /* Improved line height for readability at larger sizes */
-    word-wrap: break-word; /* Prevent text overflow */
-    overflow-wrap: anywhere; /* Most aggressive wrapping - breaks anywhere if needed */
-    word-break: break-word; /* Additional support for older browsers */
-    hyphens: auto; /* Add hyphens when breaking words */
+    min-height: 100vh;
+    line-height: 1.6;
+    /* Prevent text overflow globally */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
   
-  /* Apply box-sizing to all elements with enhanced text wrapping */
+  /* Apply box-sizing to all elements */
   *, *::before, *::after {
     box-sizing: inherit;
-    /* Ensure all text can wrap properly - prevent cutoff at all costs */
-    word-wrap: break-word;
-    overflow-wrap: anywhere; /* Most aggressive - breaks anywhere to prevent overflow */
-    word-break: break-word;
-    hyphens: auto;
   }
   
-  /* Ensure headings never get cut off */
+  /* Ensure headings are responsive */
   h1, h2, h3, h4, h5, h6 {
-    line-height: 1.2; /* Tighter line height for headings */
+    line-height: 1.2;
     word-wrap: break-word;
-    overflow-wrap: anywhere; /* Break anywhere if needed to prevent cutoff */
-    word-break: break-word;
-    hyphens: auto;
-    /* Ensure headings can take multiple lines */
-    white-space: normal;
-    max-width: 100%;
-  }
-  
-  /* Ensure containers can grow with larger text and never cut off content */
-  [class*="max-w-"] {
-    min-height: auto; /* Allow containers to grow */
-    overflow: visible; /* Never hide overflowing text */
-    word-wrap: break-word;
-    overflow-wrap: anywhere;
-  }
-  
-  /* Specific mobile text handling */
-  @media (max-width: 640px) {
-    html {
-      font-size: clamp(12px, 5vw, 18px); /* Even more responsive on small screens */
-    }
-    
-    /* Ensure all text elements are mobile-friendly */
-    h1, h2, h3, h4, h5, h6, p, span, div {
-      overflow-wrap: anywhere;
-      word-break: break-word;
-      hyphens: auto;
-      max-width: 100%;
-    }
+    overflow-wrap: break-word;
   }
 }
 
@@ -137,66 +87,46 @@
     font-family: var(--font-libre-baskerville), serif;
   }
   
-  /* Enhanced text scaling utilities that prevent cutoff */
-  .text-scale-friendly {
-    font-size: clamp(0.875rem, 4vw, 2rem); /* More conservative max size */
-    line-height: 1.4;
+  /* Text overflow prevention utility */
+  .text-safe {
     word-wrap: break-word;
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    overflow-wrap: break-word;
     hyphens: auto;
     max-width: 100%;
   }
   
-  /* Container that adapts to text scaling and prevents cutoff */
-  .scale-container {
-    min-height: auto;
-    padding: clamp(0.5rem, 2vw, 1.5rem);
-    overflow: visible; /* Never hide content */
-    width: 100%;
-    max-width: 100%;
-    word-wrap: break-word;
-    overflow-wrap: anywhere;
+  /* Header utilities */
+  .header-shadow {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
   }
   
-  /* Mobile-specific text protection */
-  .mobile-text-safe {
-    overflow-wrap: anywhere;
-    word-break: break-word;
-    hyphens: auto;
-    white-space: normal;
-    max-width: 100%;
-    width: 100%;
+  .header-blur {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
   
-  /* Prevent any text cutoff utility */
-  .no-text-cutoff {
-    overflow: visible !important;
-    text-overflow: clip !important;
-    white-space: normal !important;
-    word-wrap: break-word !important;
-    overflow-wrap: anywhere !important;
-    word-break: break-word !important;
-    hyphens: auto !important;
-    max-width: 100% !important;
+  .header-stack {
+    z-index: 9999;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+  }
+  
+  /* Content spacing for pages with fixed headers */
+  .content-with-header {
+    padding-top: 4rem;
+  }
+  
+  @media (min-width: 640px) {
+    .content-with-header {
+      padding-top: 5rem;
+    }
   }
 }
 
-/* Custom utility class for logo font with enhanced mobile support */
+/* Logo font utility */
 .logo-font {
-  font-family: var(--font-libre-baskerville), serif !important; /* Force font regardless of inheritance */
-  word-break: break-word; /* Allow long words to break across lines */
-  overflow-wrap: anywhere; /* Most aggressive wrapping */
-  word-wrap: break-word;
-  hyphens: auto;
-  padding-top: 0.1em; /* Add slight top padding to prevent cutoff */
-  padding-bottom: 0.1em; /* Balance the text within its container */
-  text-rendering: optimizeLegibility; /* Improve text rendering */
-  
-  /* Enhanced text scaling support with mobile protection */
-  line-height: 1.2;
-  min-height: auto;
-  max-width: 100%;
-  white-space: normal;
-  overflow: visible;
+  font-family: var(--font-libre-baskerville), serif !important;
+  text-rendering: optimizeLegibility;
 }

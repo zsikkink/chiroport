@@ -1,101 +1,260 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Chiroport
 
-## Getting Started
+A modern, responsive web application for managing chiropractic services across major US airports. Built with Next.js 14, TypeScript, and Tailwind CSS.
 
-First, run the development server:
+## 🚀 Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Multi-Airport Support**: Services across Atlanta, Dallas, Houston, Las Vegas, and Minneapolis airports
+- **Queue Management**: Integrated Waitwhile system for appointment scheduling
+- **Responsive Design**: Mobile-first approach with accessibility features
+- **Real-time Updates**: Dynamic location information and availability
+- **Optimized Performance**: Image optimization, lazy loading, and efficient animations
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🏗️ Architecture
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Tech Stack
+- **Framework**: Next.js 14 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS with custom CSS variables
+- **Fonts**: Google Fonts (Lato + Libre Baskerville)
+- **Queue System**: Waitwhile embedded widgets
+- **Images**: Optimized WebP with JPEG fallbacks
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Accessibility & Text Scaling
-
-This application is designed to handle text scaling gracefully for users with visual impairments or different text size preferences.
-
-### Testing Text Scaling
-
-**Browser Zoom Testing:**
-1. Use `Ctrl/Cmd + '+'` to zoom to 200% and 300%
-2. Ensure all content remains readable and accessible
-3. Check that no text gets cut off or overlaps
-
-**Browser Font Size Settings:**
-- **Chrome**: Settings → Appearance → Font Size → Very Large
-- **Firefox**: Settings → General → Fonts and Colors → Very Large  
-- **Safari**: Preferences → Advanced → Accessibility → Never use font sizes smaller than [set to 18px]
-- **Edge**: Settings → Appearance → Fonts → Very Large
-
-**Mobile Testing:**
-- **iOS**: Settings → Display & Brightness → Text Size → Larger Accessibility Sizes
-- **Android**: Settings → Display → Font Size → Large
-
-### Implementation Details
-
-**CSS Strategy:**
-- Uses `rem` units throughout (via Tailwind) which scale with user preferences
-- Implements `clamp()` for responsive font sizes with accessibility bounds
-- Ensures proper line heights and text wrapping
-- Containers adapt to larger text sizes
-
-**Key Classes for Text Scaling:**
-```css
-.text-scale-friendly  /* Responsive font size with clamp() */
-.scale-container      /* Container that adapts to text scaling */
-```
-
-**Typography System:**
-- All text components support multiple responsive breakpoints
-- Proper line-height ratios for readability
-- Word wrapping prevents text overflow
-
-### WCAG Compliance
-
-This app follows WCAG 2.1 AA guidelines:
-- ✅ Text can be resized up to 200% without loss of content or functionality
-- ✅ Proper contrast ratios maintained at all zoom levels
-- ✅ Touch targets remain accessible at larger text sizes
-- ✅ No horizontal scrolling required at 320px width with 200% zoom
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-## Project Structure
-
+### Project Structure
 ```
 src/
 ├── app/                    # Next.js App Router pages
-│   ├── layout.tsx         # Root layout with fonts & metadata
+│   ├── globals.css        # Global styles and animations
+│   ├── layout.tsx         # Root layout with fonts and metadata
 │   ├── page.tsx           # Home page
-│   ├── globals.css        # Global styles & CSS variables
-│   └── locations/         # Location-based routing
-│       ├── page.tsx       # Location selection page
-│       └── [location]/[concourse]/
-│           └── page.tsx   # Individual location details
-├── components/            # Reusable UI components
-├── utils/                # Utility functions & data
-└── types/                # TypeScript type definitions (empty)
+│   └── locations/         # Location-specific routes
+├── components/            # Reusable React components
+│   ├── Button.tsx         # Button system with variants
+│   ├── ErrorBoundary.tsx  # Error handling component
+│   ├── LoadingSpinner.tsx # Loading states
+│   ├── Typography.tsx     # Text components
+│   └── ...               # Other UI components
+├── types/                 # TypeScript type definitions
+├── utils/                 # Utility functions and data
+│   ├── config.ts         # Environment configuration
+│   ├── locationData.ts   # Centralized location data
+│   └── theme.ts          # Design system constants
+└── public/               # Static assets
+    ├── icons/            # SVG icons
+    └── images/           # Location photos
 ```
+
+## 🛠️ Development
+
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
+
+### Getting Started
+```bash
+# Clone the repository
+git clone <repository-url>
+cd chiroport
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Open http://localhost:3000
+```
+
+### Environment Variables
+Create a `.env.local` file:
+```env
+# Optional: Custom Waitwhile script URL
+NEXT_PUBLIC_WAITWHILE_SCRIPT_URL=https://cdn.jsdelivr.net/npm/@waitwhile/waitwhile-embed/dist/waitwhile-embed.min.js
+
+# Optional: Feature flags
+NEXT_PUBLIC_ENABLE_ANALYTICS=false
+NEXT_PUBLIC_ENABLE_ERROR_REPORTING=true
+NEXT_PUBLIC_DEBUG_MODE=false
+
+# Optional: Performance settings
+NEXT_PUBLIC_IMAGE_QUALITY=85
+NEXT_PUBLIC_CACHE_TIMEOUT=300000
+```
+
+### Available Scripts
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+npm run type-check   # Run TypeScript compiler
+```
+
+## 📍 Adding New Locations
+
+### 1. Update Location Data
+Edit `src/utils/locationData.ts`:
+
+```typescript
+// Add to airportMap
+export const airportMap = {
+  // ... existing airports
+  'new-airport': 'NEW',
+};
+
+// Add to locationDataMap
+const locationDataMap: Record<string, LocationInfo> = {
+  // ... existing locations
+  'new-airport-concourse-a': {
+    gate: 'A12',
+    landmark: 'Starbucks',
+    airportCode: 'NEW',
+    imageUrl: getImagePath('new', 'a'),
+    customLocation: 'Near Gate A12, next to Starbucks',
+    customHours: '8am - 6pm ET',
+    waitwhileId: 'your-waitwhile-location-id'
+  },
+};
+
+// Add to airportLocations
+export const airportLocations = [
+  // ... existing airports
+  {
+    name: 'New Airport',
+    code: 'NEW',
+    concourses: [
+      { name: 'concourse-a', route: 'new-airport/concourse-a', displayName: 'Concourse A' }
+    ]
+  }
+];
+```
+
+### 2. Add Location Images
+Place images in `public/images/stores/`:
+- `new-a.webp` (preferred format)
+- `new-a.jpeg` (fallback format)
+
+### 3. Get Waitwhile Location ID
+1. Log into your Waitwhile dashboard
+2. Navigate to the specific location
+3. Copy the location ID from the URL or settings
+4. Update the `waitwhileId` in the location data
+
+## 🎨 Design System
+
+### Colors
+```css
+--color-primary: #56655A        /* Soft green */
+--color-primary-dark: #475549   /* Darker green */
+--color-text-primary: #ffffff   /* White text */
+```
+
+### Typography
+- **Body**: Lato (sans-serif)
+- **Headings/Logo**: Libre Baskerville (serif)
+- **Responsive**: Uses `clamp()` for fluid scaling
+
+### Components
+- **Buttons**: 4 variants (primary, secondary, location, back)
+- **Typography**: Semantic components (Title, Heading, BodyText)
+- **Layout**: Responsive containers with overflow protection
+
+## 🔧 Configuration
+
+### Waitwhile Integration
+The app integrates with Waitwhile for queue management:
+
+1. **Script Loading**: Loaded in `layout.tsx` with `beforeInteractive` strategy
+2. **Error Handling**: Graceful fallbacks if Waitwhile fails to load
+3. **Loading States**: User feedback during initialization
+4. **Retry Logic**: Users can retry failed connections
+
+### Image Optimization
+- **Formats**: WebP primary, JPEG fallback
+- **Responsive**: Multiple sizes for different screen densities
+- **Lazy Loading**: Images load as needed
+
+### Performance
+- **Font Loading**: Optimized Google Fonts with `font-display: swap`
+- **CSS**: Minimal, efficient styles with Tailwind
+- **JavaScript**: Code splitting and lazy loading
+- **Caching**: Appropriate cache headers for static assets
+
+## 🚨 Error Handling
+
+### Error Boundary
+Catches React errors and displays user-friendly fallbacks:
+```typescript
+<ErrorBoundary fallback={<CustomErrorUI />}>
+  <YourComponent />
+</ErrorBoundary>
+```
+
+### Waitwhile Errors
+- Connection timeouts (10 seconds)
+- Service unavailable fallbacks
+- Retry mechanisms
+- User-friendly error messages
+
+### Loading States
+- Page-level loading for route changes
+- Component-level loading for async operations
+- Skeleton screens for better perceived performance
+
+## 📱 Mobile Optimization
+
+### Responsive Design
+- **Mobile-first**: Designed for small screens, enhanced for larger
+- **Touch-friendly**: Appropriate touch targets (44px minimum)
+- **Text Scaling**: Respects user font size preferences
+- **Viewport**: Proper viewport meta tag configuration
+
+### Accessibility
+- **Semantic HTML**: Proper heading hierarchy and landmarks
+- **ARIA Labels**: Screen reader support
+- **Keyboard Navigation**: Full keyboard accessibility
+- **Color Contrast**: WCAG AA compliant colors
+
+## 🔍 Debugging
+
+### Development Tools
+```javascript
+// Available in browser console during development
+detectTextCutoff()     // Check for text overflow issues
+debugLog(message, data) // Conditional logging
+```
+
+### Common Issues
+1. **Waitwhile not loading**: Check network connectivity and script URL
+2. **Images not displaying**: Verify file paths and formats
+3. **Text cutoff**: Use `.text-safe` utility class
+4. **Layout issues**: Check responsive breakpoints
+
+## 🚀 Deployment
+
+### Build Process
+```bash
+npm run build    # Creates optimized production build
+npm run start    # Serves production build locally
+```
+
+### Environment Setup
+- Set production environment variables
+- Configure CDN for static assets
+- Set up error monitoring (optional)
+- Configure analytics (optional)
+
+### Performance Checklist
+- [ ] Images optimized and properly sized
+- [ ] Fonts loaded efficiently
+- [ ] JavaScript bundles analyzed
+- [ ] Lighthouse score > 90
+- [ ] Core Web Vitals passing
+
+## 📄 License
+
+[Add your license information here]
+
+## 🤝 Contributing
+
+[Add contribution guidelines here]
