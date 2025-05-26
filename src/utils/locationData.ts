@@ -215,13 +215,4 @@ export function getLocationInfo(airportSlug: string, concourseSlug: string): Loc
 // Generate route paths for navigation
 export function getLocationRoute(airportSlug: string, concourseSlug: string): string {
   return `/locations/${airportSlug}/${concourseSlug}`;
-}
-
-// Legacy compatibility - can be removed once all components are updated
-export const airportMap: Record<string, string> = {
-  'atlanta': 'ATL',
-  'dallas': 'DFW',
-  'las-vegas': 'LAS',
-  'minneapolis': 'MSP',
-  'houston': 'HOU'
-}; 
+} 
