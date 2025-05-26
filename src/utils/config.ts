@@ -49,7 +49,7 @@ export const config = {
 
 // Validation function to ensure required environment variables are set
 export function validateConfig() {
-  const requiredEnvVars = [
+  const requiredEnvVars: string[] = [
     // Add required environment variables here
     // 'NEXT_PUBLIC_REQUIRED_VAR',
   ];

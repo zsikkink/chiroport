@@ -6,11 +6,10 @@ import DropdownCard from './DropdownCard';
 import { airportLocations, getLocationRoute } from '@/utils/locationData';
 
 interface LocationsListProps {
-  isExpanded: boolean;
   onClose: () => void;
 }
 
-export default function LocationsList({ isExpanded, onClose }: LocationsListProps) {
+export default function LocationsList({ onClose }: LocationsListProps) {
   const router = useRouter();
 
   const handleLocationClick = (airportSlug: string, concourseSlug: string) => {

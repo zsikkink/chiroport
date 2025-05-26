@@ -92,7 +92,6 @@ export default function LocationsWrapper({
           {/* Content that determines natural height */}
           <div ref={panelRef} className="p-4">
             <LocationsList 
-              isExpanded={true} // Always render content for height measurement
               onClose={handleClose}
             />
           </div>
