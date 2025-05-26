@@ -36,8 +36,10 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },
-      { url: '/icons/favicon-32x32.png', sizes: '32x32', type: 'image/png' }
+      { url: '/favicon.ico', type: 'image/x-icon' }
     ],
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico',
   },
 };
 
@@ -66,7 +68,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="icon" href="/icons/favicon-32x32.png" sizes="32x32" type="image/png" />
         {/* Waitwhile inline-embed library */}
         <Script
           src="https://cdn.jsdelivr.net/npm/@waitwhile/waitwhile-embed/dist/waitwhile-embed.min.js"

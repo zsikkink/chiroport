@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Title } from './Typography';
 import Image from 'next/image';
@@ -16,6 +16,7 @@ interface ScrollHeaderProps {
  * A fixed header that stays visible at all times.
  * Features a logo that acts as a home button and customizable title.
  * Uses backdrop blur for a polished user experience when scrolled.
+ * Dynamically sizes text to prevent wrapping.
  */
 export default function ScrollHeader({
   title = 'Chiroport',
@@ -23,6 +24,55 @@ export default function ScrollHeader({
 }: ScrollHeaderProps) {
   const router = useRouter();
   const [isScrolled, setIsScrolled] = useState(false);
+  const [screenWidth, setScreenWidth] = useState(0);
+
+  // Monitor screen width for dynamic text sizing
+  useEffect(() => {
+    const updateScreenWidth = () => {
+      setScreenWidth(window.innerWidth);
+    };
+
+    updateScreenWidth();
+    window.addEventListener('resize', updateScreenWidth);
+    
+    return () => window.removeEventListener('resize', updateScreenWidth);
+  }, []);
+
+  // Calculate dynamic text size based on available width
+  const getTextSize = useCallback(() => {
+    if (screenWidth === 0) return { fontSize: '24px', lineHeight: '1.2' };
+    
+    // Calculate available width for text
+    const logoSpace = 48; // 12 * 4 (w-12)
+    const padding = screenWidth > 640 ? 48 : 32; // px-4 vs px-6
+    const spacerWidth = 48; // Right spacer
+    const availableWidth = screenWidth - logoSpace - padding - spacerWidth - 32; // Extra margin
+    
+    // Calculate optimal font size based on text length and available width
+    const textLength = title.length;
+    const charWidthRatio = 0.6; // Approximate character width ratio
+    
+    // Start with reasonable base sizes
+    let fontSize = screenWidth > 640 ? 36 : 24; // Base: text-4xl vs text-2xl
+    
+    // Calculate what size would fit
+    const estimatedTextWidth = textLength * fontSize * charWidthRatio;
+    
+    if (estimatedTextWidth > availableWidth) {
+      // Scale down to fit
+      fontSize = Math.max(16, availableWidth / (textLength * charWidthRatio));
+    }
+    
+    // Ensure reasonable bounds
+    const minSize = 16;
+    const maxSize = screenWidth > 640 ? 36 : 28;
+    fontSize = Math.max(minSize, Math.min(maxSize, fontSize));
+    
+    return {
+      fontSize: `${fontSize}px`,
+      lineHeight: '1.2'
+    };
+  }, [screenWidth, title]);
 
   useEffect(() => {
     const controlHeader = () => {
@@ -57,6 +107,8 @@ export default function ScrollHeader({
   const handleLogoClick = () => {
     router.push('/');
   };
+
+  const textStyle = getTextSize();
 
   return (
     <header 
@@ -97,16 +149,14 @@ export default function ScrollHeader({
             />
           </button>
 
-          {/* Title - Centered */}
-          <div className="flex-1 text-center px-4">
+          {/* Title - Centered with Dynamic Sizing */}
+          <div className="flex-1 text-center px-4 overflow-hidden">
             <Title 
               font="lato"
-              className="text-3xl sm:text-4xl font-bold text-white mobile-text-safe truncate"
+              className="font-bold text-white whitespace-nowrap overflow-hidden"
               style={{
-                wordWrap: 'break-word',
-                overflowWrap: 'anywhere',
-                wordBreak: 'break-word',
-                hyphens: 'auto',
+                fontSize: textStyle.fontSize,
+                lineHeight: textStyle.lineHeight,
                 maxWidth: '100%',
               }}
             >

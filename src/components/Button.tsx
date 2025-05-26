@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, ButtonHTMLAttributes, forwardRef } from 'react';
+import { ReactNode, ButtonHTMLAttributes, forwardRef, CSSProperties } from 'react';
 import { ChevronRightIcon, ChevronLeftIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 
 type ButtonVariant = 'primary' | 'secondary' | 'location' | 'back';
@@ -13,13 +13,17 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   iconPosition?: IconPosition;
   fullWidth?: boolean;
   className?: string;
+  style?: CSSProperties;
 }
 
 /**
  * Button Component
  * 
- * A reusable button component with consistent styling across the application.
- * Supports various variants and optional icons.
+ * A reusable, accessible button component with consistent styling across the application.
+ * - Supports dynamic styling via style prop
+ * - Uses fluid text sizing for accessibility when no style override
+ * - Supports various variants and optional icons
+ * - Maintains proper spacing and layout at all text sizes
  */
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   children,
@@ -28,57 +32,83 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   iconPosition = 'right',
   fullWidth = false,
   className = '',
+  style,
   ...props
 }, ref) => {
-  // Base classes for all buttons
-  const baseClasses = 'font-lato rounded transition-colors';
+  // Base classes for all buttons with accessibility features
+  const baseClasses = `
+    font-lato rounded transition-colors
+    overflow-hidden
+    flex items-center
+  `;
   
-  // Variant-specific styling using Tailwind's class format
+  // Variant-specific styling - only used when no style override
   const variantClasses: Record<ButtonVariant, string> = {
-    primary: 'bg-primary hover:bg-primary-dark text-white py-4 px-8 text-3xl sm:text-4xl md:text-5xl font-bold border-2 border-white shadow-lg',
-    secondary: 'bg-white hover:bg-gray-100 text-primary py-3 px-6 text-lg font-medium border border-primary',
-    location: 'bg-primary hover:bg-primary-dark text-white py-3 px-6 text-xl sm:text-2xl font-medium shadow-sm border border-white border-opacity-20',
-    back: 'bg-primary hover:bg-primary-dark text-white py-2 px-4 text-base font-medium'
+    primary: `
+      bg-primary hover:bg-primary-dark text-white 
+      py-3 px-4 
+      font-bold border-2 border-white shadow-lg
+      min-h-[3rem]
+    `,
+    secondary: `
+      bg-white hover:bg-gray-100 text-primary 
+      py-2 px-4 
+      font-medium border border-primary
+      min-h-[2.5rem]
+    `,
+    location: `
+      bg-primary hover:bg-primary-dark text-white 
+      py-2 px-4 
+      font-medium shadow-sm border border-white border-opacity-20
+      min-h-[2.5rem]
+    `,
+    back: `
+      bg-primary hover:bg-primary-dark text-white 
+      py-2 px-3 
+      font-medium
+      min-h-[2rem]
+    `
   };
   
-  // Width classes
+  // Width classes with overflow protection
   const widthClasses = fullWidth ? 'w-full' : '';
   
-  // Layout and icon spacing classes
+  // Layout classes based on icon position
   const getLayoutClasses = () => {
-    const base = 'flex items-center';
     switch (iconPosition) {
       case 'left':
-        return `${base} flex-row`;
+        return 'justify-start';
       case 'right':
-        return `${base} justify-between`;
+        return 'justify-between';
       default:
-        return base;
+        return 'justify-center';
     }
   };
   
-  // Icon spacing
-  const iconSpacing = iconPosition === 'left' ? 'mr-2' : 'ml-4';
+  // Icon spacing with responsive design
+  const iconSpacing = iconPosition === 'left' ? 'mr-2' : 'ml-2';
   
-  // Combine all classes
+  // Combine classes - skip variant classes if style is provided
   const classes = [
     baseClasses,
-    variantClasses[variant],
+    !style ? variantClasses[variant] : '', // Only use variant classes if no style override
     getLayoutClasses(),
     widthClasses,
     className
   ].filter(Boolean).join(' ');
 
-  // Convert string icons to Heroicon components
+  // Convert string icons to Heroicon components with responsive sizing
   const getIconComponent = () => {
     if (!icon) return null;
     
+    const iconClasses = "w-4 h-4 flex-shrink-0";
+    
     if (icon === '→') {
-      return <ChevronRightIcon className="w-5 h-5" />;
+      return <ChevronRightIcon className={iconClasses} />;
     } else if (icon === '←') {
-      return <ChevronLeftIcon className="w-5 h-5" />;
+      return <ChevronLeftIcon className={iconClasses} />;
     } else if (icon === '↓') {
-      return <ChevronDownIcon className="w-5 h-5" />;
+      return <ChevronDownIcon className={iconClasses} />;
     }
     
     return icon;
@@ -87,11 +117,19 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   const iconComponent = getIconComponent();
 
   return (
-    <button ref={ref} className={classes} {...props}>
+    <button ref={ref} className={classes} style={style} {...props}>
       {iconPosition === 'left' && iconComponent && (
         <span className={iconSpacing}>{iconComponent}</span>
       )}
-      {children}
+      <span className="
+        flex-1 
+        overflow-hidden
+        whitespace-nowrap
+        text-ellipsis
+        text-center
+      ">
+        {children}
+      </span>
       {iconPosition === 'right' && iconComponent && (
         <span className={iconSpacing}>{iconComponent}</span>
       )}

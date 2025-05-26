@@ -11,30 +11,21 @@ interface FeatureCardsProps {
  * FeatureCards Component
  * 
  * Displays a section of responsive cards highlighting features and information.
- * Extracted from HomePage for better component organization.
+ * Now works with the dynamic width system - uses full available width within
+ * the 90% screen constraint set by the parent container.
  */
 export default function FeatureCards({ className = '' }: FeatureCardsProps) {
-  // Container classes for the cards section
-  const containerClasses = [
-    'w-full max-w-3xl gap-6 px-2 sm:px-4',
-    'mt-2 sm:mt-4',
-    className
-  ].filter(Boolean).join(' ');
-  
-  // Grid layout for the two-column section
-  const twoColGridClasses = 'grid sm:grid-cols-2 gap-4 sm:gap-6';
-  
   return (
-    <div className={containerClasses}>
+    <div className={`w-full ${className}`}>
       {/* Services card - full width */}
-      <ResponsiveCard title="Services" className="mb-4">
+      <ResponsiveCard title="Services" className="mb-4 sm:mb-6">
         <BodyText size="xl" className="font-medium">
           Our responsive design adapts to your device size automatically, providing the best experience whether you're on mobile, tablet, or desktop.
         </BodyText>
       </ResponsiveCard>
 
       {/* Two column layout for About Us and Contact */}
-      <div className={twoColGridClasses}>
+      <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
         <ResponsiveCard title="About Us">
           <ul className="list-disc list-inside space-y-2 font-lato text-xl font-medium">
             <li>Responsive design</li>
