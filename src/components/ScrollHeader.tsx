@@ -101,7 +101,7 @@ export default function ScrollHeader({
           <div className="flex-1 text-center px-4">
             <Title 
               font="lato"
-              className="text-xl sm:text-2xl font-bold text-white mobile-text-safe truncate"
+              className="text-3xl sm:text-4xl font-bold text-white mobile-text-safe truncate"
               style={{
                 wordWrap: 'break-word',
                 overflowWrap: 'anywhere',

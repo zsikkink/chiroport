@@ -26,8 +26,8 @@ export default function HomeHero({
   
   // Optimized title classes for maximum visual width
   const titleClasses = [
-    // Increased viewport width percentage for larger visual presence
-    'text-[clamp(2.5rem,15vw,10rem)]', // Increased from 12vw to 15vw, max from 8rem to 10rem
+    // Updated clamp to start at 1.875rem (text-3xl) to match Locations button on mobile
+    'text-[clamp(1.875rem,15vw,10rem)]', // Changed from 2.5rem to 1.875rem to match text-3xl
     'text-center',
     'mb-4 sm:mb-6',
     'leading-[1.05]', // Tighter line height for larger appearance

@@ -64,18 +64,22 @@ export default function LocationsWrapper({
   return (
     <div 
       className={`
-        inline-block origin-top transition-transform duration-300
+        inline-block origin-top transition-all duration-300 ease-in-out
         ${isOpen ? 'scale-x-105' : ''}
+        ${isOpen ? 'min-w-[320px] max-w-[600px]' : 'min-w-[200px] max-w-[240px] sm:min-w-[280px] sm:max-w-[320px]'}
         ${className}
       `}
     >
       {/* Border wrapper for the entire component */}
-      <div className="border-2 border-white rounded-lg overflow-hidden">
+      <div className="border-2 border-white rounded-lg overflow-hidden transition-all duration-300 ease-in-out">
         {/* Main Button */}
         <PrimaryButton
           onClick={handleToggle}
           icon={isOpen ? "↓" : "→"}
-          className="w-full !border-0 !rounded-none"
+          className={`
+            w-full !border-0 !rounded-none transition-all duration-300 ease-in-out
+            ${isOpen ? 'px-8' : 'px-4 sm:px-7'} // Much less padding on mobile when closed
+          `}
         >
           {buttonText}
         </PrimaryButton>
