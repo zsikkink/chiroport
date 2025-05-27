@@ -2,9 +2,7 @@
 
 import ResponsiveLayout from '@/components/ResponsiveLayout';
 import { useParams } from 'next/navigation';
-import LocationImage from '@/components/LocationImage';
 import LocationDetails from '@/components/LocationDetails';
-import WaitwhileInline from '@/components/WaitwhileInline';
 import ScrollHeader from '@/components/ScrollHeader';
 import { getLocationInfo, findAirport, findConcourse } from '@/utils/locationData';
 import { notFound } from 'next/navigation';
@@ -13,7 +11,7 @@ import { notFound } from 'next/navigation';
  * CONCOURSE PAGE COMPONENT
  * 
  * This is the main page component for individual airport concourse locations.
- * It displays location-specific information and provides queue joining functionality.
+ * It displays location-specific information for chiropractic services.
  * 
  * ROUTE STRUCTURE:
  * /locations/[location]/[concourse]
@@ -21,15 +19,12 @@ import { notFound } from 'next/navigation';
  * 
  * PAGE FLOW:
  * 1. Header with location name and navigation
- * 2. Waitwhile queue interface (primary action)
- * 3. Location details (hours, directions)
- * 4. Location photo (visual reference)
+ * 2. Location details (hours, directions, contact info)
  * 
  * KEY FEATURES:
  * - Dynamic route parameter handling
  * - Responsive design across all screen sizes
- * - Integration with Waitwhile queue management
- * - Location-specific data and imagery
+ * - Location-specific data display
  * - Consistent spacing and layout system
  */
 export default function ConcoursePage() {
@@ -52,30 +47,9 @@ export default function ConcoursePage() {
       <ScrollHeader title={headerTitle} />
       
       <ResponsiveLayout>
-        {/* Waitwhile Queue Section */}
-        <div className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white lg:bg-transparent mb-8 mt-20">
-          <div className="w-full max-w-7xl mx-auto px-4 py-6">
-            <WaitwhileInline 
-              locationId={locationInfo.waitwhileId}
-              className="w-full lg:max-w-lg lg:mx-auto"
-            />
-          </div>
-        </div>
-
         {/* Location Details Section */}
-        <div className="w-full sm:max-w-3xl mx-auto px-4 sm:px-0 mb-8">
+        <div className="w-full sm:max-w-3xl mx-auto px-4 sm:px-0 mt-20">
           <LocationDetails locationInfo={locationInfo} />
-        </div>
-
-        {/* Location Photo Section */}
-        <div className="w-full sm:max-w-3xl mx-auto px-4 sm:px-0">
-          <LocationImage 
-            src={locationInfo.imageUrl}
-            alt={`${airport.name} ${concourseInfo.displayName} Chiroport location`}
-            aspectRatio="16/9"
-            objectFit="cover"
-            objectPosition="center center"
-          />
         </div>
       </ResponsiveLayout>
     </>

@@ -12,13 +12,6 @@ export const isTest = process.env.NODE_ENV === 'test';
 
 // API Configuration
 export const config = {
-  // Waitwhile Configuration
-  waitwhile: {
-    scriptUrl: process.env.NEXT_PUBLIC_WAITWHILE_SCRIPT_URL || 
-              'https://cdn.jsdelivr.net/npm/@waitwhile/waitwhile-embed/dist/waitwhile-embed.min.js',
-    timeout: parseInt(process.env.NEXT_PUBLIC_WAITWHILE_TIMEOUT || '10000'),
-  },
-
   // Application Settings
   app: {
     name: 'Chiroport',
@@ -66,10 +59,6 @@ export function validateConfig() {
 }
 
 // Helper functions
-export function getWaitwhileScriptUrl(): string {
-  return config.waitwhile.scriptUrl;
-}
-
 export function isFeatureEnabled(feature: keyof typeof config.features): boolean {
   return config.features[feature];
 }

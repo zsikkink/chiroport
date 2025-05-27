@@ -13,8 +13,7 @@ export interface LocationInfo {
   imageUrl: string;
   customLocation: string;
   customHours: string;
-  waitwhileId: string;
-  displayName: string; // Add explicit display name
+  displayName: string;
 }
 
 export interface AirportLocation {
@@ -52,7 +51,6 @@ export const airportLocations: AirportLocation[] = [
           imageUrl: '/images/stores/atl-a.webp',
           customLocation: 'Near the main rotunda of concourse A next to the BlueWire kiosk and the Delta Help Desk',
           customHours: '7am - 7pm ET',
-          waitwhileId: 'atlanta-placeholder-id',
           displayName: 'Concourse A'
         }
       }
@@ -74,7 +72,6 @@ export const airportLocations: AirportLocation[] = [
           imageUrl: '/images/stores/dfw-a.webp',
           customLocation: 'Between Gate A29 and California Pizza Kitchen',
           customHours: '7am - 7pm CT',
-          waitwhileId: 'dfwa29',
           displayName: 'Concourse A'
         }
       }
@@ -96,7 +93,6 @@ export const airportLocations: AirportLocation[] = [
           imageUrl: '/images/stores/hou-w.webp',
           customLocation: 'West Concourse near the Common Bond restaurant and gate 1',
           customHours: '8am - 6pm CT',
-          waitwhileId: 'houstonhobby',
           displayName: 'West Concourse'
         }
       }
@@ -118,7 +114,6 @@ export const airportLocations: AirportLocation[] = [
           imageUrl: '/images/stores/las-b.webp',
           customLocation: 'Across from Starbucks and near the walkway to concourse C',
           customHours: '8am - 6pm PT',
-          waitwhileId: 'lasbacrossfromstarbu',
           displayName: 'Concourse B'
         }
       },
@@ -133,7 +128,6 @@ export const airportLocations: AirportLocation[] = [
           imageUrl: '/images/stores/las-c.webp',
           customLocation: 'Near gate C24 and directly across from the Raiders memorabilia store',
           customHours: '8am - 6pm PT',
-          waitwhileId: 'lasvegasc24',
           displayName: 'Concourse C'
         }
       }
@@ -155,7 +149,6 @@ export const airportLocations: AirportLocation[] = [
           imageUrl: '/images/stores/msp-c.webp',
           customLocation: 'Near gate C12 and across from Delta SkyClub',
           customHours: '7am - 8pm CT',
-          waitwhileId: 'thechiroport573',
           displayName: 'Concourse C'
         }
       },
@@ -170,7 +163,6 @@ export const airportLocations: AirportLocation[] = [
           imageUrl: '/images/stores/msp-f.webp',
           customLocation: 'Near Gate F6, across from the food court and next to the Local Marketplace',
           customHours: '7am - 8pm CT',
-          waitwhileId: 'chiroportmspf8081',
           displayName: 'Concourse F'
         }
       },
@@ -185,7 +177,6 @@ export const airportLocations: AirportLocation[] = [
           imageUrl: '/images/stores/msp-g.webp',
           customLocation: 'At the entrance to the G concourse, across from the help desk',
           customHours: '7am - 8pm CT',
-          waitwhileId: 'thechiroportmspg',
           displayName: 'Concourse G'
         }
       }

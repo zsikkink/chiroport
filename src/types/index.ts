@@ -10,7 +10,6 @@ export interface LocationInfo {
   imageUrl: string;
   customLocation: string;
   customHours: string;
-  waitwhileId: string;
   displayName: string;
 }
 
@@ -38,11 +37,6 @@ export interface ButtonProps {
   className?: string;
   onClick?: () => void;
   disabled?: boolean;
-}
-
-export interface WaitwhileProps {
-  locationId: string;
-  className?: string;
 }
 
 export interface LocationImageProps {
@@ -88,15 +82,4 @@ export interface AppError {
 
 // Utility Types
 export type AirportCode = 'ATL' | 'DFW' | 'HOU' | 'LAS' | 'MSP';
-export type ImageFormat = 'webp' | 'jpeg';
-
-// Global Window Extensions
-declare global {
-  interface Window {
-    Waitwhile?: {
-      Embed: (config: { locationId: string }) => {
-        render: (container: HTMLElement) => void;
-      };
-    };
-  }
-} 
+export type ImageFormat = 'webp' | 'jpeg'; 
