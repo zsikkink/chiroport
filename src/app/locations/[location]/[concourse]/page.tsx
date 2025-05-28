@@ -40,7 +40,7 @@ export default function ConcoursePage() {
     notFound();
   }
 
-  const headerTitle = `${airport.name} ${concourseInfo.displayName}`;
+  const headerTitle = `${airport.code} ${concourseInfo.displayName}`;
 
   return (
     <>

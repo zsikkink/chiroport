@@ -49,7 +49,7 @@ export const airportLocations: AirportLocation[] = [
           landmark: 'Delta Help Desk',
           airportCode: 'ATL',
           imageUrl: '/images/stores/atl-a.webp',
-          customLocation: 'Near the main rotunda of concourse A next to the BlueWire kiosk and the Delta Help Desk',
+          customLocation: 'Located near the main rotunda of Concourse A next to the BlueWire kiosk and the Delta Help Desk.',
           customHours: '7am - 7pm ET',
           displayName: 'Concourse A'
         }
@@ -70,7 +70,7 @@ export const airportLocations: AirportLocation[] = [
           landmark: 'California Pizza Kitchen',
           airportCode: 'DFW',
           imageUrl: '/images/stores/dfw-a.webp',
-          customLocation: 'Between Gate A29 and California Pizza Kitchen',
+          customLocation: 'Located between Gate A29 and California Pizza Kitchen.',
           customHours: '7am - 7pm CT',
           displayName: 'Concourse A'
         }
@@ -91,7 +91,7 @@ export const airportLocations: AirportLocation[] = [
           landmark: 'Common Bond',
           airportCode: 'HOU',
           imageUrl: '/images/stores/hou-w.webp',
-          customLocation: 'West Concourse near the Common Bond restaurant and gate 1',
+          customLocation: 'Located in the West Concourse near the Common Bond restaurant and Gate 1.',
           customHours: '8am - 6pm CT',
           displayName: 'West Concourse'
         }
@@ -112,7 +112,7 @@ export const airportLocations: AirportLocation[] = [
           landmark: 'Starbucks',
           airportCode: 'LAS',
           imageUrl: '/images/stores/las-b.webp',
-          customLocation: 'Across from Starbucks and near the walkway to concourse C',
+          customLocation: 'Located across from Starbucks and near the walkway to Concourse C.',
           customHours: '8am - 6pm PT',
           displayName: 'Concourse B'
         }
@@ -126,7 +126,7 @@ export const airportLocations: AirportLocation[] = [
           landmark: 'Raiders memorabilia store',
           airportCode: 'LAS',
           imageUrl: '/images/stores/las-c.webp',
-          customLocation: 'Near gate C24 and directly across from the Raiders memorabilia store',
+          customLocation: 'Located near Gate C24 and directly across from the Raiders memorabilia store.',
           customHours: '8am - 6pm PT',
           displayName: 'Concourse C'
         }
@@ -147,7 +147,7 @@ export const airportLocations: AirportLocation[] = [
           landmark: 'Delta SkyClub',
           airportCode: 'MSP',
           imageUrl: '/images/stores/msp-c.webp',
-          customLocation: 'Near gate C12 and across from Delta SkyClub',
+          customLocation: 'Located near Gate C12 and across from Delta SkyClub.',
           customHours: '7am - 8pm CT',
           displayName: 'Concourse C'
         }
@@ -161,7 +161,7 @@ export const airportLocations: AirportLocation[] = [
           landmark: 'Local Marketplace',
           airportCode: 'MSP',
           imageUrl: '/images/stores/msp-f.webp',
-          customLocation: 'Near Gate F6, across from the food court and next to the Local Marketplace',
+          customLocation: 'Located near Gate F6, across from the food court and next to the Local Marketplace.',
           customHours: '7am - 8pm CT',
           displayName: 'Concourse F'
         }
@@ -175,7 +175,7 @@ export const airportLocations: AirportLocation[] = [
           landmark: 'help desk',
           airportCode: 'MSP',
           imageUrl: '/images/stores/msp-g.webp',
-          customLocation: 'At the entrance to the G concourse, across from the help desk',
+          customLocation: 'Located at the entrance to the G concourse, across from the help desk.',
           customHours: '7am - 8pm CT',
           displayName: 'Concourse G'
         }

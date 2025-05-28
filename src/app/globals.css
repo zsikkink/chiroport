@@ -5,6 +5,12 @@
 /* Import Tailwind's utility styles */
 @tailwind utilities;
 
+/* PhoneInput component styling */
+.PhoneInputInput { 
+  @apply text-black placeholder-gray-500 px-6 py-5 text-lg outline-none bg-transparent;
+  flex: 1;
+}
+
 /* Root CSS variables for theming - accessible throughout the application */
 :root {
   /* Color scheme - can be modified for different brand colors */
