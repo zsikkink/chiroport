@@ -1,6 +1,6 @@
 'use client';
 
-import { useReducer } from 'react';
+import { useReducer, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeftIcon } from '@heroicons/react/24/solid';
 import PhoneInput from 'react-phone-number-input';
@@ -18,13 +18,13 @@ import { parsePhoneNumberFromString, isValidPhoneNumber, AsYouType } from 'libph
 
 const TREATMENTS = [
   { title: 'Body on the Go', price: '$69', time: '10 min', description: 'Full spinal and neck adjustment' },
-  { title: 'Total Wellness', price: '$99', time: '20 min', description: 'Signature service—trigger‑point muscle therapy, full‑body stretch, spinal & neck adjustments' },
-  { title: 'Sciatica & Lower Back Targeted Therapy', price: '$119', time: '20 min', description: 'Focused relief for sciatica and lower back' },
-  { title: 'Neck & Upper Back Targeted Therapy', price: '$119', time: '20 min', description: 'Focused relief for neck and upper back' },
-  { title: 'Trigger Point Muscle Therapy & Stretch', price: '$89', time: '20 min', description: 'Relieve postural tightness, boost circulation' },
-  { title: 'Chiro Massage', price: '$79', time: '20 min', description: 'Thai‑inspired massage with trigger‑point therapy & stretching' },
-  { title: 'Chiro Massage Mini', price: '$39', time: '10 min', description: 'Condensed Thai‑inspired massage' },
-  { title: 'Undecided', price: '', time: '', description: 'Discuss options with chiropractor' }
+  { title: 'Total Wellness', price: '$99', time: '20 min', description: 'Our signature service—trigger point muscle therapy, full-body stretch, and complete spinal & neck adjustments' },
+  { title: 'Sciatica & Lower Back Targeted Therapy', price: '$119', time: '20 min', description: 'Focused spinal adjustments and muscle work to relieve sciatica and lower back discomfort' },
+  { title: 'Neck & Upper Back Targeted Therapy', price: '$119', time: '20 min', description: 'Focused spinal adjustments and muscle work to relieve neck and upper back discomfort' },
+  { title: 'Trigger Point Muscle Therapy & Stretch', price: '$89', time: '20 min', description: 'Relieve postural muscle tightness from travel, enhance blood flow, and calm your nervous system' },
+  { title: 'Chiro Massage', price: '$79', time: '20 min', description: 'A Thai-inspired massage blending trigger-point muscle therapy, dynamic stretching, and mechanical massagers' },
+  { title: 'Chiro Massage Mini', price: '$39', time: '10 min', description: 'A Thai-inspired massage blending trigger-point muscle therapy and mechanical massagers' },
+  { title: 'Undecided', price: '', time: '', description: 'Not sure which therapy is right? Discuss your needs with our chiropractor to choose the best treatment' }
 ] as const;
 
 type Step = 'question' | 'join' | 'nonmember' | 'treatments' | 'details';
@@ -40,6 +40,9 @@ interface WizardState {
     name: string;
     phone: string;
     email: string;
+    birthday: string;
+    discomfort: string[];
+    additionalInfo: string;
   };
   submitAttempted: boolean;
 }
@@ -51,6 +54,7 @@ type Action =
   | { type: 'DESELECT_SPINAL' }
   | { type: 'SELECT_TREATMENT'; treatment: Treatment }
   | { type: 'UPDATE_FIELD'; field: keyof WizardState['details']; value: string }
+  | { type: 'UPDATE_DISCOMFORT'; values: string[] }
   | { type: 'ATTEMPT_SUBMIT' }
   | { type: 'RESET' };
 
@@ -61,7 +65,23 @@ type Action =
 const detailsSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   phone: z.string().min(1, 'Phone is required').refine(isValidPhoneNumber, 'Invalid phone number'),
-  email: z.string().email('Invalid email')
+  email: z.string().email('Invalid email'),
+  birthday: z.string().min(1, 'Birthday is required').refine((date) => {
+    const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
+    if (!dateRegex.test(date)) return false;
+    
+    const [month, day, year] = date.split('/').map(Number);
+    const dateObj = new Date(year, month - 1, day);
+    
+    // Check if the date is valid and matches the input
+    return dateObj.getFullYear() === year && 
+           dateObj.getMonth() === month - 1 && 
+           dateObj.getDate() === day &&
+           year >= 1900 && 
+           year <= new Date().getFullYear();
+  }, 'Invalid date format (MM/DD/YYYY)'),
+  discomfort: z.array(z.string()).min(1, 'Please select at least one option'),
+  additionalInfo: z.string().optional()
 });
 
 // ============================================================================
@@ -74,7 +94,7 @@ const initialState: WizardState = {
   direction: 'forward',
   spinalAdjustment: null,
   selectedTreatment: null,
-  details: { name: '', phone: '', email: '' },
+  details: { name: '', phone: '', email: '', birthday: '', discomfort: [], additionalInfo: '' },
   submitAttempted: false
 };
 
@@ -112,6 +132,12 @@ function wizardReducer(state: WizardState, action: Action): WizardState {
       return {
         ...state,
         details: { ...state.details, [action.field]: action.value }
+      };
+
+    case 'UPDATE_DISCOMFORT':
+      return {
+        ...state,
+        details: { ...state.details, discomfort: action.values }
       };
 
     case 'ATTEMPT_SUBMIT':
@@ -212,7 +238,7 @@ const InputField = ({
   required?: boolean;
 }) => (
   <div>
-    <label className="block text-white text-sm font-medium mb-2">
+    <label className="block text-white text-base font-bold mb-2">
       {label} {required && '*'}
     </label>
     <input
@@ -264,7 +290,7 @@ function PhoneField({ details, onUpdateField, submitAttempted, errors }: {
 
   return (
     <div>
-      <label className="block text-white text-sm font-medium mb-2">
+      <label className="block text-white text-base font-bold mb-2">
         Phone Number *
       </label>
 
@@ -296,6 +322,165 @@ function PhoneField({ details, onUpdateField, submitAttempted, errors }: {
   );
 }
 
+function BirthdayField({ details, onUpdateField, submitAttempted, errors }: {
+  details: WizardState['details'];
+  onUpdateField: (field: keyof WizardState['details'], value: string) => void;
+  submitAttempted: boolean;
+  errors: any;
+}) {
+  // Format birthday as MM/DD/YYYY
+  const formatBirthday = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length <= 2) return cleaned;
+    if (cleaned.length <= 4) return `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
+    return `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
+  };
+
+  const handleBirthdayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Extract only digits and format
+    const digitsOnly = value.replace(/\D/g, '');
+    // Limit to 8 digits (MMDDYYYY)
+    const limited = digitsOnly.slice(0, 8);
+    const formatted = formatBirthday(limited);
+    onUpdateField('birthday', formatted);
+  };
+
+  return (
+    <div>
+      <label className="block text-white text-base font-bold mb-2">
+        Birthday *
+      </label>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={details.birthday || ''}
+        onChange={handleBirthdayChange}
+        placeholder="MM/DD/YYYY"
+        className="w-full bg-white text-black rounded-lg p-4 border-2 border-white focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-500"
+      />
+      {submitAttempted && errors.birthday && (
+        <p className="text-red-400 text-sm mt-1">{errors.birthday[0]}</p>
+      )}
+    </div>
+  );
+}
+
+const DISCOMFORT_OPTIONS = [
+  'Neck Tension or Stiffness',
+  'Headache',
+  'Upper Back Tightness',
+  'Lower Back Tightness',
+  'Sciatica',
+  'General Soreness',
+  'No discomfort'
+] as const;
+
+function DiscomfortField({ details, onUpdateDiscomfort, submitAttempted, errors }: {
+  details: WizardState['details'];
+  onUpdateDiscomfort: (values: string[]) => void;
+  submitAttempted: boolean;
+  errors: any;
+}) {
+  const handleCheckboxChange = (option: string, checked: boolean) => {
+    let newDiscomfort = [...details.discomfort];
+    
+    if (option === 'No discomfort') {
+      // If "No discomfort" is selected, clear all others
+      if (checked) {
+        newDiscomfort = ['No discomfort'];
+      } else {
+        newDiscomfort = [];
+      }
+    } else {
+      // If any other option is selected, remove "No discomfort"
+      if (checked) {
+        newDiscomfort = newDiscomfort.filter(item => item !== 'No discomfort');
+        newDiscomfort.push(option);
+      } else {
+        newDiscomfort = newDiscomfort.filter(item => item !== option);
+      }
+    }
+    
+    onUpdateDiscomfort(newDiscomfort);
+  };
+
+  return (
+    <div>
+      <label className="block text-white text-base font-bold mb-3">
+        Where are you experiencing discomfort? (Select all that apply) *
+      </label>
+      <div className="space-y-3">
+        {DISCOMFORT_OPTIONS.map((option) => {
+          const isChecked = details.discomfort.includes(option);
+          return (
+            <label
+              key={option}
+              className="flex items-center cursor-pointer group"
+            >
+              <div className="relative flex items-center">
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={(e) => handleCheckboxChange(option, e.target.checked)}
+                  className="sr-only"
+                />
+                <div className={`
+                  w-5 h-5 rounded border-2 border-white flex items-center justify-center transition-colors duration-200
+                  ${isChecked 
+                    ? 'bg-white' 
+                    : 'bg-transparent group-hover:bg-white/10'
+                  }
+                `}>
+                  {isChecked && (
+                    <svg className="w-3 h-3 text-[#56655A]" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+              </div>
+              <span className="ml-3 text-white text-base">{option}</span>
+            </label>
+          );
+        })}
+      </div>
+      {submitAttempted && errors.discomfort && (
+        <p className="text-red-400 text-sm mt-2">{errors.discomfort[0]}</p>
+      )}
+    </div>
+  );
+}
+
+const TextAreaField = ({ 
+  label, 
+  value, 
+  onChange, 
+  placeholder, 
+  error,
+  required = false
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  error?: string;
+  required?: boolean;
+}) => (
+  <div>
+    <label className="block text-white text-base font-bold mb-2">
+      {label} {required && '*'}
+    </label>
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={4}
+      className="w-full bg-white text-black rounded-lg p-4 border-2 border-white focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-500 resize-vertical"
+    />
+    {error && <p className="text-red-400 text-sm mt-1">{error}</p>}
+  </div>
+);
+
 // ============================================================================
 // STEP COMPONENTS
 // ============================================================================
@@ -323,18 +508,31 @@ const JoinStep = ({
   <div className="space-y-4 py-4">
     <BackButton onClick={onBack} />
     <BodyText size="2xl" className="font-medium text-white">
-      Stretching, muscle work, and massage—Priority Pass & Lounge Key only
+      This service includes stretching, muscle work, and massage—Priority Pass & Lounge Key only
     </BodyText>
     <div className="space-y-3">
       <BodyText size="2xl" className="text-white">
-        Add spinal & neck adjustments for $29 <span className="font-semibold">(58% Off!)</span>
+        Would you like to add spinal & neck adjustments for $29
       </BodyText>
-      <YesNoButtons 
-        onYes={() => onSetSpinal(true)} 
-        onNo={() => onSetSpinal(false)} 
-        selected={spinalAdjustment}
-        onDeselect={onDeselectSpinal}
-      />
+      <BodyText size="2xl" className="text-white">
+        <span className="font-semibold">(58% Off!)</span>
+      </BodyText>
+      <div className="flex gap-4">
+        <PrimaryButton
+          onClick={() => onSetSpinal(true)}
+          fullWidth
+          className="text-lg font-semibold"
+        >
+          Yes
+        </PrimaryButton>
+        <PrimaryButton
+          onClick={() => onSetSpinal(false)}
+          fullWidth
+          className="text-lg font-semibold"
+        >
+          No
+        </PrimaryButton>
+      </div>
     </div>
   </div>
 );
@@ -367,21 +565,26 @@ const TreatmentsStep = ({
   onBack: () => void;
 }) => (
   <div className="space-y-4 py-4">
-    <StepHeader title="Select Service" showBack onBack={onBack} />
+    <div className="relative flex items-center mb-6">
+      <BackButton onClick={onBack} />
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <BodyText size="3xl" className="font-bold text-white text-center">Select Service</BodyText>
+      </div>
+    </div>
     <div className="space-y-3">
       {TREATMENTS.map((treatment) => (
         <button
           key={treatment.title}
           onClick={() => onSelect(treatment)}
-          className="w-full bg-primary text-white rounded-lg p-4 text-left border-2 border-white hover:bg-primary/90 transition-colors duration-200"
+          className="w-full bg-primary text-white rounded-lg p-4 text-left border-2 border-white hover:bg-primary-dark transition-colors duration-200"
         >
           <h3 className="font-bold text-lg mb-1">{treatment.title}</h3>
           {treatment.price && treatment.time && (
-            <div className="text-sm font-bold mb-2 opacity-90">
+            <div className="text-sm font-bold mb-2">
               {treatment.price} • {treatment.time}
             </div>
           )}
-          <p className="text-base opacity-90 leading-relaxed">{treatment.description}</p>
+          <p className="text-base leading-relaxed">{treatment.description}</p>
         </button>
       ))}
     </div>
@@ -393,13 +596,15 @@ const DetailsStep = ({
   onUpdateField, 
   onSubmit, 
   onBack, 
-  submitAttempted 
+  submitAttempted,
+  dispatch
 }: {
   details: WizardState['details'];
   onUpdateField: (field: keyof WizardState['details'], value: string) => void;
   onSubmit: () => void;
   onBack: () => void;
   submitAttempted: boolean;
+  dispatch: (action: Action) => void;
 }) => {
   const validation = detailsSchema.safeParse(details);
   const errors = validation.success ? {} : validation.error.formErrors.fieldErrors;
@@ -409,7 +614,7 @@ const DetailsStep = ({
       <div className="relative flex items-center mb-6">
         <BackButton onClick={onBack} />
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <BodyText size="2xl" className="font-bold text-white text-center">Enter your details</BodyText>
+          <BodyText size="3xl" className="font-bold text-white text-center">Enter your details</BodyText>
         </div>
       </div>
 
@@ -439,8 +644,31 @@ const DetailsStep = ({
         required
       />
 
+      <BirthdayField
+        details={details}
+        onUpdateField={onUpdateField}
+        submitAttempted={submitAttempted}
+        errors={errors}
+      />
+
+      <DiscomfortField
+        details={details}
+        onUpdateDiscomfort={(values) => dispatch({ type: 'UPDATE_DISCOMFORT', values })}
+        submitAttempted={submitAttempted}
+        errors={errors}
+      />
+
+      <TextAreaField
+        label="Is there anything else you would like the chiropractor to know? (Optional)"
+        value={details.additionalInfo}
+        onChange={(value) => onUpdateField('additionalInfo', value)}
+        placeholder="Add any additional information"
+        error={submitAttempted ? errors.additionalInfo?.[0] : undefined}
+        required={false}
+      />
+
       <PrimaryButton onClick={onSubmit} fullWidth className="text-lg font-semibold mt-6">
-        Submit
+        Join Queue
       </PrimaryButton>
     </div>
   );
@@ -458,6 +686,13 @@ export default function LocationDetails({
   className?: string;
 }) {
   const [state, dispatch] = useReducer(wizardReducer, initialState);
+
+  // Scroll to top when navigating between service menu and details
+  useEffect(() => {
+    if (state.step === 'treatments' || state.step === 'details') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [state.step]);
 
   const goTo = (step: Step) => dispatch({ type: 'GO_TO', step });
   const goBack = () => dispatch({ type: 'GO_BACK' });
@@ -485,7 +720,7 @@ export default function LocationDetails({
           <motion.div key={state.step} {...animationProps}>
             <MembershipStep
               onYes={() => goTo('join')}
-              onNo={() => goTo('nonmember')}
+              onNo={() => goTo('treatments')}
             />
           </motion.div>
         );
@@ -538,6 +773,7 @@ export default function LocationDetails({
               onSubmit={handleSubmit}
               onBack={goBack}
               submitAttempted={state.submitAttempted}
+              dispatch={dispatch}
             />
           </motion.div>
         );
