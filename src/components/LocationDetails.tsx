@@ -512,10 +512,7 @@ const JoinStep = ({
     </BodyText>
     <div className="space-y-3">
       <BodyText size="2xl" className="text-white">
-        Would you like to add spinal & neck adjustments for $29
-      </BodyText>
-      <BodyText size="2xl" className="text-white">
-        <span className="font-semibold">(58% Off!)</span>
+      Save 58%! Would you like spinal & neck adjustments for just $29?
       </BodyText>
       <div className="flex gap-4">
         <PrimaryButton

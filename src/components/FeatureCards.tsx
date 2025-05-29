@@ -18,11 +18,30 @@ export default function FeatureCards({ className = '' }: FeatureCardsProps) {
   return (
     <div className={`w-full ${className}`}>
       {/* Services card - full width */}
-      <ResponsiveCard title="Services" className="mb-4 sm:mb-6">
-        <BodyText size="xl" className="font-medium">
-          Our responsive design adapts to your device size automatically, providing the best experience whether you're on mobile, tablet, or desktop.
-        </BodyText>
-      </ResponsiveCard>
+      <ResponsiveCard title="Services Include" className="mb-4 sm:mb-6">
+  <ul className="list-disc list-inside space-y-2">
+    <li>
+      <BodyText size="xl" className="font-medium">
+        Chiropractic adjustments
+      </BodyText>
+    </li>
+    <li>
+      <BodyText size="xl" className="font-medium">
+        Trigger point muscle therapy
+      </BodyText>
+    </li>
+    <li>
+      <BodyText size="xl" className="font-medium">
+        Massage
+      </BodyText>
+    </li>
+    <li>
+      <BodyText size="xl" className="font-medium">
+        Stretching
+      </BodyText>
+    </li>
+  </ul>
+</ResponsiveCard>
 
       {/* Two column layout for About Us and Contact */}
       <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">

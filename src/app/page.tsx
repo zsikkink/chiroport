@@ -100,7 +100,7 @@ export default function Home() {
           {/* Locations wrapper - positioned absolutely to handle its own margins */}
           <div className="w-full flex justify-center mb-8">
             <LocationsWrapper 
-              buttonText="Locations" 
+              buttonText="Join Queue" 
             />
           </div>
           
