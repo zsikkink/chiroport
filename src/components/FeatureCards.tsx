@@ -46,17 +46,20 @@ export default function FeatureCards({ className = '' }: FeatureCardsProps) {
       {/* Two column layout for About Us and Contact */}
       <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
         <ResponsiveCard title="About Us">
-          <ul className="list-disc list-inside space-y-2 font-lato text-xl font-medium">
-            <li>Responsive design</li>
-            <li>Container queries</li>
-            <li>Accessible components</li>
-          </ul>
+          <BodyText size="xl" className="font-medium">
+            The Chiroport is a pre-flight wellness studio specializing in chiropractic and holistic care for travelers. With convenient locations at Minneapolis–St. Paul (MSP), Dallas–Fort Worth (DFW), Las Vegas (LAS), Houston (IAH), and Atlanta (ATL), we help you reduce tension and boost vitality before boarding. Our expert team tailors each session to your needs—whether you&apos;re seeking relief from stiffness, improved mobility, or deep relaxation—so you step onto your flight balanced, energized, and ready for adventure.
+          </BodyText>
         </ResponsiveCard>
         
         <ResponsiveCard title="Contact">
-          <BodyText size="xl" className="font-medium">
-            Get in touch with our team to learn more about our services.
-          </BodyText>
+          <div className="space-y-2">
+            <BodyText size="xl" className="font-medium">
+              Email: info@thechiroport.com
+            </BodyText>
+            <BodyText size="xl" className="font-medium">
+              Phone: (612) 568-1224
+            </BodyText>
+          </div>
         </ResponsiveCard>
       </div>
     </div>
