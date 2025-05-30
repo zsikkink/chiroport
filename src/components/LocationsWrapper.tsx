@@ -6,7 +6,6 @@ import LocationsList from './LocationsDropdown';
 
 interface LocationsWrapperProps {
   buttonText: string;
-  className?: string;
 }
 
 /**
@@ -20,8 +19,7 @@ interface LocationsWrapperProps {
  * - Dynamically scales text to fit without wrapping
  */
 export default function LocationsWrapper({ 
-  buttonText,
-  className = '' 
+  buttonText
 }: LocationsWrapperProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [screenWidth, setScreenWidth] = useState(0);

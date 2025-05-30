@@ -8,7 +8,6 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 import { config, validateWaitwhileConfig, debugLog, logError } from '@/utils/config';
 import {
-  WaitwhileApiResponse,
   WaitwhileApiError,
   WaitwhileVisit,
   FormSubmissionData,

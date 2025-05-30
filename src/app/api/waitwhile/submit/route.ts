@@ -51,11 +51,11 @@ export async function POST(request: NextRequest) {
       }
     });
 
-  } catch (error: any) {
-    logError(error, 'Form submission failed');
+  } catch (error: unknown) {
+    logError(error as Error, 'Form submission failed');
 
     // Handle Zod validation errors
-    if (error.name === 'ZodError') {
+    if (error instanceof z.ZodError) {
       return NextResponse.json({
         success: false,
         error: 'Validation failed',
@@ -64,18 +64,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle Waitwhile API errors
-    if (error.error) {
+    if (error instanceof Error && error.message.includes('Waitwhile API')) {
       return NextResponse.json({
         success: false,
-        error: error.error.message || 'Failed to create visit',
-        details: error.error.details
+        error: error.message || 'Failed to create visit',
+        details: error.message.includes('details') ? JSON.parse(error.message.split(': ')[1]) : null
       }, { status: 500 });
     }
 
     // Handle generic errors
     return NextResponse.json({
       success: false,
-      error: error.message || 'Internal server error'
+      error: error instanceof Error ? error.message : 'Internal server error'
     }, { status: 500 });
   }
 }

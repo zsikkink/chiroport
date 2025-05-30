@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import ResponsiveLayout from '@/components/ResponsiveLayout';
-import HomeHero from '@/components/HomeHero';
 import FeatureCards from '@/components/FeatureCards';
 import ScrollHeader from '@/components/ScrollHeader';
 import LocationsWrapper from '@/components/LocationsWrapper';

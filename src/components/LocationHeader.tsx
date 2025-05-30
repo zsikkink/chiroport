@@ -2,14 +2,6 @@
 
 import { Heading } from './Typography';
 
-interface LocationHeaderProps {
-  locationName: string;
-  concourseName: string;
-  airportCode?: string;
-  onBackClick?: () => void;
-  className?: string;
-}
-
 /**
  * LocationHeader Component
  * 
@@ -17,14 +9,13 @@ interface LocationHeaderProps {
  * Optimized for accessibility, text scaling, and preventing text cutoff.
  * Back button functionality has been removed.
  */
-export default function LocationHeader({
-  locationName,
-  concourseName,
-  airportCode,
-  className = ''
-}: LocationHeaderProps) {
+export default function LocationHeader({ 
+  airportCode 
+}: { 
+  airportCode: string;
+}) {
   return (
-    <div className={`w-full max-w-3xl mb-8 scale-container no-text-cutoff ${className}`}>
+    <div className={`w-full max-w-3xl mb-8 scale-container no-text-cutoff`}>
       <div className="w-full text-center">
         <Heading 
           className="text-[clamp(1.5rem,8vw,3rem)] mb-2 leading-tight mobile-text-safe"
@@ -38,9 +29,8 @@ export default function LocationHeader({
             width: '100%',
           }}
         >
-          <span className="inline-block">{locationName}</span>
           {airportCode && (
-            <span className="inline-block ml-2">({airportCode})</span>
+            <span className="inline-block">{airportCode}</span>
           )}
         </Heading>
       </div>

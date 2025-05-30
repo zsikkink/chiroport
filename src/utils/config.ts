@@ -88,7 +88,7 @@ export function getImageQuality(): number {
 }
 
 // Debug logging helper
-export function debugLog(message: string, data?: any) {
+export function debugLog(message: string, data?: unknown) {
   if (config.features.enableDebugMode) {
     console.log(`[Chiroport Debug] ${message}`, data || '');
   }

@@ -6,7 +6,7 @@
  */
 
 // Base API response structure
-export interface WaitwhileApiResponse<T = any> {
+export interface WaitwhileApiResponse<T = unknown> {
   data: T;
   meta?: {
     total?: number;
@@ -20,7 +20,7 @@ export interface WaitwhileApiError {
   error: {
     message: string;
     code: string;
-    details?: any;
+    details?: unknown;
   };
 }
 
@@ -33,7 +33,7 @@ export interface WaitwhileCustomer {
   phone: string;
   dateOfBirth?: string;
   notes?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -51,7 +51,7 @@ export interface WaitwhileVisit {
   estimatedWaitTime?: number;
   queuePosition?: number;
   notes?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -68,7 +68,7 @@ export interface WaitwhileLocation {
     zip?: string;
     country?: string;
   };
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }
 
 // Service data structure
@@ -78,7 +78,7 @@ export interface WaitwhileService {
   description?: string;
   duration?: number;
   price?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // Request payload for creating a customer
@@ -106,7 +106,7 @@ export interface CreateVisitRequest {
   serviceName?: string;
   // serviceId?: string; // Not allowed by Waitwhile API in visit creation
   notes?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // Combined request for customer + visit creation
@@ -145,5 +145,5 @@ export interface FormSubmissionData {
   } | null;
   spinalAdjustment: boolean | null;
   locationId: string;
-  serviceId: string; // Waitwhile service ID for visit creation
+  serviceId?: string; // Optional - Waitwhile service ID for visit creation
 } 

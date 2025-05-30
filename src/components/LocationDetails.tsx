@@ -3,14 +3,13 @@
 import { useReducer, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeftIcon } from '@heroicons/react/24/solid';
-import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { z } from 'zod';
 import ResponsiveCard from './ResponsiveCard';
 import { BodyText } from './Typography';
 import { PrimaryButton } from './Button';
 import { LocationInfo } from '@/utils/locationData';
-import { parsePhoneNumberFromString, isValidPhoneNumber, AsYouType } from 'libphonenumber-js';
+import { isValidPhoneNumber, AsYouType } from 'libphonenumber-js';
 
 // ============================================================================
 // DATA & TYPES
@@ -230,15 +229,6 @@ const BackButton = ({ onClick }: { onClick: () => void }) => (
   </button>
 );
 
-const StepHeader = ({ title, showBack = false, onBack }: { title: string; showBack?: boolean; onBack?: () => void }) => (
-  <div className={`relative flex items-center mb-6 ${showBack ? '' : 'justify-center'}`}>
-    {showBack && onBack && <BackButton onClick={onBack} />}
-    <div className={`${showBack ? 'absolute inset-0 flex items-center justify-center pointer-events-none' : ''}`}>
-      <BodyText size="2xl" className="font-bold text-white">{title}</BodyText>
-    </div>
-  </div>
-);
-
 const YesNoButtons = ({ 
   onYes, 
   onNo, 
@@ -314,7 +304,7 @@ function PhoneField({ details, onUpdateField, submitAttempted, errors }: {
   details: WizardState['details'];
   onUpdateField: (field: keyof WizardState['details'], value: string) => void;
   submitAttempted: boolean;
-  errors: any;
+  errors: { [key: string]: string[] };
 }) {
   const isIntl = details.phone?.startsWith('+');
 
@@ -384,7 +374,7 @@ function BirthdayField({ details, onUpdateField, submitAttempted, errors }: {
   details: WizardState['details'];
   onUpdateField: (field: keyof WizardState['details'], value: string) => void;
   submitAttempted: boolean;
-  errors: any;
+  errors: { [key: string]: string[] };
 }) {
   // Format birthday as MM/DD/YYYY
   const formatBirthday = (value: string) => {
@@ -438,7 +428,7 @@ function DiscomfortField({ details, onUpdateDiscomfort, submitAttempted, errors 
   details: WizardState['details'];
   onUpdateDiscomfort: (values: string[]) => void;
   submitAttempted: boolean;
-  errors: any;
+  errors: { [key: string]: string[] };
 }) {
   const handleCheckboxChange = (option: string, checked: boolean) => {
     let newDiscomfort = [...details.discomfort];
@@ -513,7 +503,7 @@ function ConsentField({ details, onUpdateField, submitAttempted, errors }: {
   details: WizardState['details'];
   onUpdateField: (field: keyof WizardState['details'], value: boolean) => void;
   submitAttempted: boolean;
-  errors: any;
+  errors: { [key: string]: string[] };
 }) {
   const isChecked = details.consent;
 
@@ -596,15 +586,11 @@ const MembershipStep = ({ onYes, onNo }: { onYes: () => void; onNo: () => void }
 );
 
 const JoinStep = ({ 
-  spinalAdjustment, 
   onSetSpinal, 
-  onBack,
-  onDeselectSpinal
+  onBack
 }: { 
-  spinalAdjustment: boolean | null;
   onSetSpinal: (value: boolean) => void;
   onBack: () => void;
-  onDeselectSpinal: () => void;
 }) => (
   <div className="space-y-4 py-4">
     <BackButton onClick={onBack} />
@@ -613,7 +599,7 @@ const JoinStep = ({
     </BodyText>
     <div className="space-y-3">
       <BodyText size="2xl" className="text-white">
-      Save 58%! Would you like spinal & neck adjustments for just $29?
+      Save 50%! Add on spinal & neck adjustments for just $35?
       </BodyText>
       <div className="flex gap-4">
         <PrimaryButton
@@ -802,22 +788,16 @@ const DetailsStep = ({
   );
 };
 
-const SuccessStep = ({ 
-  submissionSuccess, 
-  onStartOver 
-}: { 
-  submissionSuccess: NonNullable<WizardState['submissionSuccess']>;
-  onStartOver: () => void;
-}) => (
+const SuccessStep = () => (
   <div className="space-y-6 py-4 text-center">
     <div className="mb-6">
-      <BodyText size="3xl" className="font-bold text-white mb-4">🎉 You're in the queue! 🎉</BodyText>
+      <BodyText size="3xl" className="font-bold text-white mb-4">🎉 You&apos;re in the queue! 🎉</BodyText>
       
     </div>
 
     <div className="space-y-4">
       <BodyText size="lg" className="text-white">
-        We'll text you when you're up next.
+        We&apos;ll text you when you&apos;re up next.
       </BodyText>
     </div>
   </div>
@@ -933,13 +913,11 @@ export default function LocationDetails({
         return (
           <motion.div key={state.step} {...animationProps}>
             <JoinStep
-              spinalAdjustment={state.spinalAdjustment}
               onSetSpinal={(value) => {
                 dispatch({ type: 'SET_SPINAL', value });
                 goTo('details');
               }}
               onBack={goBack}
-              onDeselectSpinal={() => dispatch({ type: 'DESELECT_SPINAL' })}
             />
           </motion.div>
         );
@@ -987,13 +965,7 @@ export default function LocationDetails({
       case 'success':
         return (
           <motion.div key={state.step} {...animationProps}>
-            <SuccessStep
-              submissionSuccess={state.submissionSuccess as NonNullable<WizardState['submissionSuccess']>}
-              onStartOver={() => {
-                dispatch({ type: 'RESET' });
-                goTo('question');
-              }}
-            />
+            <SuccessStep />
           </motion.div>
         );
 

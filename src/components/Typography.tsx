@@ -1,7 +1,7 @@
 'use client';
 
+import React from 'react';
 import { ReactNode, ElementType } from 'react';
-import { FONTS } from '@/utils/theme';
 
 type TextSize = 'xs' | 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl';
 type FontWeight = 'normal' | 'medium' | 'semibold' | 'bold';

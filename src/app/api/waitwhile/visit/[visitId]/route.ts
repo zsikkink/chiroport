@@ -11,10 +11,10 @@ import { debugLog, logError } from '@/utils/config';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { visitId: string } }
+  { params }: { params: Promise<{ visitId: string }> }
 ) {
   try {
-    const { visitId } = params;
+    const { visitId } = await params;
 
     if (!visitId) {
       return NextResponse.json(
@@ -50,12 +50,13 @@ export async function GET(
     });
 
   } catch (error) {
-    logError(error as Error, `Failed to get visit status for ${params.visitId}`);
+    const { visitId } = await params;
+    logError(error as Error, `Failed to get visit status for ${visitId}`);
 
     // Handle different types of errors
     if (error && typeof error === 'object' && 'error' in error) {
       // Waitwhile API error
-      const waitwhileError = error as any;
+      const waitwhileError = error as { error: { code: string; message: string } };
       
       // Handle 404 specifically
       if (waitwhileError.error.code === '404') {

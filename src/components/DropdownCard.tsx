@@ -1,7 +1,6 @@
 'use client';
 
-import { ReactNode, useState, useCallback } from 'react';
-import { Heading } from './Typography';
+import React, { ReactNode, useState, useCallback } from 'react';
 import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 
 interface DropdownCardProps {
