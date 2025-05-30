@@ -37,7 +37,7 @@ export default function Home() {
 
   // Calculate dynamic title size
   const getTitleSize = useCallback(() => {
-    const availableWidth = screenWidth * 0.9; // 90% of screen
+    const availableWidth = screenWidth * 0.95; // 90% of screen
     
     // Mobile: scale with available width, Desktop: larger fixed size
     if (screenWidth <= 768) {
@@ -74,7 +74,7 @@ export default function Home() {
         >
           {/* Hero section with dynamic title */}
           <div 
-            className="w-full text-center mb-8"
+            className="w-full text-center mb-10"
             style={{
               maxWidth: '100%'
             }}
@@ -82,7 +82,6 @@ export default function Home() {
             <h1 
               className="
                 font-bold text-white 
-                overflow-hidden
                 whitespace-nowrap
                 text-ellipsis
                 w-full

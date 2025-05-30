@@ -19,6 +19,14 @@ export const config = {
     baseUrl: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
   },
 
+  // Waitwhile API Configuration
+  waitwhile: {
+    apiKey: process.env.WAITWHILE_API_KEY || '',
+    apiUrl: process.env.WAITWHILE_API_URL || 'https://api.waitwhile.com/v2',
+    webhookSecret: process.env.WAITWHILE_WEBHOOK_SECRET || '',
+    scriptUrl: process.env.NEXT_PUBLIC_WAITWHILE_SCRIPT_URL || 'https://cdn.jsdelivr.net/npm/@waitwhile/waitwhile-embed/dist/waitwhile-embed.min.js',
+  },
+
   // Feature Flags
   features: {
     enableAnalytics: process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === 'true',
@@ -42,10 +50,12 @@ export const config = {
 
 // Validation function to ensure required environment variables are set
 export function validateConfig() {
-  const requiredEnvVars: string[] = [
-    // Add required environment variables here
-    // 'NEXT_PUBLIC_REQUIRED_VAR',
-  ];
+  const requiredEnvVars: string[] = [];
+  
+  // In production, require Waitwhile API key
+  if (isProduction) {
+    requiredEnvVars.push('WAITWHILE_API_KEY');
+  }
 
   const missing = requiredEnvVars.filter(
     (envVar) => !process.env[envVar]
@@ -55,6 +65,16 @@ export function validateConfig() {
     throw new Error(
       `Missing required environment variables: ${missing.join(', ')}`
     );
+  }
+}
+
+// Helper function to validate Waitwhile configuration
+export function validateWaitwhileConfig() {
+  if (!config.waitwhile.apiKey) {
+    throw new Error('Waitwhile API key is required');
+  }
+  if (!config.waitwhile.apiUrl) {
+    throw new Error('Waitwhile API URL is required');
   }
 }
 

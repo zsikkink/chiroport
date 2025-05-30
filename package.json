@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "axios": "^1.7.0",
     "framer-motion": "^12.15.0",
     "libphonenumber-js": "^1.12.8",
     "next": "15.3.2",

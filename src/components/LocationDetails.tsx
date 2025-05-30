@@ -27,13 +27,14 @@ const TREATMENTS = [
   { title: 'Undecided', price: '', time: '', description: 'Not sure which therapy is right? Discuss your needs with our chiropractor to choose the best treatment' }
 ] as const;
 
-type Step = 'question' | 'join' | 'nonmember' | 'treatments' | 'details';
+type Step = 'question' | 'join' | 'nonmember' | 'treatments' | 'details' | 'success';
 type Treatment = (typeof TREATMENTS)[number];
 
 interface WizardState {
   step: Step;
   history: Step[];
   direction: 'forward' | 'back';
+  isMember: boolean | null;
   spinalAdjustment: boolean | null;
   selectedTreatment: Treatment | null;
   details: {
@@ -43,28 +44,59 @@ interface WizardState {
     birthday: string;
     discomfort: string[];
     additionalInfo: string;
+    consent: boolean;
   };
   submitAttempted: boolean;
+  isSubmitting: boolean;
+  submissionError: string | null;
+  submissionSuccess: {
+    customerId: string;
+    visitId: string;
+    queuePosition?: number;
+    estimatedWaitTime?: number;
+  } | null;
 }
 
 type Action =
   | { type: 'GO_TO'; step: Step }
   | { type: 'GO_BACK' }
+  | { type: 'SET_MEMBER'; value: boolean }
   | { type: 'SET_SPINAL'; value: boolean }
   | { type: 'DESELECT_SPINAL' }
   | { type: 'SELECT_TREATMENT'; treatment: Treatment }
-  | { type: 'UPDATE_FIELD'; field: keyof WizardState['details']; value: string }
+  | { type: 'UPDATE_FIELD'; field: keyof WizardState['details']; value: string | boolean }
   | { type: 'UPDATE_DISCOMFORT'; values: string[] }
   | { type: 'ATTEMPT_SUBMIT' }
+  | { type: 'SUBMIT_START' }
+  | { type: 'SUBMIT_SUCCESS'; payload: { customerId: string; visitId: string; queuePosition?: number; estimatedWaitTime?: number } }
+  | { type: 'SUBMIT_ERROR'; error: string }
   | { type: 'RESET' };
 
 // ============================================================================
 // VALIDATION
 // ============================================================================
 
+// Custom phone validation that handles US numbers properly
+const validatePhoneNumber = (phone: string): boolean => {
+  if (!phone) return false;
+  
+  // If it starts with +, it's international - validate as-is
+  if (phone.startsWith('+')) {
+    return isValidPhoneNumber(phone);
+  }
+  
+  // For US numbers (just digits), add +1 country code for validation
+  const digitsOnly = phone.replace(/\D/g, '');
+  if (digitsOnly.length === 10) {
+    return isValidPhoneNumber(`+1${digitsOnly}`);
+  }
+  
+  return false;
+};
+
 const detailsSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  phone: z.string().min(1, 'Phone is required').refine(isValidPhoneNumber, 'Invalid phone number'),
+  phone: z.string().min(1, 'Phone is required').refine(validatePhoneNumber, 'Invalid phone number'),
   email: z.string().email('Invalid email'),
   birthday: z.string().min(1, 'Birthday is required').refine((date) => {
     const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
@@ -81,7 +113,8 @@ const detailsSchema = z.object({
            year <= new Date().getFullYear();
   }, 'Invalid date format (MM/DD/YYYY)'),
   discomfort: z.array(z.string()).min(1, 'Please select at least one option'),
-  additionalInfo: z.string().optional()
+  additionalInfo: z.string().optional(),
+  consent: z.boolean().refine(val => val === true, 'You must consent to treatment to proceed')
 });
 
 // ============================================================================
@@ -92,10 +125,14 @@ const initialState: WizardState = {
   step: 'question',
   history: [],
   direction: 'forward',
+  isMember: null,
   spinalAdjustment: null,
   selectedTreatment: null,
-  details: { name: '', phone: '', email: '', birthday: '', discomfort: [], additionalInfo: '' },
-  submitAttempted: false
+  details: { name: '', phone: '', email: '', birthday: '', discomfort: [], additionalInfo: '', consent: false },
+  submitAttempted: false,
+  isSubmitting: false,
+  submissionError: null,
+  submissionSuccess: null
 };
 
 function wizardReducer(state: WizardState, action: Action): WizardState {
@@ -118,6 +155,9 @@ function wizardReducer(state: WizardState, action: Action): WizardState {
         direction: 'back',
         submitAttempted: false
       };
+
+    case 'SET_MEMBER':
+      return { ...state, isMember: action.value };
 
     case 'SET_SPINAL':
       return { ...state, spinalAdjustment: action.value };
@@ -142,6 +182,24 @@ function wizardReducer(state: WizardState, action: Action): WizardState {
 
     case 'ATTEMPT_SUBMIT':
       return { ...state, submitAttempted: true };
+
+    case 'SUBMIT_START':
+      return { ...state, isSubmitting: true };
+
+    case 'SUBMIT_SUCCESS':
+      return {
+        ...state,
+        isSubmitting: false,
+        submissionSuccess: action.payload,
+        submissionError: null
+      };
+
+    case 'SUBMIT_ERROR':
+      return {
+        ...state,
+        isSubmitting: false,
+        submissionError: action.error
+      };
 
     case 'RESET':
       return initialState;
@@ -451,6 +509,49 @@ function DiscomfortField({ details, onUpdateDiscomfort, submitAttempted, errors 
   );
 }
 
+function ConsentField({ details, onUpdateField, submitAttempted, errors }: {
+  details: WizardState['details'];
+  onUpdateField: (field: keyof WizardState['details'], value: boolean) => void;
+  submitAttempted: boolean;
+  errors: any;
+}) {
+  const isChecked = details.consent;
+
+  return (
+    <div>
+      <label className="flex items-start cursor-pointer group">
+        <div className="relative flex items-center mt-1">
+          <input
+            type="checkbox"
+            checked={isChecked}
+            onChange={(e) => onUpdateField('consent', e.target.checked)}
+            className="sr-only"
+          />
+          <div className={`
+            w-5 h-5 rounded border-2 border-white flex items-center justify-center transition-colors duration-200
+            ${isChecked 
+              ? 'bg-white' 
+              : 'bg-transparent group-hover:bg-white/10'
+            }
+          `}>
+            {isChecked && (
+              <svg className="w-3 h-3 text-[#56655A]" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            )}
+          </div>
+        </div>
+        <span className="ml-3 text-white text-base leading-relaxed">
+          I consent to treatment at The Chiroport and understand the associated risks. *
+        </span>
+      </label>
+      {submitAttempted && errors.consent && (
+        <p className="text-red-400 text-sm mt-2">{errors.consent[0]}</p>
+      )}
+    </div>
+  );
+}
+
 const TextAreaField = ({ 
   label, 
   value, 
@@ -594,14 +695,18 @@ const DetailsStep = ({
   onSubmit, 
   onBack, 
   submitAttempted,
-  dispatch
+  dispatch,
+  isSubmitting,
+  submissionError
 }: {
   details: WizardState['details'];
-  onUpdateField: (field: keyof WizardState['details'], value: string) => void;
+  onUpdateField: (field: keyof WizardState['details'], value: string | boolean) => void;
   onSubmit: () => void;
   onBack: () => void;
   submitAttempted: boolean;
   dispatch: (action: Action) => void;
+  isSubmitting: boolean;
+  submissionError: string | null;
 }) => {
   const validation = detailsSchema.safeParse(details);
   const errors = validation.success ? {} : validation.error.formErrors.fieldErrors;
@@ -615,6 +720,20 @@ const DetailsStep = ({
         </div>
       </div>
 
+      {submissionError && (
+        <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-4">
+          <BodyText size="base" className="text-white">
+            ❌ {submissionError}
+          </BodyText>
+          <button
+            onClick={() => dispatch({ type: 'SUBMIT_ERROR', error: '' })}
+            className="text-white/80 text-sm mt-2 underline hover:text-white"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <InputField
         label="Name"
         value={details.name}
@@ -626,7 +745,7 @@ const DetailsStep = ({
 
       <PhoneField
         details={details}
-        onUpdateField={onUpdateField}
+        onUpdateField={(field, value) => onUpdateField(field, value as string)}
         submitAttempted={submitAttempted}
         errors={errors}
       />
@@ -643,7 +762,7 @@ const DetailsStep = ({
 
       <BirthdayField
         details={details}
-        onUpdateField={onUpdateField}
+        onUpdateField={(field, value) => onUpdateField(field, value as string)}
         submitAttempted={submitAttempted}
         errors={errors}
       />
@@ -664,12 +783,45 @@ const DetailsStep = ({
         required={false}
       />
 
-      <PrimaryButton onClick={onSubmit} fullWidth className="text-lg font-semibold mt-6">
-        Join Queue
+      <ConsentField
+        details={details}
+        onUpdateField={(field, value) => onUpdateField(field, value as boolean)}
+        submitAttempted={submitAttempted}
+        errors={errors}
+      />
+
+      <PrimaryButton 
+        onClick={onSubmit} 
+        fullWidth 
+        className="text-lg font-semibold mt-6"
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? 'Joining Queue...' : 'Join Queue'}
       </PrimaryButton>
     </div>
   );
 };
+
+const SuccessStep = ({ 
+  submissionSuccess, 
+  onStartOver 
+}: { 
+  submissionSuccess: NonNullable<WizardState['submissionSuccess']>;
+  onStartOver: () => void;
+}) => (
+  <div className="space-y-6 py-4 text-center">
+    <div className="mb-6">
+      <BodyText size="3xl" className="font-bold text-white mb-4">🎉 You're in the queue! 🎉</BodyText>
+      
+    </div>
+
+    <div className="space-y-4">
+      <BodyText size="lg" className="text-white">
+        We'll text you when you're up next.
+      </BodyText>
+    </div>
+  </div>
+);
 
 // ============================================================================
 // MAIN COMPONENT
@@ -694,17 +846,66 @@ export default function LocationDetails({
   const goTo = (step: Step) => dispatch({ type: 'GO_TO', step });
   const goBack = () => dispatch({ type: 'GO_BACK' });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     dispatch({ type: 'ATTEMPT_SUBMIT' });
     
     const validation = detailsSchema.safeParse(state.details);
-    if (validation.success) {
-      console.log('SUBMIT', { 
-        treatment: state.selectedTreatment, 
+    if (!validation.success) {
+      return; // Form validation failed, errors will be shown
+    }
+
+    // Start submission
+    dispatch({ type: 'SUBMIT_START' });
+
+    try {
+      // Prepare form data for API (no serviceId needed anymore)
+      const formData = {
+        name: state.details.name,
+        phone: state.details.phone,
+        email: state.details.email,
+        birthday: state.details.birthday,
+        discomfort: state.details.discomfort,
+        additionalInfo: state.details.additionalInfo,
+        consent: state.details.consent,
+        selectedTreatment: state.selectedTreatment,
         spinalAdjustment: state.spinalAdjustment,
-        ...state.details 
+        locationId: locationInfo.waitwhileLocationId
+      };
+
+      // Submit to API
+      const response = await fetch('/api/waitwhile/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
       });
-      dispatch({ type: 'RESET' });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Submission failed');
+      }
+
+      // Success - updated to match new API response structure
+      dispatch({
+        type: 'SUBMIT_SUCCESS',
+        payload: {
+          customerId: '', // Not needed with new API structure
+          visitId: result.data.visitId,
+          queuePosition: result.data.queuePosition,
+          estimatedWaitTime: result.data.estimatedWaitTime
+        }
+      });
+
+      // Navigate to success step
+      goTo('success');
+
+    } catch (error) {
+      dispatch({
+        type: 'SUBMIT_ERROR',
+        error: error instanceof Error ? error.message : 'An unexpected error occurred'
+      });
     }
   };
 
@@ -716,8 +917,14 @@ export default function LocationDetails({
         return (
           <motion.div key={state.step} {...animationProps}>
             <MembershipStep
-              onYes={() => goTo('join')}
-              onNo={() => goTo('treatments')}
+              onYes={() => {
+                dispatch({ type: 'SET_MEMBER', value: true });
+                goTo('join');
+              }}
+              onNo={() => {
+                dispatch({ type: 'SET_MEMBER', value: false });
+                goTo('treatments');
+              }}
             />
           </motion.div>
         );
@@ -771,6 +978,21 @@ export default function LocationDetails({
               onBack={goBack}
               submitAttempted={state.submitAttempted}
               dispatch={dispatch}
+              isSubmitting={state.isSubmitting}
+              submissionError={state.submissionError}
+            />
+          </motion.div>
+        );
+
+      case 'success':
+        return (
+          <motion.div key={state.step} {...animationProps}>
+            <SuccessStep
+              submissionSuccess={state.submissionSuccess as NonNullable<WizardState['submissionSuccess']>}
+              onStartOver={() => {
+                dispatch({ type: 'RESET' });
+                goTo('question');
+              }}
             />
           </motion.div>
         );
