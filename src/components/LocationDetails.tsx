@@ -1,6 +1,6 @@
 'use client';
 
-import { useReducer, useEffect } from 'react';
+import { useReducer, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeftIcon } from '@heroicons/react/24/solid';
 import 'react-phone-number-input/style.css';
@@ -21,8 +21,8 @@ const TREATMENTS = [
   { title: 'Sciatica & Lower Back Targeted Therapy', price: '$119', time: '20 min', description: 'Focused spinal adjustments and muscle work to relieve sciatica and lower back discomfort' },
   { title: 'Neck & Upper Back Targeted Therapy', price: '$119', time: '20 min', description: 'Focused spinal adjustments and muscle work to relieve neck and upper back discomfort' },
   { title: 'Trigger Point Muscle Therapy & Stretch', price: '$89', time: '20 min', description: 'Relieve postural muscle tightness from travel, enhance blood flow, and calm your nervous system' },
-  { title: 'Chiro Massage', price: '$79', time: '20 min', description: 'A Thai-inspired massage blending trigger-point muscle therapy, dynamic stretching, and mechanical massagers' },
-  { title: 'Chiro Massage Mini', price: '$39', time: '10 min', description: 'A Thai-inspired massage blending trigger-point muscle therapy and mechanical massagers' },
+  { title: 'Chiro Massage', price: '$79', time: '20 min', description: 'Thai-inspired massage blending trigger-point muscle therapy, dynamic stretching, and mechanical massagers' },
+  { title: 'Chiro Massage Mini', price: '$39', time: '10 min', description: 'Thai-inspired massage blending trigger-point muscle therapy and mechanical massagers' },
   { title: 'Undecided', price: '', time: '', description: 'Not sure which therapy is right? Discuss your needs with our chiropractor to choose the best treatment' }
 ] as const;
 
@@ -32,7 +32,6 @@ type Treatment = (typeof TREATMENTS)[number];
 interface WizardState {
   step: Step;
   history: Step[];
-  direction: 'forward' | 'back';
   isMember: boolean | null;
   spinalAdjustment: boolean | null;
   selectedTreatment: Treatment | null;
@@ -123,7 +122,6 @@ const detailsSchema = z.object({
 const initialState: WizardState = {
   step: 'question',
   history: [],
-  direction: 'forward',
   isMember: null,
   spinalAdjustment: null,
   selectedTreatment: null,
@@ -141,7 +139,6 @@ function wizardReducer(state: WizardState, action: Action): WizardState {
         ...state,
         history: [...state.history, state.step],
         step: action.step,
-        direction: 'forward',
         submitAttempted: action.step === 'details' ? false : state.submitAttempted
       };
 
@@ -151,7 +148,6 @@ function wizardReducer(state: WizardState, action: Action): WizardState {
         ...state,
         step: previousStep,
         history: state.history.slice(0, -1),
-        direction: 'back',
         submitAttempted: false
       };
 
@@ -212,12 +208,102 @@ function wizardReducer(state: WizardState, action: Action): WizardState {
 // ANIMATION
 // ============================================================================
 
-const slideAnimation = (direction: 'forward' | 'back') => ({
-  initial: { opacity: 0, x: direction === 'forward' ? 20 : -20, y: 0 },
-  animate: { opacity: 1, x: 0, y: 0 },
-  exit: { opacity: 0, x: direction === 'forward' ? -20 : 20, y: 0 },
-  transition: { duration: 0.3, ease: 'easeInOut' }
-});
+const fadeVariants = {
+  initial: {
+    opacity: 0
+  },
+  animate: {
+    opacity: 1,
+    transition: { duration: 0.8, ease: [0.4, 0.0, 0.2, 1] }
+  },
+  exit: {
+    opacity: 0,
+    transition: { duration: 0.8, ease: [0.4, 0.0, 0.2, 1] }
+  }
+};
+
+// ============================================================================
+// ANIMATED BUTTON COMPONENT
+// ============================================================================
+
+interface AnimatedButtonProps {
+  children: React.ReactNode;
+  onClick: () => void;
+  className?: string;
+  disabled?: boolean;
+  selected?: boolean;
+}
+
+const AnimatedButton = ({ children, onClick, className = '', disabled = false, selected = false }: AnimatedButtonProps) => {
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const handleClick = () => {
+    if (disabled) return;
+    
+    // Start animation immediately
+    setIsAnimating(true);
+    
+    // Delay the actual navigation by 0.2 seconds
+    setTimeout(() => {
+      onClick();
+    }, 200);
+    
+    // Reset animation state after 0.5 seconds
+    setTimeout(() => {
+      setIsAnimating(false);
+    }, 500);
+  };
+
+  return (
+    <div className="relative w-full">
+      <button
+        onClick={handleClick}
+        disabled={disabled}
+        className={`
+          relative w-full text-lg font-semibold rounded-lg p-4 border-2 border-white 
+          transition-colors duration-200 overflow-hidden
+          bg-primary hover:bg-primary-dark text-white shadow-lg
+          min-h-[3rem] flex items-center justify-center
+          ${selected 
+            ? 'bg-white text-[#56655A]' 
+            : 'bg-primary hover:bg-primary-dark text-white'
+          }
+          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+          ${className}
+        `}
+      >
+        {/* SVG Border Animation - exact replica of provided code */}
+        <svg 
+          className="absolute inset-0 pointer-events-none" 
+          width="100%" 
+          height="100%" 
+          viewBox="0 0 180 60" 
+          preserveAspectRatio="none"
+          style={{
+            fill: 'none',
+            stroke: '#fff',
+            strokeDasharray: '150 480',
+            strokeDashoffset: isAnimating ? -480 : 150,
+            transition: '0.5s ease-in-out'
+          }}
+        >
+          <polyline 
+            points="179,1 179,59 1,59 1,1 179,1" 
+            className="bg-line" 
+          />
+          <polyline 
+            points="179,1 179,59 1,59 1,1 179,1" 
+            className="hl-line" 
+          />
+        </svg>
+        
+        <span className="relative z-10 text-center w-full">
+          {children}
+        </span>
+      </button>
+    </div>
+  );
+};
 
 // ============================================================================
 // REUSABLE COMPONENTS
@@ -241,30 +327,18 @@ const YesNoButtons = ({
   onDeselect?: () => void;
 }) => (
   <div className="flex gap-4">
-    <button
-      onClick={() => selected === true && onDeselect ? onDeselect() : onYes()} 
-      className={`
-        w-full text-lg font-semibold rounded-lg p-4 border-2 border-white transition-colors duration-200
-        ${selected === true 
-          ? 'bg-white text-[#56655A]' 
-          : 'bg-transparent text-white hover:bg-white/10'
-        }
-      `}
+    <AnimatedButton
+      onClick={() => selected === true && onDeselect ? onDeselect() : onYes()}
+      selected={selected === true}
     >
       Yes
-    </button>
-    <button
-      onClick={() => selected === false && onDeselect ? onDeselect() : onNo()} 
-      className={`
-        w-full text-lg font-semibold rounded-lg p-4 border-2 border-white transition-colors duration-200
-        ${selected === false 
-          ? 'bg-white text-[#56655A]' 
-          : 'bg-transparent text-white hover:bg-white/10'
-        }
-      `}
+    </AnimatedButton>
+    <AnimatedButton
+      onClick={() => selected === false && onDeselect ? onDeselect() : onNo()}
+      selected={selected === false}
     >
       No
-    </button>
+    </AnimatedButton>
   </div>
 );
 
@@ -592,30 +666,22 @@ const JoinStep = ({
   onSetSpinal: (value: boolean) => void;
   onBack: () => void;
 }) => (
-  <div className="space-y-4 py-4">
+  <div className="py-4">
     <BackButton onClick={onBack} />
-    <BodyText size="2xl" className="font-medium text-white">
-      This service includes stretching, muscle work, and massage—Priority Pass & Lounge Key only
+    <BodyText size="2xl" className="font-medium text-white mt-4">
+      The standard Priority Pass & Lounge Key service includes stretching, muscle work, and massage.
     </BodyText>
-    <div className="space-y-3">
+    <div className="space-y-3 mt-12">
       <BodyText size="2xl" className="text-white">
-      Save 50%! Add on spinal & neck adjustments for just $35?
+      Would you like to add spinal & neck adjustments for just $35  — a 50% Discount!
       </BodyText>
       <div className="flex gap-4">
-        <PrimaryButton
-          onClick={() => onSetSpinal(true)}
-          fullWidth
-          className="text-lg font-semibold"
-        >
+        <AnimatedButton onClick={() => onSetSpinal(true)}>
           Yes
-        </PrimaryButton>
-        <PrimaryButton
-          onClick={() => onSetSpinal(false)}
-          fullWidth
-          className="text-lg font-semibold"
-        >
+        </AnimatedButton>
+        <AnimatedButton onClick={() => onSetSpinal(false)}>
           No
-        </PrimaryButton>
+        </AnimatedButton>
       </div>
     </div>
   </div>
@@ -632,12 +698,12 @@ const NonMemberStep = ({
 }) => (
   <div className="space-y-4 py-4">
     <BackButton onClick={onBack} />
-    <PrimaryButton onClick={onProceed} fullWidth className="text-lg font-semibold">
+    <AnimatedButton onClick={onProceed}>
       Join Queue
-    </PrimaryButton>
-    <PrimaryButton onClick={onSchedule} fullWidth className="text-lg font-semibold">
+    </AnimatedButton>
+    <AnimatedButton onClick={onSchedule}>
       Schedule a Future Treatment
-    </PrimaryButton>
+    </AnimatedButton>
   </div>
 );
 
@@ -657,19 +723,21 @@ const TreatmentsStep = ({
     </div>
     <div className="space-y-3">
       {TREATMENTS.map((treatment) => (
-        <button
+        <AnimatedButton 
           key={treatment.title}
           onClick={() => onSelect(treatment)}
-          className="w-full bg-primary text-white rounded-lg p-4 text-left border-2 border-white hover:bg-primary-dark transition-colors duration-200"
+          className="!text-left !items-start !justify-start"
         >
-          <h3 className="font-bold text-lg mb-1">{treatment.title}</h3>
-          {treatment.price && treatment.time && (
-            <div className="text-sm font-bold mb-2">
-              {treatment.price} • {treatment.time}
-            </div>
-          )}
-          <p className="text-base leading-relaxed">{treatment.description}</p>
-        </button>
+          <div className="w-full text-left">
+            <h3 className="font-bold text-lg mb-1">{treatment.title}</h3>
+            {treatment.price && treatment.time && (
+              <div className="text-sm font-bold mb-2">
+                {treatment.price} • {treatment.time}
+              </div>
+            )}
+            <p className="text-base leading-relaxed">{treatment.description}</p>
+          </div>
+        </AnimatedButton>
       ))}
     </div>
   </div>
@@ -776,14 +844,14 @@ const DetailsStep = ({
         errors={errors}
       />
 
-      <PrimaryButton 
-        onClick={onSubmit} 
-        fullWidth 
-        className="text-lg font-semibold mt-6"
-        disabled={isSubmitting}
-      >
-        {isSubmitting ? 'Joining Queue...' : 'Join Queue'}
-      </PrimaryButton>
+      <div className="mt-6">
+        <AnimatedButton 
+          onClick={onSubmit} 
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Joining Queue...' : 'Join Queue'}
+        </AnimatedButton>
+      </div>
     </div>
   );
 };
@@ -890,12 +958,16 @@ export default function LocationDetails({
   };
 
   const renderStep = () => {
-    const animationProps = slideAnimation(state.direction);
-
     switch (state.step) {
       case 'question':
         return (
-          <motion.div key={state.step} {...animationProps}>
+          <motion.div
+            key={state.step}
+            variants={fadeVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
             <MembershipStep
               onYes={() => {
                 dispatch({ type: 'SET_MEMBER', value: true });
@@ -911,7 +983,13 @@ export default function LocationDetails({
 
       case 'join':
         return (
-          <motion.div key={state.step} {...animationProps}>
+          <motion.div
+            key={state.step}
+            variants={fadeVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
             <JoinStep
               onSetSpinal={(value) => {
                 dispatch({ type: 'SET_SPINAL', value });
@@ -924,7 +1002,13 @@ export default function LocationDetails({
 
       case 'nonmember':
         return (
-          <motion.div key={state.step} {...animationProps}>
+          <motion.div
+            key={state.step}
+            variants={fadeVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
             <NonMemberStep
               onProceed={() => goTo('treatments')}
               onSchedule={() => console.log('Schedule future treatment')}
@@ -935,7 +1019,13 @@ export default function LocationDetails({
 
       case 'treatments':
         return (
-          <motion.div key={state.step} {...animationProps}>
+          <motion.div
+            key={state.step}
+            variants={fadeVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
             <TreatmentsStep
               onSelect={(treatment) => {
                 dispatch({ type: 'SELECT_TREATMENT', treatment });
@@ -948,7 +1038,13 @@ export default function LocationDetails({
 
       case 'details':
         return (
-          <motion.div key={state.step} {...animationProps}>
+          <motion.div
+            key={state.step}
+            variants={fadeVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
             <DetailsStep
               details={state.details}
               onUpdateField={(field, value) => dispatch({ type: 'UPDATE_FIELD', field, value })}
@@ -964,7 +1060,13 @@ export default function LocationDetails({
 
       case 'success':
         return (
-          <motion.div key={state.step} {...animationProps}>
+          <motion.div
+            key={state.step}
+            variants={fadeVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
             <SuccessStep />
           </motion.div>
         );
@@ -986,7 +1088,7 @@ export default function LocationDetails({
       </ResponsiveCard>
 
       <ResponsiveCard className="overflow-hidden">
-        <AnimatePresence mode="wait">
+        <AnimatePresence initial={false} mode="wait">
           {renderStep()}
         </AnimatePresence>
       </ResponsiveCard>
