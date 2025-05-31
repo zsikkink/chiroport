@@ -7,7 +7,6 @@ import 'react-phone-number-input/style.css';
 import { z } from 'zod';
 import ResponsiveCard from './ResponsiveCard';
 import { BodyText } from './Typography';
-import { PrimaryButton } from './Button';
 import { LocationInfo } from '@/utils/locationData';
 import { isValidPhoneNumber, AsYouType } from 'libphonenumber-js';
 
