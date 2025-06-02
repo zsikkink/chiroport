@@ -34,6 +34,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     debugLog('Received form submission:', body);
 
+    // Check if API key is available
+    if (!process.env.WAITWHILE_API_KEY) {
+      console.error('WAITWHILE_API_KEY environment variable is missing');
+      return NextResponse.json({
+        success: false,
+        error: 'Server configuration error: API key not found'
+      }, { status: 500 });
+    }
+
     // Validate the request body
     const validatedData = submissionSchema.parse(body);
 
@@ -52,6 +61,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: unknown) {
+    console.error('API Error:', error);
     logError(error as Error, 'Form submission failed');
 
     // Handle Zod validation errors
@@ -65,6 +75,7 @@ export async function POST(request: NextRequest) {
 
     // Handle Waitwhile API errors
     if (error instanceof Error && error.message.includes('Waitwhile API')) {
+      console.error('Waitwhile API Error:', error.message);
       return NextResponse.json({
         success: false,
         error: error.message || 'Failed to create visit',
@@ -73,6 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle generic errors
+    console.error('Generic Error:', error);
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error'

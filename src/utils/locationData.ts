@@ -195,7 +195,7 @@ export const airportLocations: AirportLocation[] = [
           airportCode: 'MSP',
           imageUrl: '/images/stores/msp-f.webp',
           customLocation: 'Located near Gate F6, across from the food court and next to the Local Marketplace.',
-          customHours: '7am - 8pm CT',
+          customHours: '7am - 7pm CT',
           displayName: 'Concourse F',
           waitwhileLocationId: 'xutzfkaetOGtbokSpnW1', // MSP F
         }
@@ -210,7 +210,7 @@ export const airportLocations: AirportLocation[] = [
           airportCode: 'MSP',
           imageUrl: '/images/stores/msp-g.webp',
           customLocation: 'Located at the entrance to the G concourse, across from the help desk.',
-          customHours: '7am - 8pm CT',
+          customHours: '7am - 7pm CT',
           displayName: 'Concourse G',
           waitwhileLocationId: 'xmGfroUQYjy5de88a3Wz', // MSP G
         }
