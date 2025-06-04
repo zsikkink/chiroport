@@ -135,10 +135,6 @@ export default function LocationsWrapper({
     setIsOpen(!isOpen);
   };
 
-  const handleClose = () => {
-    setIsOpen(false);
-  };
-
   const { closedWidth, openWidth, marginLeft } = getWidths();
   const currentWidth = isOpen ? openWidth : closedWidth;
   const textStyle = getTextSize();
@@ -175,7 +171,7 @@ export default function LocationsWrapper({
             flex items-center justify-center
             overflow-hidden
             font-bold
-            hover:bg-primary-dark hover:bg-opacity-90
+            hover:bg-[#475549] hover:bg-opacity-95
           `}
           style={{
             fontSize: textStyle.fontSize,
@@ -209,7 +205,6 @@ export default function LocationsWrapper({
             className="p-4 w-full"
           >
             <LocationsList 
-              onClose={handleClose}
               screenWidth={screenWidth}
             />
           </div>

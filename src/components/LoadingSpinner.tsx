@@ -87,11 +87,27 @@ export function PageLoader({ text = "Loading..." }: { text?: string }) {
 export function InlineLoader({ text }: { text?: string }) {
   return (
     <div className="flex items-center justify-center py-8">
-      <LoadingSpinner size="md" text={text} />
+      {text ? (
+        <LoadingSpinner size="md" text={text} />
+      ) : (
+        <LoadingSpinner size="md" />
+      )}
     </div>
   );
 }
 
 export function ButtonLoader() {
   return <LoadingSpinner size="sm" className="mr-2" />;
-} 
+}
+
+export const LoadingSpinnerWithText = ({ text }: { text?: string }) => {
+  return (
+    <div className="text-center">
+      {text ? (
+        <LoadingSpinner size="md" text={text} />
+      ) : (
+        <LoadingSpinner size="md" />
+      )}
+    </div>
+  );
+}; 

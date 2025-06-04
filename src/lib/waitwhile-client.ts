@@ -59,7 +59,7 @@ export class WaitwhileClient {
     // Create axios instance with base configuration
     this.client = axios.create({
       baseURL: this.config.apiUrl,
-      timeout: this.config.timeout,
+      timeout: this.config.timeout || 10000, // Ensure timeout is never undefined
       headers: {
         'Authorization': `Bearer ${this.config.apiKey}`,
         'Content-Type': 'application/json',
@@ -170,8 +170,13 @@ export class WaitwhileClient {
     // Convert birthday from MM/DD/YYYY to YYYY-MM-DD format
     let dateOfBirth = formData.birthday;
     if (formData.birthday.includes('/')) {
-      const [month, day, year] = formData.birthday.split('/');
-      dateOfBirth = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      const parts = formData.birthday.split('/');
+      const [month, day, year] = parts;
+      
+      // Check if all parts exist and are valid
+      if (month && day && year) {
+        dateOfBirth = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      }
     }
 
     // Determine service ID based on user's journey

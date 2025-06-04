@@ -7,16 +7,15 @@ import DropdownCard from './DropdownCard';
 import { airportLocations, getLocationRoute } from '@/utils/locationData';
 
 interface LocationsListProps {
-  onClose: () => void;
   screenWidth: number;
 }
 
-export default function LocationsList({ onClose, screenWidth }: LocationsListProps) {
+export default function LocationsList({ screenWidth }: LocationsListProps) {
   const router = useRouter();
 
   const handleLocationClick = (airportSlug: string, concourseSlug: string) => {
     router.push(getLocationRoute(airportSlug, concourseSlug));
-    onClose();
+    // Don't close the dropdown - let user close it manually by clicking Join Queue again
   };
 
   // Calculate dynamic text size for dropdown content
@@ -35,19 +34,22 @@ export default function LocationsList({ onClose, screenWidth }: LocationsListPro
 
   return (
     <div className="w-full overflow-hidden">
-      {airportLocations.map((airport, index) => {
+      {airportLocations.map((airport) => {
         const hasSingleConcourse = airport.concourses.length === 1;
+        const firstConcourse = airport.concourses[0];
         
         return (
-          <DropdownCard 
-            key={airport.code} 
-            title={`${airport.name} (${airport.code})`}
-            initiallyOpen={index === 0 && !hasSingleConcourse}
-            className="mb-4 w-full"
-            onClick={hasSingleConcourse ? () => handleLocationClick(airport.slug, airport.concourses[0].slug) : undefined}
+          <DropdownCard
+            key={airport.slug}
+            title={`${airport.name} Airport`}
+            initiallyOpen={false}
+            className="mb-4"
+            {...(hasSingleConcourse && firstConcourse ? {
+              onClick: () => handleLocationClick(airport.slug, firstConcourse.slug)
+            } : {})}
             screenWidth={screenWidth}
           >
-            <div className="space-y-3 w-full">
+            <div className="space-y-2">
               {airport.concourses.map((concourse) => (
                 <LocationButton 
                   key={concourse.slug}
@@ -56,8 +58,8 @@ export default function LocationsList({ onClose, screenWidth }: LocationsListPro
                   className="
                     w-full overflow-hidden
                     bg-primary
-                    hover:bg-white hover:bg-opacity-10
-                    transition-all duration-200
+                    hover:bg-[#475549] hover:bg-opacity-90
+                    transition-colors duration-200
                     rounded-md
                     border-0
                   "

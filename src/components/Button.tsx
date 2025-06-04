@@ -45,7 +45,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   // Variant-specific styling - only used when no style override
   const variantClasses: Record<ButtonVariant, string> = {
     primary: `
-      bg-primary hover:bg-primary-dark text-white 
+      bg-primary hover:bg-[#475549] text-white 
       py-3 px-4 
       font-bold border-2 border-white shadow-lg
       min-h-[3rem]
@@ -57,13 +57,13 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
       min-h-[2.5rem]
     `,
     location: `
-      bg-primary hover:bg-primary-dark text-white 
+      bg-primary hover:bg-[#475549] text-white 
       py-2 px-4 
       font-medium shadow-sm border border-white border-opacity-20
       min-h-[2.5rem]
     `,
     back: `
-      bg-primary hover:bg-primary-dark text-white 
+      bg-primary hover:bg-[#475549] text-white 
       py-2 px-3 
       font-medium
       min-h-[2rem]

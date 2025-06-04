@@ -10,8 +10,8 @@ import { getVisit } from '@/lib/waitwhile-client';
 import { debugLog, logError } from '@/utils/config';
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ visitId: string }> }
+  _request: NextRequest,
+  { params }: { params: { visitId: string } }
 ) {
   try {
     const { visitId } = await params;

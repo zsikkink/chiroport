@@ -99,7 +99,12 @@ const detailsSchema = z.object({
     const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
     if (!dateRegex.test(date)) return false;
     
-    const [month, day, year] = date.split('/').map(Number);
+    const parts = date.split('/').map(Number);
+    const [month, day, year] = parts;
+    
+    // Check if all parts are valid numbers
+    if (month === undefined || day === undefined || year === undefined) return false;
+    
     const dateObj = new Date(year, month - 1, day);
     
     // Check if the date is valid and matches the input
@@ -213,11 +218,11 @@ const fadeVariants = {
   },
   animate: {
     opacity: 1,
-    transition: { duration: 0.8, ease: [0.4, 0.0, 0.2, 1] }
+    transition: { duration: 0.6, ease: [0.4, 0.0, 0.2, 1] }
   },
   exit: {
     opacity: 0,
-    transition: { duration: 0.8, ease: [0.4, 0.0, 0.2, 1] }
+    transition: { duration: 0.6, ease: [0.4, 0.0, 0.2, 1] }
   }
 };
 
@@ -260,42 +265,24 @@ const AnimatedButton = ({ children, onClick, className = '', disabled = false, s
         disabled={disabled}
         className={`
           relative w-full text-lg font-semibold rounded-lg p-4 border-2 border-white 
-          transition-colors duration-200 overflow-hidden
-          bg-primary hover:bg-primary-dark text-white shadow-lg
+          transition-all duration-200 overflow-hidden
+          bg-primary hover:bg-[#475549] text-white shadow-lg
           min-h-[3rem] flex items-center justify-center
           ${selected 
-            ? 'bg-white text-[#56655A]' 
-            : 'bg-primary hover:bg-primary-dark text-white'
+            ? 'bg-white text-[#56655A] hover:bg-gray-100' 
+            : 'bg-primary hover:bg-[#475549] text-white'
           }
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
           ${className}
+          ${isAnimating ? 'animate-pulse border-white/80' : ''}
         `}
+        style={{
+          ...(isAnimating && {
+            boxShadow: '0 0 0 2px rgba(255, 255, 255, 0.6), 0 0 0 4px rgba(255, 255, 255, 0.3)',
+            transform: 'scale(1.02)',
+          })
+        }}
       >
-        {/* SVG Border Animation - exact replica of provided code */}
-        <svg 
-          className="absolute inset-0 pointer-events-none" 
-          width="100%" 
-          height="100%" 
-          viewBox="0 0 180 60" 
-          preserveAspectRatio="none"
-          style={{
-            fill: 'none',
-            stroke: '#fff',
-            strokeDasharray: '150 480',
-            strokeDashoffset: isAnimating ? -480 : 150,
-            transition: '0.5s ease-in-out'
-          }}
-        >
-          <polyline 
-            points="179,1 179,59 1,59 1,1 179,1" 
-            className="bg-line" 
-          />
-          <polyline 
-            points="179,1 179,59 1,59 1,1 179,1" 
-            className="hl-line" 
-          />
-        </svg>
-        
         <span className="relative z-10 text-center w-full">
           {children}
         </span>
@@ -550,7 +537,7 @@ function DiscomfortField({ details, onUpdateDiscomfort, submitAttempted, errors 
                   w-5 h-5 rounded border-2 border-white flex items-center justify-center transition-colors duration-200
                   ${isChecked 
                     ? 'bg-white' 
-                    : 'bg-transparent group-hover:bg-white/10'
+                    : 'bg-transparent group-hover:bg-white/25'
                   }
                 `}>
                   {isChecked && (
@@ -594,7 +581,7 @@ function ConsentField({ details, onUpdateField, submitAttempted, errors }: {
             w-5 h-5 rounded border-2 border-white flex items-center justify-center transition-colors duration-200
             ${isChecked 
               ? 'bg-white' 
-              : 'bg-transparent group-hover:bg-white/10'
+              : 'bg-transparent group-hover:bg-white/25'
             }
           `}>
             {isChecked && (
@@ -654,7 +641,7 @@ const MembershipStep = ({ onYes, onNo }: { onYes: () => void; onNo: () => void }
     <BodyText size="2xl" className="font-medium text-white">
       Priority Pass or Lounge Key member?
     </BodyText>
-    <YesNoButtons onYes={onYes} onNo={onNo} selected={null} onDeselect={undefined} />
+    <YesNoButtons onYes={onYes} onNo={onNo} selected={null} />
   </div>
 );
 
@@ -780,7 +767,7 @@ const DetailsStep = ({
           </BodyText>
           <button
             onClick={() => dispatch({ type: 'SUBMIT_ERROR', error: '' })}
-            className="text-white/80 text-sm mt-2 underline hover:text-white"
+            className="text-white/80 text-sm mt-2 underline hover:text-white hover:bg-white/10 px-2 py-1 rounded transition-all duration-200"
           >
             Dismiss
           </button>
@@ -792,7 +779,7 @@ const DetailsStep = ({
         value={details.name}
         onChange={(value) => onUpdateField('name', value)}
         placeholder="Full name"
-        error={submitAttempted ? errors.name?.[0] : undefined}
+        {...(submitAttempted && errors.name?.[0] ? { error: errors.name[0] } : {})}
         required
       />
 
@@ -809,7 +796,7 @@ const DetailsStep = ({
         value={details.email}
         onChange={(value) => onUpdateField('email', value)}
         placeholder="Email address"
-        error={submitAttempted ? errors.email?.[0] : undefined}
+        {...(submitAttempted && errors.email?.[0] ? { error: errors.email[0] } : {})}
         required
       />
 
@@ -832,7 +819,7 @@ const DetailsStep = ({
         value={details.additionalInfo}
         onChange={(value) => onUpdateField('additionalInfo', value)}
         placeholder="Add any additional information"
-        error={submitAttempted ? errors.additionalInfo?.[0] : undefined}
+        {...(submitAttempted && errors.additionalInfo?.[0] ? { error: errors.additionalInfo[0] } : {})}
         required={false}
       />
 

@@ -258,3 +258,134 @@ npm run start    # Serves production build locally
 ## 🤝 Contributing
 
 [Add contribution guidelines here]
+
+## 🚀 Quick Start
+
+### Cache-Safe Development (Recommended)
+
+To prevent webpack cache corruption issues, use the robust development startup:
+
+```bash
+npm run dev:robust
+```
+
+This command:
+- ✅ Automatically cleans all caches
+- ✅ Validates the environment
+- ✅ Starts a clean development server
+- ✅ Prevents cache corruption issues
+
+### Alternative Development Commands
+
+```bash
+# Standard development server
+npm run dev
+
+# Clean cache then start dev server
+npm run dev:clean
+
+# Check cache health then start dev server
+npm run dev:safe
+```
+
+## 🧹 Cache Management
+
+### Quick Fix for Cache Issues
+
+If you see errors like "Cannot find module './447.js'" or "Missing required error components":
+
+```bash
+# Emergency reset (recommended)
+npm run reset
+
+# Or use the robust startup
+npm run dev:robust
+```
+
+### Cache Monitoring
+
+```bash
+# Check cache health
+npm run cache:check
+
+# Clean all caches
+npm run cache:clean
+
+# Monitor cache continuously
+npm run cache:monitor
+```
+
+## 📋 Available Scripts
+
+| Command | Purpose |
+|---------|---------|
+| `npm run dev:robust` | **Recommended** - Cache-safe development startup |
+| `npm run dev` | Standard development server |
+| `npm run build` | Production build |
+| `npm run start` | Start production server |
+| `npm run test` | Run tests |
+| `npm run lint` | Run ESLint |
+| `npm run reset` | Emergency cache cleanup and rebuild |
+
+## 🛠️ Development Setup
+
+1. **Clone the repository**
+```bash
+git clone [repository-url]
+cd chiroport
+```
+
+2. **Install dependencies**
+```bash
+npm install
+```
+
+3. **Set up environment variables**
+```bash
+cp .env.example .env.local
+# Edit .env.local with your API keys
+```
+
+4. **Start development (cache-safe)**
+```bash
+npm run dev:robust
+```
+
+## 🏗️ Tech Stack
+
+- **Framework**: Next.js 15.3.2 with App Router
+- **Language**: TypeScript
+- **UI**: Tailwind CSS
+- **Animations**: Framer Motion
+- **Validation**: Zod
+- **Testing**: Jest + React Testing Library
+- **API Integration**: Waitwhile API
+
+## 📚 Documentation
+
+- [Cache Management Guide](docs/CACHE_MANAGEMENT.md) - Comprehensive cache troubleshooting
+- [Development Improvements](docs/DEVELOPMENT_IMPROVEMENTS.md) - Project enhancement guide
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+**Cache Corruption**: If you see module loading errors, run `npm run reset`
+
+**Development Server Won't Start**: Try `npm run dev:robust`
+
+**Build Errors**: Run `npm run clean:full` then `npm run build`
+
+For detailed troubleshooting, see [Cache Management Guide](docs/CACHE_MANAGEMENT.md).
+
+## 📞 Support
+
+If you encounter persistent cache issues:
+
+1. Try `npm run dev:robust`
+2. Check [Cache Management Guide](docs/CACHE_MANAGEMENT.md)
+3. Use `npm run reset` as last resort
+
+---
+
+**Note**: Always use `npm run dev:robust` for the most stable development experience.

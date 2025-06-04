@@ -47,7 +47,10 @@ export async function POST(request: NextRequest) {
     const validatedData = submissionSchema.parse(body);
 
     // Create visit directly using the new Waitwhile API structure
-    const visit = await createVisit(validatedData);
+    const visit = await createVisit({
+      ...validatedData,
+      additionalInfo: validatedData.additionalInfo || ''
+    });
 
     // Return success response with visit information
     return NextResponse.json({
@@ -76,10 +79,21 @@ export async function POST(request: NextRequest) {
     // Handle Waitwhile API errors
     if (error instanceof Error && error.message.includes('Waitwhile API')) {
       console.error('Waitwhile API Error:', error.message);
+      const errorDetails = error.message.includes('details') 
+        ? (() => {
+            try {
+              const detailsStr = error.message.split(': ')[1];
+              return detailsStr ? JSON.parse(detailsStr) : null;
+            } catch {
+              return null;
+            }
+          })()
+        : null;
+        
       return NextResponse.json({
         success: false,
         error: error.message || 'Failed to create visit',
-        details: error.message.includes('details') ? JSON.parse(error.message.split(': ')[1]) : null
+        details: errorDetails
       }, { status: 500 });
     }
 
