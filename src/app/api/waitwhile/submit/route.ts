@@ -8,7 +8,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createVisit } from '@/lib/waitwhile-client';
-import { debugLog, logError } from '@/utils/config';
+import { debugLog, logError, logSecurityEvent } from '@/utils/config';
+import { validateCSRF } from '@/utils/csrf';
+import { performSecurityCheck, sanitizeObject } from '@/utils/security';
 
 // Validation schema for form submission (simplified - no serviceId needed)
 const submissionSchema = z.object({
@@ -32,7 +34,40 @@ const submissionSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    debugLog('Received form submission:', body);
+    
+    // Perform comprehensive security checks
+    const securityCheck = performSecurityCheck(request, body);
+    if (!securityCheck.allowed) {
+      logSecurityEvent('security_check_failed', {
+        reason: securityCheck.reason,
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: request.headers.get('user-agent'),
+        endpoint: '/api/waitwhile/submit'
+      });
+      return NextResponse.json({
+        success: false,
+        error: 'Security validation failed',
+        message: 'Request blocked for security reasons'
+      }, { status: 403 });
+    }
+
+    // Validate CSRF token for state-changing operations
+    if (!validateCSRF(request)) {
+      logSecurityEvent('csrf_validation_failed', {
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: request.headers.get('user-agent'),
+        endpoint: '/api/waitwhile/submit'
+      });
+      return NextResponse.json({
+        success: false,
+        error: 'CSRF validation failed',
+        message: 'Invalid or missing CSRF token. Please refresh the page and try again.'
+      }, { status: 403 });
+    }
+
+    // Sanitize input data
+    const sanitizedBody = sanitizeObject(body);
+    debugLog('Received form submission:', sanitizedBody);
 
     // Check if API key is available
     if (!process.env.WAITWHILE_API_KEY) {
@@ -44,7 +79,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate the request body
-    const validatedData = submissionSchema.parse(body);
+    const validatedData = submissionSchema.parse(sanitizedBody);
 
     // Create visit directly using the new Waitwhile API structure
     const visit = await createVisit({

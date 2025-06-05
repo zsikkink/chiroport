@@ -6,7 +6,7 @@
  */
 
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
-import { config, validateWaitwhileConfig, debugLog, logError } from '@/utils/config';
+import { config, debugLog, logError } from '@/utils/config';
 import {
   WaitwhileApiError,
   WaitwhileVisit,
@@ -47,11 +47,13 @@ export class WaitwhileClient {
 
   constructor(clientConfig?: Partial<WaitwhileClientConfig>) {
     // Validate configuration
-    validateWaitwhileConfig();
+    if (!config.api.waitwhile.apiKey) {
+      throw new Error('Waitwhile API key is required');
+    }
 
     this.config = {
-      apiKey: config.waitwhile.apiKey,
-      apiUrl: config.waitwhile.apiUrl,
+      apiKey: config.api.waitwhile.apiKey,
+      apiUrl: config.api.waitwhile.url,
       timeout: 10000, // 10 seconds
       ...clientConfig
     };

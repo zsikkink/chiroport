@@ -32,6 +32,12 @@
   
   /* Base font size that respects user preferences */
   --base-font-size: 1rem; /* 16px default, but scales with user settings */
+  
+  /* CSS-only responsive breakpoints */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
 }
 
 /* Dark mode settings - maintain same color scheme for simplicity */
@@ -129,10 +135,92 @@
       padding-top: 5rem;
     }
   }
+  
+  /* CSS-only responsive title sizing */
+  .responsive-title {
+    font-size: clamp(1.875rem, 15vw, 7.5rem);
+    line-height: 1.1;
+    font-family: var(--font-libre-baskerville), serif;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  
+  /* CSS-only responsive containers */
+  .responsive-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0 clamp(1rem, 5vw, 3rem);
+  }
+  
+  /* CSS-only responsive spacing */
+  .responsive-spacing {
+    margin-top: clamp(1rem, 4vw, 2.5rem);
+    margin-bottom: clamp(1rem, 4vw, 2.5rem);
+  }
+  
+  /* Progressive enhancement utilities */
+  .js-only {
+    display: none;
+  }
+  
+  .no-js-hidden {
+    display: block;
+  }
+  
+  /* When JavaScript is available */
+  .js .js-only {
+    display: block;
+  }
+  
+  .js .no-js-hidden {
+    display: none;
+  }
+  
+  /* CSS-only dynamic width utilities */
+  .dynamic-width-80 {
+    width: 80%;
+    margin: 0 auto;
+  }
+  
+  .dynamic-width-90 {
+    width: 90%;
+    margin: 0 auto;
+  }
+  
+  @media (min-width: 768px) {
+    .dynamic-width-80 {
+      max-width: 500px;
+    }
+    
+    .dynamic-width-90 {
+      max-width: 800px;
+    }
+  }
 }
 
 /* Logo font utility */
 .logo-font {
   font-family: var(--font-libre-baskerville), serif !important;
   text-rendering: optimizeLegibility;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+  }
 }

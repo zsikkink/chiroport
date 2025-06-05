@@ -9,6 +9,7 @@ import ResponsiveCard from './ResponsiveCard';
 import { BodyText } from './Typography';
 import { LocationInfo } from '@/utils/locationData';
 import { isValidPhoneNumber, AsYouType } from 'libphonenumber-js';
+import { submitFormSecurely, formSubmissionLimiter } from '@/utils/client-api';
 
 // ============================================================================
 // DATA & TYPES
@@ -892,6 +893,9 @@ export default function LocationDetails({
     dispatch({ type: 'SUBMIT_START' });
 
     try {
+      // Apply client-side rate limiting
+      await formSubmissionLimiter.throttle();
+
       // Prepare form data for API (no serviceId needed anymore)
       const formData = {
         name: state.details.name,
@@ -906,19 +910,11 @@ export default function LocationDetails({
         locationId: locationInfo.waitwhileLocationId
       };
 
-      // Submit to API
-      const response = await fetch('/api/waitwhile/submit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+      // Submit using secure API client with automatic CSRF handling
+      const result = await submitFormSecurely(formData);
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Submission failed');
+      if (!result.success) {
+        throw new Error(result.error || result.message || 'Submission failed');
       }
 
       // Success - updated to match new API response structure
