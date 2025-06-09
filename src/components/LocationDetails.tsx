@@ -1,16 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeftIcon } from '@heroicons/react/24/solid';
+
 import 'react-phone-number-input/style.css';
 
 import ResponsiveCard from './ResponsiveCard';
 import { BodyText } from './Typography';
 import { LocationInfo } from '@/utils/locationData';
-import { AsYouType } from 'libphonenumber-js';
+
 import { submitFormSecurely, formSubmissionLimiter } from '@/utils/client-api';
-import { TREATMENTS, DISCOMFORT_OPTIONS } from '@/constants/treatments';
+import { TREATMENTS } from '@/constants/treatments';
 import { 
   Step, 
   Treatment, 
@@ -21,6 +21,17 @@ import {
 import { detailsSchema } from '@/validation/detailsSchema';
 import { useWizard } from '@/hooks/useWizard';
 import { fadeVariants } from '@/ui/animation/fadeVariants';
+import { 
+  AnimatedButton, 
+  BackButton, 
+  InputField, 
+  PhoneField, 
+  BirthdayField, 
+  DiscomfortField, 
+  ConsentField, 
+  TextAreaField, 
+  YesNoButtons 
+} from '@/ui/atoms';
 
 // ============================================================================
 // DATA & TYPES
@@ -46,398 +57,14 @@ import { fadeVariants } from '@/ui/animation/fadeVariants';
 // ============================================================================
 // ANIMATED BUTTON COMPONENT
 // ============================================================================
-
-interface AnimatedButtonProps {
-  children: React.ReactNode;
-  onClick: () => void;
-  className?: string;
-  disabled?: boolean;
-  selected?: boolean;
-}
-
-const AnimatedButton = ({ children, onClick, className = '', disabled = false, selected = false }: AnimatedButtonProps) => {
-  const [isAnimating, setIsAnimating] = useState(false);
-
-  const handleClick = () => {
-    if (disabled) return;
-    
-    // Start animation immediately
-    setIsAnimating(true);
-    
-    // Delay the actual navigation by 0.2 seconds
-    setTimeout(() => {
-      onClick();
-    }, 200);
-    
-    // Reset animation state after 0.5 seconds
-    setTimeout(() => {
-      setIsAnimating(false);
-    }, 500);
-  };
-
-  return (
-    <div className="relative w-full">
-      <button
-        onClick={handleClick}
-        disabled={disabled}
-        className={`
-          relative w-full text-lg font-semibold rounded-lg p-4 border-2 border-white 
-          transition-all duration-200 overflow-hidden
-          bg-primary hover:bg-[#475549] text-white shadow-lg
-          min-h-[3rem] flex items-center justify-center
-          ${selected 
-            ? 'bg-white text-[#56655A] hover:bg-gray-100' 
-            : 'bg-primary hover:bg-[#475549] text-white'
-          }
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-          ${className}
-          ${isAnimating ? 'animate-pulse border-white/80' : ''}
-        `}
-        style={{
-          ...(isAnimating && {
-            boxShadow: '0 0 0 2px rgba(255, 255, 255, 0.6), 0 0 0 4px rgba(255, 255, 255, 0.3)',
-            transform: 'scale(1.02)',
-          })
-        }}
-      >
-        <span className="relative z-10 text-center w-full">
-          {children}
-        </span>
-      </button>
-    </div>
-  );
-};
+// AnimatedButton now imported from @/ui/atoms
 
 // ============================================================================
 // REUSABLE COMPONENTS
 // ============================================================================
+// All UI components now imported from @/ui/atoms
 
-const BackButton = ({ onClick }: { onClick: () => void }) => (
-  <button onClick={onClick} aria-label="Go back" className="text-white flex items-center mb-2">
-    <ChevronLeftIcon className="w-6 h-6" />
-  </button>
-);
-
-const YesNoButtons = ({ 
-  onYes, 
-  onNo, 
-  selected,
-  onDeselect
-}: { 
-  onYes: () => void; 
-  onNo: () => void; 
-  selected: boolean | null;
-  onDeselect?: () => void;
-}) => (
-  <div className="flex gap-4">
-    <AnimatedButton
-      onClick={() => selected === true && onDeselect ? onDeselect() : onYes()}
-      selected={selected === true}
-    >
-      Yes
-    </AnimatedButton>
-    <AnimatedButton
-      onClick={() => selected === false && onDeselect ? onDeselect() : onNo()}
-      selected={selected === false}
-    >
-      No
-    </AnimatedButton>
-  </div>
-);
-
-const InputField = ({ 
-  label, 
-  type = 'text', 
-  value, 
-  onChange, 
-  placeholder, 
-  error,
-  required = false
-}: {
-  label: string;
-  type?: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  error?: string;
-  required?: boolean;
-}) => (
-  <div>
-    <label className="block text-white text-base font-bold mb-2">
-      {label} {required && '*'}
-    </label>
-    <input
-      type={type}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full bg-white text-black rounded-lg p-4 border-2 border-white focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-500"
-    />
-    {error && <p className="text-red-400 text-sm mt-1">{error}</p>}
-  </div>
-);
-
-function PhoneField({ details, onUpdateField, submitAttempted, errors }: {
-  details: WizardState['details'];
-  onUpdateField: (field: keyof WizardState['details'], value: string) => void;
-  submitAttempted: boolean;
-  errors: { [key: string]: string[] };
-}) {
-  const isIntl = details.phone?.startsWith('+');
-
-  // Format US phone number as (XXX) XXX-XXXX
-  const formatUSPhone = (value: string) => {
-    const cleaned = value.replace(/\D/g, '');
-    if (cleaned.length <= 3) return cleaned;
-    if (cleaned.length <= 6) return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
-    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
-  };
-
-  // helper to format international via AsYouType
-  const intlDisplay = new AsYouType().input(details.phone || '');
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    
-    // If user types '+' at the beginning, switch to international mode
-    if (value.startsWith('+')) {
-      let raw = value.replace(/[^\d+]/g, '');
-      raw = raw.startsWith('+')
-        ? '+' + raw.slice(1).replace(/\+/g, '')
-        : raw.replace(/\+/g, '');
-      onUpdateField('phone', raw);
-    } else {
-      // US formatting - extract only digits for storage
-      const digitsOnly = value.replace(/\D/g, '');
-      onUpdateField('phone', digitsOnly);
-    }
-  };
-
-  return (
-    <div>
-      <label className="block text-white text-base font-bold mb-2">
-        Phone Number *
-      </label>
-
-      {isIntl ? (
-        // — international —
-        <input
-          type="tel"
-          inputMode="tel"
-          value={intlDisplay}
-          onChange={handlePhoneChange}
-          placeholder="+44 20 7123 4567"
-          className="w-full bg-white text-black rounded-lg p-4 border-2 border-white focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-500"
-        />
-      ) : (
-        // — U.S. formatting —
-        <input
-          type="tel"
-          value={formatUSPhone(details.phone || '')}
-          onChange={handlePhoneChange}
-          placeholder="Phone number"
-          className="w-full bg-white text-black rounded-lg p-4 border-2 border-white focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-500"
-        />
-      )}
-
-      {submitAttempted && errors.phone && (
-        <p className="text-red-400 text-sm mt-1">{errors.phone[0]}</p>
-      )}
-    </div>
-  );
-}
-
-function BirthdayField({ details, onUpdateField, submitAttempted, errors }: {
-  details: WizardState['details'];
-  onUpdateField: (field: keyof WizardState['details'], value: string) => void;
-  submitAttempted: boolean;
-  errors: { [key: string]: string[] };
-}) {
-  // Format birthday as MM/DD/YYYY
-  const formatBirthday = (value: string) => {
-    const cleaned = value.replace(/\D/g, '');
-    if (cleaned.length <= 2) return cleaned;
-    if (cleaned.length <= 4) return `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
-    return `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
-  };
-
-  const handleBirthdayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    // Extract only digits and format
-    const digitsOnly = value.replace(/\D/g, '');
-    // Limit to 8 digits (MMDDYYYY)
-    const limited = digitsOnly.slice(0, 8);
-    const formatted = formatBirthday(limited);
-    onUpdateField('birthday', formatted);
-  };
-
-  return (
-    <div>
-      <label className="block text-white text-base font-bold mb-2">
-        Birthday *
-      </label>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={details.birthday || ''}
-        onChange={handleBirthdayChange}
-        placeholder="MM/DD/YYYY"
-        className="w-full bg-white text-black rounded-lg p-4 border-2 border-white focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-500"
-      />
-      {submitAttempted && errors.birthday && (
-        <p className="text-red-400 text-sm mt-1">{errors.birthday[0]}</p>
-      )}
-    </div>
-  );
-}
-
-function DiscomfortField({ details, onUpdateDiscomfort, submitAttempted, errors }: {
-  details: WizardState['details'];
-  onUpdateDiscomfort: (values: string[]) => void;
-  submitAttempted: boolean;
-  errors: { [key: string]: string[] };
-}) {
-  const handleCheckboxChange = (option: string, checked: boolean) => {
-    let newDiscomfort = [...details.discomfort];
-    
-    if (option === 'No discomfort') {
-      // If "No discomfort" is selected, clear all others
-      if (checked) {
-        newDiscomfort = ['No discomfort'];
-      } else {
-        newDiscomfort = [];
-      }
-    } else {
-      // If any other option is selected, remove "No discomfort"
-      if (checked) {
-        newDiscomfort = newDiscomfort.filter(item => item !== 'No discomfort');
-        newDiscomfort.push(option);
-      } else {
-        newDiscomfort = newDiscomfort.filter(item => item !== option);
-      }
-    }
-    
-    onUpdateDiscomfort(newDiscomfort);
-  };
-
-  return (
-    <div>
-      <label className="block text-white text-base font-bold mb-3">
-        Where are you experiencing discomfort? (Select all that apply) *
-      </label>
-      <div className="space-y-3">
-        {DISCOMFORT_OPTIONS.map((option) => {
-          const isChecked = details.discomfort.includes(option);
-          return (
-            <label
-              key={option}
-              className="flex items-center cursor-pointer group"
-            >
-              <div className="relative flex items-center">
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={(e) => handleCheckboxChange(option, e.target.checked)}
-                  className="sr-only"
-                />
-                <div className={`
-                  w-5 h-5 rounded border-2 border-white flex items-center justify-center transition-colors duration-200
-                  ${isChecked 
-                    ? 'bg-white' 
-                    : 'bg-transparent group-hover:bg-white/25'
-                  }
-                `}>
-                  {isChecked && (
-                    <svg className="w-3 h-3 text-[#56655A]" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-              </div>
-              <span className="ml-3 text-white text-base">{option}</span>
-            </label>
-          );
-        })}
-      </div>
-      {submitAttempted && errors.discomfort && (
-        <p className="text-red-400 text-sm mt-2">{errors.discomfort[0]}</p>
-      )}
-    </div>
-  );
-}
-
-function ConsentField({ details, onUpdateField, submitAttempted, errors }: {
-  details: WizardState['details'];
-  onUpdateField: (field: keyof WizardState['details'], value: boolean) => void;
-  submitAttempted: boolean;
-  errors: { [key: string]: string[] };
-}) {
-  const isChecked = details.consent;
-
-  return (
-    <div>
-      <label className="flex items-start cursor-pointer group">
-        <div className="relative flex items-center mt-1">
-          <input
-            type="checkbox"
-            checked={isChecked}
-            onChange={(e) => onUpdateField('consent', e.target.checked)}
-            className="sr-only"
-          />
-          <div className={`
-            w-5 h-5 rounded border-2 border-white flex items-center justify-center transition-colors duration-200
-            ${isChecked 
-              ? 'bg-white' 
-              : 'bg-transparent group-hover:bg-white/25'
-            }
-          `}>
-            {isChecked && (
-              <svg className="w-3 h-3 text-[#56655A]" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            )}
-          </div>
-        </div>
-        <span className="ml-3 text-white text-base leading-relaxed">
-          I consent to treatment at The Chiroport and understand the associated risks. *
-        </span>
-      </label>
-      {submitAttempted && errors.consent && (
-        <p className="text-red-400 text-sm mt-2">{errors.consent[0]}</p>
-      )}
-    </div>
-  );
-}
-
-const TextAreaField = ({ 
-  label, 
-  value, 
-  onChange, 
-  placeholder, 
-  error,
-  required = false
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  error?: string;
-  required?: boolean;
-}) => (
-  <div>
-    <label className="block text-white text-base font-bold mb-2">
-      {label} {required && '*'}
-    </label>
-    <textarea
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      rows={4}
-      className="w-full bg-white text-black rounded-lg p-4 border-2 border-white focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-500 resize-vertical"
-    />
-    {error && <p className="text-red-400 text-sm mt-1">{error}</p>}
-  </div>
-);
+// All field components now imported from @/ui/atoms
 
 // ============================================================================
 // STEP COMPONENTS
