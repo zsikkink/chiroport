@@ -1,16 +1,16 @@
 'use client';
 
-import { useReducer, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeftIcon } from '@heroicons/react/24/solid';
 import 'react-phone-number-input/style.css';
-import { z } from 'zod';
+
 import ResponsiveCard from './ResponsiveCard';
 import { BodyText } from './Typography';
 import { LocationInfo } from '@/utils/locationData';
-import { isValidPhoneNumber, AsYouType } from 'libphonenumber-js';
+import { AsYouType } from 'libphonenumber-js';
 import { submitFormSecurely, formSubmissionLimiter } from '@/utils/client-api';
-import { TREATMENTS, DISCOMFORT_OPTIONS, VALIDATION_MESSAGES, DATE_VALIDATION } from '@/constants/treatments';
+import { TREATMENTS, DISCOMFORT_OPTIONS } from '@/constants/treatments';
 import { 
   Step, 
   Treatment, 
@@ -18,6 +18,8 @@ import {
   WizardAction, 
   SubmissionResponse 
 } from '@/types/wizard';
+import { detailsSchema } from '@/validation/detailsSchema';
+import { useWizard } from '@/hooks/useWizard';
 
 // ============================================================================
 // DATA & TYPES
@@ -28,141 +30,12 @@ import {
 // ============================================================================
 // VALIDATION
 // ============================================================================
-
-// Custom phone validation that handles US numbers properly
-const validatePhoneNumber = (phone: string): boolean => {
-  if (!phone) return false;
-  
-  // If it starts with +, it's international - validate as-is
-  if (phone.startsWith('+')) {
-    return isValidPhoneNumber(phone);
-  }
-  
-  // For US numbers (just digits), add +1 country code for validation
-  const digitsOnly = phone.replace(/\D/g, '');
-  if (digitsOnly.length === 10) {
-    return isValidPhoneNumber(`+1${digitsOnly}`);
-  }
-  
-  return false;
-};
-
-const detailsSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  phone: z.string().min(1, 'Phone is required').refine(validatePhoneNumber, 'Invalid phone number'),
-  email: z.string().email('Invalid email'),
-  birthday: z.string().min(1, 'Birthday is required').refine((date) => {
-    const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
-    if (!dateRegex.test(date)) return false;
-    
-    const parts = date.split('/').map(Number);
-    const [month, day, year] = parts;
-    
-    // Check if all parts are valid numbers
-    if (month === undefined || day === undefined || year === undefined) return false;
-    
-    const dateObj = new Date(year, month - 1, day);
-    
-    // Check if the date is valid and matches the input
-    return dateObj.getFullYear() === year && 
-           dateObj.getMonth() === month - 1 && 
-           dateObj.getDate() === day &&
-           year >= 1900 && 
-           year <= new Date().getFullYear();
-  }, 'Invalid date format (MM/DD/YYYY)'),
-  discomfort: z.array(z.string()).min(1, 'Please select at least one option'),
-  additionalInfo: z.string().optional(),
-  consent: z.boolean().refine(val => val === true, 'You must consent to treatment to proceed')
-});
+// Schema now imported from @/validation/detailsSchema
 
 // ============================================================================
 // REDUCER
 // ============================================================================
-
-const initialState: WizardState = {
-  step: 'question',
-  history: [],
-  isMember: null,
-  spinalAdjustment: null,
-  selectedTreatment: null,
-  details: { name: '', phone: '', email: '', birthday: '', discomfort: [], additionalInfo: '', consent: false },
-  submitAttempted: false,
-  isSubmitting: false,
-  submissionError: null,
-  submissionSuccess: null
-};
-
-function wizardReducer(state: WizardState, action: WizardAction): WizardState {
-  switch (action.type) {
-    case 'GO_TO':
-      return {
-        ...state,
-        history: [...state.history, state.step],
-        step: action.step,
-        submitAttempted: action.step === 'details' ? false : state.submitAttempted
-      };
-
-    case 'GO_BACK':
-      const previousStep = state.history[state.history.length - 1] || 'question';
-      return {
-        ...state,
-        step: previousStep,
-        history: state.history.slice(0, -1),
-        submitAttempted: false
-      };
-
-    case 'SET_MEMBER':
-      return { ...state, isMember: action.value };
-
-    case 'SET_SPINAL':
-      return { ...state, spinalAdjustment: action.value };
-
-    case 'DESELECT_SPINAL':
-      return { ...state, spinalAdjustment: null };
-
-    case 'SELECT_TREATMENT':
-      return { ...state, selectedTreatment: action.treatment };
-
-    case 'UPDATE_FIELD':
-      return {
-        ...state,
-        details: { ...state.details, [action.field]: action.value }
-      };
-
-    case 'UPDATE_DISCOMFORT':
-      return {
-        ...state,
-        details: { ...state.details, discomfort: action.values }
-      };
-
-    case 'ATTEMPT_SUBMIT':
-      return { ...state, submitAttempted: true };
-
-    case 'SUBMIT_START':
-      return { ...state, isSubmitting: true };
-
-    case 'SUBMIT_SUCCESS':
-      return {
-        ...state,
-        isSubmitting: false,
-        submissionSuccess: action.payload,
-        submissionError: null
-      };
-
-    case 'SUBMIT_ERROR':
-      return {
-        ...state,
-        isSubmitting: false,
-        submissionError: action.error
-      };
-
-    case 'RESET':
-      return initialState;
-
-    default:
-      return state;
-  }
-}
+// Reducer logic now in @/hooks/useWizard
 
 // ============================================================================
 // ANIMATION
@@ -814,7 +687,7 @@ export default function LocationDetails({
   locationInfo: LocationInfo; 
   className?: string;
 }) {
-  const [state, dispatch] = useReducer(wizardReducer, initialState);
+  const [state, dispatch] = useWizard();
 
   // Scroll to top when navigating between service menu and details
   useEffect(() => {
