@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // Perform comprehensive security checks
-    const securityCheck = performSecurityCheck(request, body);
+    const securityCheck = performSecurityCheck(request);
     if (!securityCheck.allowed) {
       logSecurityEvent('security_check_failed', {
         reason: securityCheck.reason,

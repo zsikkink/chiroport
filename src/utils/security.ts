@@ -245,7 +245,7 @@ export function isLikelyBot(request: NextRequest): boolean {
 /**
  * Comprehensive security check for incoming requests
  */
-export function performSecurityCheck(request: NextRequest, body?: unknown): {
+export function performSecurityCheck(request: NextRequest): {
   allowed: boolean;
   reason?: string;
 } {
