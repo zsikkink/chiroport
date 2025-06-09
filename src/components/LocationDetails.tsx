@@ -663,7 +663,7 @@ const JoinStep = ({
   <div className="py-4">
     <BackButton onClick={onBack} />
     <BodyText size="2xl" className="font-medium text-white mt-4">
-      The standard Priority Pass & Lounge Key service includes stretching, muscle work, and massage.
+      The Priority Pass & Lounge Key service includes stretching, muscle work, and massage.
     </BodyText>
     <div className="space-y-3 mt-12">
       <BodyText size="2xl" className="text-white">
