@@ -37,14 +37,6 @@ export class WaitwhileClient {
   private client: AxiosInstance;
   private config: WaitwhileClientConfig;
 
-  // Waitwhile custom field IDs
-  private readonly FIELD_IDS = {
-    AILMENT: '3EyMmttdiJfOc7nmQaUC',
-    DATE_OF_BIRTH: 'wRArbngAg41dQp1hpDSC',
-    NOTES: 'dlaxD8sZ1VPchcgcra9w',
-    CONSENT: 'uhLZqSrUJaok6R52Powg'
-  };
-
   constructor(clientConfig?: Partial<WaitwhileClientConfig>) {
     // Validate configuration
     if (!config.api.waitwhile.apiKey) {
@@ -159,7 +151,12 @@ export class WaitwhileClient {
   /**
    * Transform form submission data to correct Waitwhile visit format
    */
-  transformFormData(formData: FormSubmissionData): CreateWaitwhileVisitRequest {
+  transformFormData(formData: FormSubmissionData, fieldIds: {
+    ailment: string;
+    dateOfBirth: string;
+    notes: string;
+    consent: string;
+  }): CreateWaitwhileVisitRequest {
     // Format phone number (ensure it starts with +1 for US numbers)
     let phone = formData.phone.replace(/\D/g, '');
     if (phone.length === 10 && !phone.startsWith('1')) {
@@ -230,18 +227,18 @@ export class WaitwhileClient {
       }
     }
 
-    // Build dataFields array
+    // Build dataFields array using location-specific field IDs
     const dataFields: Array<{ id: string; values: string[] }> = [
       {
-        id: this.FIELD_IDS.AILMENT,
+        id: fieldIds.ailment,
         values: [ailmentValue]
       },
       {
-        id: this.FIELD_IDS.DATE_OF_BIRTH,
+        id: fieldIds.dateOfBirth,
         values: [dateOfBirth]
       },
       {
-        id: this.FIELD_IDS.CONSENT,
+        id: fieldIds.consent,
         values: [formData.consent ? 'Yes' : 'No']
       }
     ];
@@ -249,7 +246,7 @@ export class WaitwhileClient {
     // Add notes field only if there's additional info
     if (formData.additionalInfo && formData.additionalInfo.trim()) {
       dataFields.push({
-        id: this.FIELD_IDS.NOTES,
+        id: fieldIds.notes,
         values: [formData.additionalInfo.trim()]
       });
     }
@@ -270,8 +267,26 @@ export class WaitwhileClient {
 export const waitwhileClient = new WaitwhileClient();
 
 // Export convenience functions
-export const createVisit = (data: FormSubmissionData) => {
-  const transformedData = waitwhileClient.transformFormData(data);
+export const createVisit = async (data: FormSubmissionData) => {
+  // Dynamic import to avoid circular dependencies
+  const { getLocationDataByWaitwhileId } = await import('@/utils/locationData');
+  
+  // Get location-specific data field IDs
+  const locationData = getLocationDataByWaitwhileId(data.locationId);
+  if (!locationData) {
+    throw new Error(`Location data not found for location ID: ${data.locationId}`);
+  }
+  
+  // Check if field IDs are still placeholders
+  const hasPlaceholderIds = Object.values(locationData.dataFieldIds).some(id => 
+    id.includes('_FIELD_ID_NEEDED') || id === ''
+  );
+  
+  if (hasPlaceholderIds) {
+    throw new Error(`Data field IDs not configured for location ${data.locationId}. Please contact support.`);
+  }
+  
+  const transformedData = waitwhileClient.transformFormData(data, locationData.dataFieldIds);
   return waitwhileClient.createVisit(transformedData);
 };
 

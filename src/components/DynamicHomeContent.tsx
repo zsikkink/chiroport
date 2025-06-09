@@ -15,16 +15,13 @@ import StaticFeatureCards from './StaticFeatureCards';
  * 
  * This separates client-side logic from the static home page content
  * while ensuring proper responsive behavior between all elements.
- * Now includes proper hydration handling to prevent SSR errors.
+ * Now with simplified hydration handling for better reliability.
  */
 export default function DynamicHomeContent() {
-  const [mounted, setMounted] = useState(false);
-  const [screenWidth, setScreenWidth] = useState(0);
+  const [screenWidth, setScreenWidth] = useState(1024); // Default to desktop width
 
   // Handle hydration and initial mount
   useEffect(() => {
-    setMounted(true);
-    
     const updateScreenWidth = () => {
       if (typeof window !== 'undefined') {
         setScreenWidth(window.innerWidth);
@@ -41,21 +38,20 @@ export default function DynamicHomeContent() {
       return () => window.removeEventListener('resize', updateScreenWidth);
     }
     
-    // Return undefined for the case where window is not available
     return undefined;
   }, []);
 
   // Calculate dynamic title size
   const getTitleSize = useCallback(() => {
-    if (!mounted || screenWidth === 0) {
-      // Default fallback for SSR/before mount
+    if (screenWidth === 0) {
+      // Fallback for SSR
       return {
         fontSize: '64px',
         lineHeight: '1.1'
       };
     }
     
-    const availableWidth = screenWidth * 0.95; // 90% of screen
+    const availableWidth = screenWidth * 0.95; // 95% of screen
     
     // Mobile: scale with available width, Desktop: larger fixed size
     if (screenWidth <= 768) {
@@ -72,52 +68,12 @@ export default function DynamicHomeContent() {
         lineHeight: '1.1'
       };
     }
-  }, [mounted, screenWidth]);
+  }, [screenWidth]);
 
   const titleStyle = getTitleSize();
-  const marginSize = mounted && screenWidth > 0 ? screenWidth * 0.05 : 24; // 5% margin or fallback
+  const marginSize = screenWidth > 0 ? screenWidth * 0.05 : 24;
 
-  // Show loading state during hydration
-  if (!mounted) {
-    return (
-      <main className="flex min-h-screen flex-col items-center overflow-x-hidden pt-20 py-6 px-6">
-        {/* Hero section with static fallback */}
-        <div className="w-full text-center mb-10">
-          <h1 
-            className="
-              font-bold text-white 
-              whitespace-nowrap
-              text-ellipsis
-              w-full
-            "
-            style={{
-              fontSize: '64px',
-              lineHeight: '1.1',
-              fontFamily: 'Libre Baskerville, serif'
-            }}
-          >
-            Chiroport
-          </h1>
-        </div>
-        
-        {/* Static content during loading */}
-        <div className="w-full flex justify-center mb-8">
-          <div className="animate-pulse bg-gray-200 rounded-lg h-12 w-48"></div>
-        </div>
-
-        <div className="w-full">
-          <div className="animate-pulse">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-gray-200 rounded-lg h-48"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
+  // Always show actual content, no loading state
   return (
     <main 
       className="flex min-h-screen flex-col items-center overflow-x-hidden pt-20 py-6"
