@@ -10,72 +10,20 @@ import { BodyText } from './Typography';
 import { LocationInfo } from '@/utils/locationData';
 import { isValidPhoneNumber, AsYouType } from 'libphonenumber-js';
 import { submitFormSecurely, formSubmissionLimiter } from '@/utils/client-api';
-
-// Define the expected API response structure
-interface SubmissionResponse {
-  visitId: string;
-  queuePosition?: number;
-  estimatedWaitTime?: number;
-}
+import { TREATMENTS, DISCOMFORT_OPTIONS, VALIDATION_MESSAGES, DATE_VALIDATION } from '@/constants/treatments';
+import { 
+  Step, 
+  Treatment, 
+  WizardState, 
+  WizardAction, 
+  SubmissionResponse 
+} from '@/types/wizard';
 
 // ============================================================================
 // DATA & TYPES
 // ============================================================================
 
-const TREATMENTS = [
-  { title: 'Body on the Go', price: '$69', time: '10 min', description: 'Full spinal and neck adjustment' },
-  { title: 'Total Wellness', price: '$99', time: '20 min', description: 'Our signature service—trigger point muscle therapy, full-body stretch, and complete spinal & neck adjustments' },
-  { title: 'Sciatica & Lower Back Targeted Therapy', price: '$119', time: '20 min', description: 'Focused spinal adjustments and muscle work to relieve sciatica and lower back discomfort' },
-  { title: 'Neck & Upper Back Targeted Therapy', price: '$119', time: '20 min', description: 'Focused spinal adjustments and muscle work to relieve neck and upper back discomfort' },
-  { title: 'Trigger Point Muscle Therapy & Stretch', price: '$89', time: '20 min', description: 'Relieve postural muscle tightness from travel, enhance blood flow, and calm your nervous system' },
-  { title: 'Chiro Massage', price: '$79', time: '20 min', description: 'Thai-inspired massage blending trigger-point muscle therapy, dynamic stretching, and mechanical massagers' },
-  { title: 'Chiro Massage Mini', price: '$39', time: '10 min', description: 'Thai-inspired massage blending trigger-point muscle therapy and mechanical massagers' },
-  { title: 'Undecided', price: '', time: '', description: 'Not sure which therapy is right? Discuss your needs with our chiropractor to choose the best treatment' }
-] as const;
-
-type Step = 'question' | 'join' | 'nonmember' | 'treatments' | 'details' | 'success';
-type Treatment = (typeof TREATMENTS)[number];
-
-interface WizardState {
-  step: Step;
-  history: Step[];
-  isMember: boolean | null;
-  spinalAdjustment: boolean | null;
-  selectedTreatment: Treatment | null;
-  details: {
-    name: string;
-    phone: string;
-    email: string;
-    birthday: string;
-    discomfort: string[];
-    additionalInfo: string;
-    consent: boolean;
-  };
-  submitAttempted: boolean;
-  isSubmitting: boolean;
-  submissionError: string | null;
-  submissionSuccess: {
-    customerId: string;
-    visitId: string;
-    queuePosition?: number;
-    estimatedWaitTime?: number;
-  } | null;
-}
-
-type Action =
-  | { type: 'GO_TO'; step: Step }
-  | { type: 'GO_BACK' }
-  | { type: 'SET_MEMBER'; value: boolean }
-  | { type: 'SET_SPINAL'; value: boolean }
-  | { type: 'DESELECT_SPINAL' }
-  | { type: 'SELECT_TREATMENT'; treatment: Treatment }
-  | { type: 'UPDATE_FIELD'; field: keyof WizardState['details']; value: string | boolean }
-  | { type: 'UPDATE_DISCOMFORT'; values: string[] }
-  | { type: 'ATTEMPT_SUBMIT' }
-  | { type: 'SUBMIT_START' }
-  | { type: 'SUBMIT_SUCCESS'; payload: { customerId: string; visitId: string; queuePosition?: number; estimatedWaitTime?: number } }
-  | { type: 'SUBMIT_ERROR'; error: string }
-  | { type: 'RESET' };
+// Types now imported from @/types/wizard
 
 // ============================================================================
 // VALIDATION
@@ -144,7 +92,7 @@ const initialState: WizardState = {
   submissionSuccess: null
 };
 
-function wizardReducer(state: WizardState, action: Action): WizardState {
+function wizardReducer(state: WizardState, action: WizardAction): WizardState {
   switch (action.type) {
     case 'GO_TO':
       return {
@@ -482,16 +430,6 @@ function BirthdayField({ details, onUpdateField, submitAttempted, errors }: {
   );
 }
 
-const DISCOMFORT_OPTIONS = [
-  'Neck Tension or Stiffness',
-  'Headache',
-  'Upper Back Tightness',
-  'Lower Back Tightness',
-  'Sciatica',
-  'General Soreness',
-  'No discomfort'
-] as const;
-
 function DiscomfortField({ details, onUpdateDiscomfort, submitAttempted, errors }: {
   details: WizardState['details'];
   onUpdateDiscomfort: (values: string[]) => void;
@@ -752,7 +690,7 @@ const DetailsStep = ({
   onSubmit: () => void;
   onBack: () => void;
   submitAttempted: boolean;
-  dispatch: (action: Action) => void;
+  dispatch: (action: WizardAction) => void;
   isSubmitting: boolean;
   submissionError: string | null;
 }) => {
