@@ -9,12 +9,9 @@ import ResponsiveCard from './ResponsiveCard';
 import { BodyText } from './Typography';
 import { LocationInfo } from '@/utils/locationData';
 
-import { submitFormSecurely, formSubmissionLimiter } from '@/utils/client-api';
+import { joinQueue } from '@/services/queueApi';
 
-import { 
-  Step, 
-  SubmissionResponse 
-} from '@/types/wizard';
+import { Step } from '@/types/wizard';
 
 import { useWizard } from '@/hooks/useWizard';
 import { detailsSchema } from '@/validation/detailsSchema';
@@ -102,32 +99,15 @@ export default function LocationDetails({
     dispatch({ type: 'SUBMIT_START' });
 
     try {
-      // Apply client-side rate limiting
-      await formSubmissionLimiter.throttle();
-
-      // Prepare form data for API (no serviceId needed anymore)
-      const formData = {
-        name: state.details.name,
-        phone: state.details.phone,
-        email: state.details.email,
-        birthday: state.details.birthday,
-        discomfort: state.details.discomfort,
-        additionalInfo: state.details.additionalInfo,
-        consent: state.details.consent,
+      // Submit using queue API service
+      const responseData = await joinQueue({
+        details: state.details,
         selectedTreatment: state.selectedTreatment,
         spinalAdjustment: state.spinalAdjustment,
         locationId: locationInfo.waitwhileLocationId
-      };
+      });
 
-      // Submit using secure API client with automatic CSRF handling
-      const result = await submitFormSecurely<SubmissionResponse>(formData);
-
-      if (!result.success) {
-        throw new Error(result.error || result.message || 'Submission failed');
-      }
-
-      // Success - updated to match new API response structure
-      const responseData = result.data as SubmissionResponse;
+      // Success - prepare payload for state
       const payload: { customerId: string; visitId: string; queuePosition?: number; estimatedWaitTime?: number } = {
         customerId: '', // Not needed with new API structure
         visitId: responseData.visitId,
