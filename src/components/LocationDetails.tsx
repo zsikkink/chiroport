@@ -11,6 +11,13 @@ import { LocationInfo } from '@/utils/locationData';
 import { isValidPhoneNumber, AsYouType } from 'libphonenumber-js';
 import { submitFormSecurely, formSubmissionLimiter } from '@/utils/client-api';
 
+// Define the expected API response structure
+interface SubmissionResponse {
+  visitId: string;
+  queuePosition?: number;
+  estimatedWaitTime?: number;
+}
+
 // ============================================================================
 // DATA & TYPES
 // ============================================================================
@@ -911,21 +918,30 @@ export default function LocationDetails({
       };
 
       // Submit using secure API client with automatic CSRF handling
-      const result = await submitFormSecurely(formData);
+      const result = await submitFormSecurely<SubmissionResponse>(formData);
 
       if (!result.success) {
         throw new Error(result.error || result.message || 'Submission failed');
       }
 
       // Success - updated to match new API response structure
+      const responseData = result.data as SubmissionResponse;
+      const payload: { customerId: string; visitId: string; queuePosition?: number; estimatedWaitTime?: number } = {
+        customerId: '', // Not needed with new API structure
+        visitId: responseData.visitId,
+      };
+      
+      if (responseData.queuePosition !== undefined) {
+        payload.queuePosition = responseData.queuePosition;
+      }
+      
+      if (responseData.estimatedWaitTime !== undefined) {
+        payload.estimatedWaitTime = responseData.estimatedWaitTime;
+      }
+      
       dispatch({
         type: 'SUBMIT_SUCCESS',
-        payload: {
-          customerId: '', // Not needed with new API structure
-          visitId: result.data.visitId,
-          queuePosition: result.data.queuePosition,
-          estimatedWaitTime: result.data.estimatedWaitTime
-        }
+        payload
       });
 
       // Navigate to success step

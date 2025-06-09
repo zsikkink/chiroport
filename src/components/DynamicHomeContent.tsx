@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { StaticTitle } from './StaticTypography';
 import LocationsWrapper from './LocationsWrapper';
 import StaticFeatureCards from './StaticFeatureCards';
 
@@ -41,6 +40,9 @@ export default function DynamicHomeContent() {
       
       return () => window.removeEventListener('resize', updateScreenWidth);
     }
+    
+    // Return undefined for the case where window is not available
+    return undefined;
   }, []);
 
   // Calculate dynamic title size

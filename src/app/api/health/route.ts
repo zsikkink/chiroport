@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       data: health
     });
 
-  } catch (error) {
+  } catch {
     return NextResponse.json({
       success: false,
       status: 'unhealthy',

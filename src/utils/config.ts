@@ -132,7 +132,7 @@ export function getSecurityHeaders(): Record<string, string> {
 }
 
 // Logging utilities
-export function debugLog(...args: any[]): void {
+export function debugLog(...args: unknown[]): void {
   if (config.features.debugMode || config.isDevelopment) {
     console.log('[DEBUG]', new Date().toISOString(), ...args);
   }
@@ -157,7 +157,7 @@ export function logError(error: Error, context?: string): void {
   }
 }
 
-export function logSecurityEvent(event: string, details: any): void {
+export function logSecurityEvent(event: string, details: unknown): void {
   const securityLog = {
     event,
     details,

@@ -106,7 +106,6 @@ export function validateCSRF(request: Request): boolean {
   // Skip CSRF validation for same-origin requests from known safe origins
   const origin = request.headers.get('origin');
   const referer = request.headers.get('referer');
-  const host = request.headers.get('host');
 
   // For development/local requests
   if (process.env.NODE_ENV === 'development' && 

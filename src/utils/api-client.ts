@@ -5,7 +5,7 @@
  * and proper error handling for the frontend components.
  */
 
-interface APIResponse<T = any> {
+interface APIResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -66,10 +66,10 @@ class APIClient {
         await this.ensureCSRFToken();
       }
 
-      const headers: HeadersInit = {
+      const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest', // Additional CSRF protection
-        ...options.headers,
+        ...(options.headers as Record<string, string>),
       };
 
       // Add CSRF token for state-changing operations
@@ -124,21 +124,31 @@ class APIClient {
   /**
    * POST request
    */
-  async post<T>(url: string, data?: any): Promise<APIResponse<T>> {
-    return this.makeRequest<T>(url, {
+  async post<T>(url: string, data?: unknown): Promise<APIResponse<T>> {
+    const options: RequestInit = {
       method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
-    });
+    };
+    
+    if (data) {
+      options.body = JSON.stringify(data);
+    }
+    
+    return this.makeRequest<T>(url, options);
   }
 
   /**
    * PUT request
    */
-  async put<T>(url: string, data?: any): Promise<APIResponse<T>> {
-    return this.makeRequest<T>(url, {
+  async put<T>(url: string, data?: unknown): Promise<APIResponse<T>> {
+    const options: RequestInit = {
       method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
-    });
+    };
+    
+    if (data) {
+      options.body = JSON.stringify(data);
+    }
+    
+    return this.makeRequest<T>(url, options);
   }
 
   /**
@@ -160,7 +170,7 @@ class APIClient {
 export const apiClient = new APIClient();
 
 // Convenience functions for common operations
-export async function submitForm<T>(data: any): Promise<APIResponse<T>> {
+export async function submitForm<T>(data: unknown): Promise<APIResponse<T>> {
   return apiClient.post<T>('/api/waitwhile/submit', data);
 }
 

@@ -57,7 +57,7 @@ export function sanitizeInput(input: string): string {
 /**
  * Validate and sanitize object inputs recursively
  */
-export function sanitizeObject(obj: any): any {
+export function sanitizeObject(obj: unknown): unknown {
   if (typeof obj === 'string') {
     return sanitizeInput(obj);
   }
@@ -67,7 +67,7 @@ export function sanitizeObject(obj: any): any {
   }
   
   if (obj && typeof obj === 'object') {
-    const sanitized: any = {};
+    const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       sanitized[sanitizeInput(key)] = sanitizeObject(value);
     }
@@ -135,7 +135,7 @@ export function validateOrigin(request: NextRequest): boolean {
     process.env.NEXT_PUBLIC_BASE_URL,
     'https://chiroport.com',
     'https://www.chiroport.com',
-  ].filter(Boolean);
+  ].filter((origin): origin is string => Boolean(origin));
   
   return allowedOrigins.some(allowed => 
     origin?.includes(allowed) || referer?.includes(allowed)
@@ -172,7 +172,7 @@ export function isLikelyBot(request: NextRequest): boolean {
 /**
  * Comprehensive security check for incoming requests
  */
-export function performSecurityCheck(request: NextRequest, body?: any): {
+export function performSecurityCheck(request: NextRequest, body?: unknown): {
   allowed: boolean;
   reason?: string;
 } {

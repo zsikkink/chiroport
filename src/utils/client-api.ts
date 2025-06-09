@@ -6,7 +6,7 @@
 
 'use client';
 
-interface APIResponse<T = any> {
+interface APIResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -40,7 +40,7 @@ class SimpleRateLimiter {
 /**
  * Secure form submission with CSRF protection
  */
-export async function submitFormSecurely<T>(data: any): Promise<APIResponse<T>> {
+export async function submitFormSecurely<T>(data: unknown): Promise<APIResponse<T>> {
   try {
     // First, get CSRF token
     const tokenResponse = await fetch('/api/csrf-token', {
