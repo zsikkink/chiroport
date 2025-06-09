@@ -169,15 +169,34 @@ export class WaitwhileClient {
       phone = '+' + phone;
     }
 
-    // Convert birthday from MM/DD/YYYY to YYYY-MM-DD format
+    // Decode HTML entities and convert birthday from MM/DD/YYYY to YYYY-MM-DD format
     let dateOfBirth = formData.birthday;
-    if (formData.birthday.includes('/')) {
-      const parts = formData.birthday.split('/');
+    
+    // First decode HTML entities (&#x2F; -> /)
+    dateOfBirth = dateOfBirth
+      .replace(/&#x2F;/g, '/')
+      .replace(/&#47;/g, '/')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#x27;/g, "'");
+    
+    // Convert MM/DD/YYYY to YYYY-MM-DD (ISO 8601 format)
+    if (dateOfBirth.includes('/')) {
+      const parts = dateOfBirth.split('/');
       const [month, day, year] = parts;
       
       // Check if all parts exist and are valid
-      if (month && day && year) {
+      if (month && day && year && parts.length === 3) {
         dateOfBirth = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        debugLog('Date transformation:', { 
+          original: formData.birthday,
+          decoded: dateOfBirth,
+          parts: { month, day, year }
+        });
+      } else {
+        logError(new Error(`Invalid date format: ${dateOfBirth}`), 'Date transformation failed');
       }
     }
 

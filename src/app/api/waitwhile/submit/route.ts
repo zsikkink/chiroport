@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { createVisit } from '@/lib/waitwhile-client';
 import { debugLog, logError, logSecurityEvent } from '@/utils/config';
 import { validateCSRF } from '@/utils/csrf';
-import { performSecurityCheck, sanitizeObject } from '@/utils/security';
+import { performSecurityCheck, sanitizeFormData } from '@/utils/security';
 
 // Validation schema for form submission (simplified - no serviceId needed)
 const submissionSchema = z.object({
@@ -65,8 +65,8 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
     }
 
-    // Sanitize input data
-    const sanitizedBody = sanitizeObject(body);
+    // Sanitize input data using form-specific sanitization
+    const sanitizedBody = sanitizeFormData(body);
     debugLog('Received form submission:', sanitizedBody);
 
     // Check if API key is available

@@ -50,8 +50,37 @@ export function sanitizeInput(input: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;')
+    // Don't encode forward slashes as they're legitimate in dates and URLs
     .trim();
+}
+
+/**
+ * Sanitize form data more carefully to preserve legitimate content
+ */
+export function sanitizeFormData(obj: unknown): unknown {
+  if (typeof obj === 'string') {
+    // For form data, only encode the most dangerous characters
+    return obj
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .trim();
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeFormData(item));
+  }
+  
+  if (obj && typeof obj === 'object') {
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      // Keys should still be fully sanitized
+      sanitized[sanitizeInput(key)] = sanitizeFormData(value);
+    }
+    return sanitized;
+  }
+  
+  return obj;
 }
 
 /**
