@@ -41,6 +41,13 @@ export interface LocationInfo {
   customHours: string;
   displayName: string;
   waitwhileLocationId: string; // Waitwhile location ID for API integration
+  // Add data field IDs specific to each location
+  dataFieldIds: {
+    ailment: string;
+    dateOfBirth: string;
+    notes: string;
+    consent: string;
+  };
 }
 
 export interface AirportLocation {
@@ -80,6 +87,12 @@ export const airportLocations: AirportLocation[] = [
           customHours: '7am - 7pm ET',
           displayName: 'Concourse A',
           waitwhileLocationId: 'ATL-PLACEHOLDER', // ATL does not exist yet, placeholder
+          dataFieldIds: {
+            ailment: '3EyMmttdiJfOc7nmQaUC',
+            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
+            notes: 'dlaxD8sZ1VPchcgcra9w',
+            consent: 'uhLZqSrUJaok6R52Powg',
+          },
         }
       }
     ]
@@ -102,6 +115,12 @@ export const airportLocations: AirportLocation[] = [
           customHours: '7am - 7pm CT',
           displayName: 'Concourse A',
           waitwhileLocationId: 'PSpPokkQXjTJzFcWskcU', // DFW A 29
+          dataFieldIds: {
+            ailment: '3EyMmttdiJfOc7nmQaUC',
+            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
+            notes: 'dlaxD8sZ1VPchcgcra9w',
+            consent: 'uhLZqSrUJaok6R52Powg',
+          },
         }
       }
     ]
@@ -124,6 +143,12 @@ export const airportLocations: AirportLocation[] = [
           customHours: '8am - 6pm CT',
           displayName: 'West Concourse',
           waitwhileLocationId: 'a4ffR8xjhkhV7EKlzhxJ', // Houston Hobby
+          dataFieldIds: {
+            ailment: '3EyMmttdiJfOc7nmQaUC',
+            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
+            notes: 'dlaxD8sZ1VPchcgcra9w',
+            consent: 'uhLZqSrUJaok6R52Powg',
+          },
         }
       }
     ]
@@ -146,6 +171,12 @@ export const airportLocations: AirportLocation[] = [
           customHours: '8am - 6pm PT',
           displayName: 'Concourse B',
           waitwhileLocationId: 'kjAmNhyUygMlvVUje1gc', // LAS B across from Starbucks
+          dataFieldIds: {
+            ailment: '3EyMmttdiJfOc7nmQaUC',
+            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
+            notes: 'dlaxD8sZ1VPchcgcra9w',
+            consent: 'uhLZqSrUJaok6R52Powg',
+          },
         }
       },
       {
@@ -161,6 +192,12 @@ export const airportLocations: AirportLocation[] = [
           customHours: '8am - 6pm PT',
           displayName: 'Concourse C',
           waitwhileLocationId: 'BKncaAgwFhUrywvRCgXT', // Las Vegas C24
+          dataFieldIds: {
+            ailment: '3EyMmttdiJfOc7nmQaUC',
+            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
+            notes: 'dlaxD8sZ1VPchcgcra9w',
+            consent: 'uhLZqSrUJaok6R52Powg',
+          },
         }
       }
     ]
@@ -183,6 +220,12 @@ export const airportLocations: AirportLocation[] = [
           customHours: '7am - 8pm CT',
           displayName: 'Concourse C',
           waitwhileLocationId: 'TyHFt6NehcmCK7gCAHod', // MSP C
+          dataFieldIds: {
+            ailment: '3EyMmttdiJfOc7nmQaUC',
+            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
+            notes: 'dlaxD8sZ1VPchcgcra9w',
+            consent: 'uhLZqSrUJaok6R52Powg',
+          },
         }
       },
       {
@@ -198,6 +241,12 @@ export const airportLocations: AirportLocation[] = [
           customHours: '7am - 7pm CT',
           displayName: 'Concourse F',
           waitwhileLocationId: 'xutzfkaetOGtbokSpnW1', // MSP F
+          dataFieldIds: {
+            ailment: '3EyMmttdiJfOc7nmQaUC',
+            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
+            notes: 'dlaxD8sZ1VPchcgcra9w',
+            consent: 'uhLZqSrUJaok6R52Powg',
+          },
         }
       },
       {
@@ -213,6 +262,12 @@ export const airportLocations: AirportLocation[] = [
           customHours: '7am - 7pm CT',
           displayName: 'Concourse G',
           waitwhileLocationId: 'xmGfroUQYjy5de88a3Wz', // MSP G
+          dataFieldIds: {
+            ailment: '3EyMmttdiJfOc7nmQaUC',
+            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
+            notes: 'dlaxD8sZ1VPchcgcra9w',
+            consent: 'uhLZqSrUJaok6R52Powg',
+          },
         }
       }
     ]
@@ -265,4 +320,18 @@ export function getServiceId(
 // Generate route paths for navigation
 export function getLocationRoute(airportSlug: string, concourseSlug: string): string {
   return `/locations/${airportSlug}/${concourseSlug}`;
+}
+
+/**
+ * Find location data by Waitwhile location ID
+ */
+export function getLocationDataByWaitwhileId(waitwhileLocationId: string): LocationInfo | null {
+  for (const airport of airportLocations) {
+    for (const concourse of airport.concourses) {
+      if (concourse.locationInfo.waitwhileLocationId === waitwhileLocationId) {
+        return concourse.locationInfo;
+      }
+    }
+  }
+  return null;
 } 
