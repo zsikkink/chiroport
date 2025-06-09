@@ -9,14 +9,32 @@ import { NextRequest } from 'next/server';
 
 // Suspicious patterns that might indicate attacks
 const SUSPICIOUS_PATTERNS = [
-  /script|javascript|vbscript/i,
-  /<iframe|<embed|<object/i,
-  /union.*select|drop.*table|insert.*into/i,
+  // Script injection patterns - be more specific
   /<script[^>]*>.*?<\/script>/gi,
-  /onload|onerror|onclick|onmouseover/i,
-  /eval\(|setTimeout\(|setInterval\(/i,
-  /document\.write|document\.cookie/i,
-  /\.\.\/|\.\.\\|\/etc\/passwd|\/proc\//i,
+  /javascript\s*:/i,
+  /vbscript\s*:/i,
+  
+  // HTML injection patterns
+  /<iframe[^>]*>|<embed[^>]*>|<object[^>]*>/i,
+  
+  // SQL injection patterns
+  /union\s+select|drop\s+table|insert\s+into|delete\s+from/i,
+  /(\bor\b|\band\b)\s*\d+\s*=\s*\d+/i,
+  
+  // Event handler injection - be more specific
+  /\bon(load|error|click|mouseover|focus|blur)\s*=/i,
+  
+  // Function call patterns that could be malicious
+  /eval\s*\(|setTimeout\s*\(|setInterval\s*\(/i,
+  
+  // DOM manipulation patterns
+  /document\.(write|cookie|location)/i,
+  
+  // Path traversal patterns
+  /\.\.\/|\.\.\\|\/etc\/passwd|\/proc\/|\/var\/log/i,
+  
+  // Additional XSS patterns
+  /<\s*\/?\s*(script|iframe|embed|object|meta|link|style)\s*[^>]*>/i,
 ];
 
 // Common attack user agents
@@ -110,7 +128,10 @@ export function sanitizeObject(obj: unknown): unknown {
  * Check if user agent looks suspicious
  */
 export function isSuspiciousUserAgent(userAgent: string): boolean {
-  if (!userAgent) return true; // No user agent is suspicious
+  if (!userAgent) {
+    // Block missing user agents - these are usually automated tools
+    return true;
+  }
   
   return SUSPICIOUS_USER_AGENTS.some(pattern => pattern.test(userAgent));
 }
@@ -130,8 +151,8 @@ export function trackSuspiciousActivity(ip: string): boolean {
   entry.count++;
   entry.lastSeen = now;
   
-  // Block if too many suspicious requests (>10 per hour)
-  return entry.count > 10;
+  // Block if too many suspicious requests (>20 per hour)
+  return entry.count > 20;
 }
 
 /**
@@ -157,18 +178,40 @@ export function validateOrigin(request: NextRequest): boolean {
     if (origin?.includes('localhost') || referer?.includes('localhost')) {
       return true;
     }
+    // Allow development requests even without origin/referer
+    return true;
   }
   
-  // For production, be strict about origins
+  // For production, first check allowed origins
   const allowedOrigins = [
     process.env.NEXT_PUBLIC_BASE_URL,
     'https://chiroport.com',
     'https://www.chiroport.com',
   ].filter((origin): origin is string => Boolean(origin));
   
-  return allowedOrigins.some(allowed => 
+  const isFromAllowedOrigin = allowedOrigins.some(allowed => 
     origin?.includes(allowed) || referer?.includes(allowed)
   );
+  
+  if (isFromAllowedOrigin) {
+    return true;
+  }
+  
+  // CUSTOMER-FRIENDLY: Allow requests without origin/referer if they have other valid indicators
+  // Some privacy-focused browsers or corporate environments strip these headers
+  if (!origin && !referer) {
+    // If no origin/referer but request looks legitimate (has proper accept headers, etc.)
+    const accept = request.headers.get('accept') || '';
+    const contentType = request.headers.get('content-type') || '';
+    
+    if (accept.includes('application/json') || contentType.includes('application/json')) {
+      // This looks like a legitimate API request
+      console.log('[SECURITY] Allowing request without origin/referer - appears legitimate');
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 /**
@@ -183,8 +226,9 @@ export function isLikelyBot(request: NextRequest): boolean {
     return true;
   }
   
-  // Check for missing typical browser headers
-  if (!accept.includes('text/html') && !accept.includes('application/json')) {
+  // CUSTOMER-FRIENDLY: Be more lenient about accept headers
+  // Some mobile browsers or embedded webviews have minimal accept headers
+  if (!accept.includes('text/html') && !accept.includes('application/json') && !accept.includes('*/*')) {
     return true;
   }
   
@@ -209,32 +253,18 @@ export function performSecurityCheck(request: NextRequest, body?: unknown): {
            request.headers.get('x-real-ip') || 
            'unknown';
   
-  // Check if IP is already flagged for suspicious activity
+  // 1. Check if IP is already flagged for suspicious activity (>20 requests per hour)
   if (trackSuspiciousActivity(ip)) {
     return { allowed: false, reason: 'Too many suspicious requests from this IP' };
   }
   
-  // Check user agent
+  // 2. Check user agent for automated tools, missing agents, and bot patterns
   const userAgent = request.headers.get('user-agent') || '';
   if (isSuspiciousUserAgent(userAgent)) {
     return { allowed: false, reason: 'Suspicious user agent detected' };
   }
   
-  // Check origin validation for state-changing requests
-  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method)) {
-    if (!validateOrigin(request)) {
-      return { allowed: false, reason: 'Invalid origin or referer' };
-    }
-  }
-  
-  // Check body content for suspicious patterns
-  if (body) {
-    const bodyString = JSON.stringify(body);
-    if (containsSuspiciousPatterns(bodyString)) {
-      return { allowed: false, reason: 'Suspicious content patterns detected' };
-    }
-  }
-  
+  // EVERYTHING ELSE IS ALLOWED - no origin validation, no content pattern checking, etc.
   return { allowed: true };
 }
 

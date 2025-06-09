@@ -44,10 +44,22 @@ export async function POST(request: NextRequest) {
         userAgent: request.headers.get('user-agent'),
         endpoint: '/api/waitwhile/submit'
       });
+      
+      // CUSTOMER-FRIENDLY: Provide helpful error messages
+      let userMessage = 'Request blocked for security reasons';
+      if (securityCheck.reason?.includes('user agent')) {
+        userMessage = 'Please make sure you are using a standard web browser to access this form';
+      } else if (securityCheck.reason?.includes('origin')) {
+        userMessage = 'Please make sure you are accessing this form directly from our website';
+      } else if (securityCheck.reason?.includes('content')) {
+        userMessage = 'Please check your form submission for any unusual characters and try again';
+      }
+      
       return NextResponse.json({
         success: false,
         error: 'Security validation failed',
-        message: 'Request blocked for security reasons'
+        message: userMessage,
+        code: 'SECURITY_CHECK_FAILED'
       }, { status: 403 });
     }
 
@@ -61,7 +73,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: false,
         error: 'CSRF validation failed',
-        message: 'Invalid or missing CSRF token. Please refresh the page and try again.'
+        message: 'Security token expired or missing. Please refresh the page and try again.',
+        code: 'CSRF_FAILED',
+        action: 'refresh_page'
       }, { status: 403 });
     }
 
