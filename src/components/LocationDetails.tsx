@@ -20,6 +20,7 @@ import {
 } from '@/types/wizard';
 import { detailsSchema } from '@/validation/detailsSchema';
 import { useWizard } from '@/hooks/useWizard';
+import { fadeVariants } from '@/ui/animation/fadeVariants';
 
 // ============================================================================
 // DATA & TYPES
@@ -40,20 +41,7 @@ import { useWizard } from '@/hooks/useWizard';
 // ============================================================================
 // ANIMATION
 // ============================================================================
-
-const fadeVariants = {
-  initial: {
-    opacity: 0
-  },
-  animate: {
-    opacity: 1,
-    transition: { duration: 0.6, ease: [0.4, 0.0, 0.2, 1] }
-  },
-  exit: {
-    opacity: 0,
-    transition: { duration: 0.6, ease: [0.4, 0.0, 0.2, 1] }
-  }
-};
+// Animation variants now imported from @/ui/animation/fadeVariants
 
 // ============================================================================
 // ANIMATED BUTTON COMPONENT
