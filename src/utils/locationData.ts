@@ -86,7 +86,7 @@ export const airportLocations: AirportLocation[] = [
           customLocation: 'Located near the main rotunda of Concourse A next to the BlueWire kiosk and the Delta Help Desk.',
           customHours: '7am - 7pm ET',
           displayName: 'Concourse A',
-          waitwhileLocationId: 'ATL-PLACEHOLDER', // ATL does not exist yet, placeholder
+          waitwhileLocationId: 'CrX9VfmNjSdJXTRoFVb6', // ATL Concourse A
           dataFieldIds: {
             ailment: '3EyMmttdiJfOc7nmQaUC',
             dateOfBirth: 'wRArbngAg41dQp1hpDSC',

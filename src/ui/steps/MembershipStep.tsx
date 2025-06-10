@@ -14,8 +14,8 @@ export interface MembershipStepProps {
 
 export function MembershipStep({ onYes, onNo }: MembershipStepProps) {
   return (
-    <div className="space-y-4 py-4">
-      <BodyText size="2xl" className="font-medium text-white">
+    <div className="py-4 sm:py-5">
+      <BodyText size="2xl" className="font-medium text-white mb-4 sm:mb-5">
         Priority Pass or Lounge Key member?
       </BodyText>
       <YesNoButtons onYes={onYes} onNo={onNo} selected={null} />

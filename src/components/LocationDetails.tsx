@@ -10,9 +10,7 @@ import { BodyText } from './Typography';
 import { LocationInfo } from '@/utils/locationData';
 
 import { joinQueue } from '@/services/queueApi';
-
-import { Step } from '@/types/wizard';
-
+import { Step, Treatment, WizardState } from '@/types/wizard';
 import { useWizard } from '@/hooks/useWizard';
 import { detailsSchema } from '@/validation/detailsSchema';
 import { fadeVariants } from '@/ui/animation/fadeVariants';
@@ -25,48 +23,6 @@ import {
   DetailsStep,
   SuccessStep
 } from '@/ui/steps';
-
-// ============================================================================
-// DATA & TYPES
-// ============================================================================
-
-// Types now imported from @/types/wizard
-
-// ============================================================================
-// VALIDATION
-// ============================================================================
-// Schema now imported from @/validation/detailsSchema
-
-// ============================================================================
-// REDUCER
-// ============================================================================
-// Reducer logic now in @/hooks/useWizard
-
-// ============================================================================
-// ANIMATION
-// ============================================================================
-// Animation variants now imported from @/ui/animation/fadeVariants
-
-// ============================================================================
-// ANIMATED BUTTON COMPONENT
-// ============================================================================
-// AnimatedButton now imported from @/ui/atoms
-
-// ============================================================================
-// REUSABLE COMPONENTS
-// ============================================================================
-// All UI components now imported from @/ui/atoms
-
-// All field components now imported from @/ui/atoms
-
-// ============================================================================
-// STEP COMPONENTS
-// ============================================================================
-// All step components now imported from @/ui/steps
-
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
 
 export default function LocationDetails({ 
   locationInfo, 
@@ -86,6 +42,23 @@ export default function LocationDetails({
 
   const goTo = (step: Step) => dispatch({ type: 'GO_TO', step });
   const goBack = () => dispatch({ type: 'GO_BACK' });
+
+  const stepHandlers = {
+    setMember: (value: boolean) => {
+      dispatch({ type: 'SET_MEMBER', value });
+      goTo(value ? 'join' : 'treatments');
+    },
+    setSpinal: (value: boolean) => {
+      dispatch({ type: 'SET_SPINAL', value });
+      goTo('details');
+    },
+    selectTreatment: (treatment: Treatment) => {
+      dispatch({ type: 'SELECT_TREATMENT', treatment });
+      goTo('details');
+    },
+    updateField: (field: keyof WizardState['details'], value: string | boolean) => 
+      dispatch({ type: 'UPDATE_FIELD', field, value })
+  };
 
   const handleSubmit = async () => {
     dispatch({ type: 'ATTEMPT_SUBMIT' });
@@ -138,122 +111,80 @@ export default function LocationDetails({
   };
 
   const renderStep = () => {
+    let stepComponent;
+
     switch (state.step) {
       case 'question':
-        return (
-          <motion.div
-            key={state.step}
-            variants={fadeVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-          >
-            <MembershipStep
-              onYes={() => {
-                dispatch({ type: 'SET_MEMBER', value: true });
-                goTo('join');
-              }}
-              onNo={() => {
-                dispatch({ type: 'SET_MEMBER', value: false });
-                goTo('treatments');
-              }}
-            />
-          </motion.div>
+        stepComponent = (
+          <MembershipStep
+            onYes={() => stepHandlers.setMember(true)}
+            onNo={() => stepHandlers.setMember(false)}
+          />
         );
+        break;
 
       case 'join':
-        return (
-          <motion.div
-            key={state.step}
-            variants={fadeVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-          >
-            <JoinStep
-              onSetSpinal={(value) => {
-                dispatch({ type: 'SET_SPINAL', value });
-                goTo('details');
-              }}
-              onBack={goBack}
-            />
-          </motion.div>
+        stepComponent = (
+          <JoinStep
+            onSetSpinal={stepHandlers.setSpinal}
+            onBack={goBack}
+          />
         );
+        break;
 
       case 'nonmember':
-        return (
-          <motion.div
-            key={state.step}
-            variants={fadeVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-          >
-            <NonMemberStep
-              onProceed={() => goTo('treatments')}
-              onSchedule={() => console.log('Schedule future treatment')}
-              onBack={goBack}
-            />
-          </motion.div>
+        stepComponent = (
+          <NonMemberStep
+            onProceed={() => goTo('treatments')}
+            onSchedule={() => console.log('Schedule future treatment')}
+            onBack={goBack}
+          />
         );
+        break;
 
       case 'treatments':
-        return (
-          <motion.div
-            key={state.step}
-            variants={fadeVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-          >
-            <TreatmentsStep
-              onSelect={(treatment) => {
-                dispatch({ type: 'SELECT_TREATMENT', treatment });
-                goTo('details');
-              }}
-              onBack={goBack}
-            />
-          </motion.div>
+        stepComponent = (
+          <TreatmentsStep
+            onSelect={stepHandlers.selectTreatment}
+            onBack={goBack}
+          />
         );
+        break;
 
       case 'details':
-        return (
-          <motion.div
-            key={state.step}
-            variants={fadeVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-          >
-            <DetailsStep
-              details={state.details}
-              onUpdateField={(field, value) => dispatch({ type: 'UPDATE_FIELD', field, value })}
-              onSubmit={handleSubmit}
-              onBack={goBack}
-              submitAttempted={state.submitAttempted}
-              dispatch={dispatch}
-              isSubmitting={state.isSubmitting}
-              submissionError={state.submissionError}
-            />
-          </motion.div>
+        stepComponent = (
+          <DetailsStep
+            details={state.details}
+            onUpdateField={stepHandlers.updateField}
+            onSubmit={handleSubmit}
+            onBack={goBack}
+            submitAttempted={state.submitAttempted}
+            dispatch={dispatch}
+            isSubmitting={state.isSubmitting}
+            submissionError={state.submissionError}
+          />
         );
+        break;
 
       case 'success':
-        return (
-          <motion.div
-            key={state.step}
-            variants={fadeVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-          >
-            <SuccessStep />
-          </motion.div>
-        );
+        stepComponent = <SuccessStep />;
+        break;
 
       default:
         return null;
     }
+
+    return (
+      <motion.div
+        key={state.step}
+        variants={fadeVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+      >
+        {stepComponent}
+      </motion.div>
+    );
   };
 
   return (
