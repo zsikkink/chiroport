@@ -850,17 +850,25 @@ const DetailsStep = ({
   );
 };
 
-const SuccessStep = () => (
+const SuccessStep = ({ isMember }: { isMember: boolean | null }) => (
   <div className="space-y-6 py-4 text-center">
     <div className="mb-6">
       <BodyText size="3xl" className="font-bold text-white mb-4">🎉 You&apos;re in the queue! 🎉</BodyText>
-      
     </div>
 
     <div className="space-y-4">
       <BodyText size="lg" className="text-white">
         We&apos;ll text you when you&apos;re up next.
       </BodyText>
+      
+      {/* Priority Pass member message - only show if they are a member */}
+      {isMember && (
+        <div className="mt-6 p-4 rounded-lg">
+          <BodyText size="base" className="text-white">
+            Your membership will be scanned at arrival to confirm eligibility. If not covered, you&apos;ll still have access to our services at a preferred member rate.
+          </BodyText>
+        </div>
+      )}
     </div>
   </div>
 );
@@ -1065,7 +1073,7 @@ export default function LocationDetails({
             animate="animate"
             exit="exit"
           >
-            <SuccessStep />
+            <SuccessStep isMember={state.isMember} />
           </motion.div>
         );
 
