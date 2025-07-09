@@ -83,7 +83,7 @@ export const airportLocations: AirportLocation[] = [
           landmark: 'Delta Help Desk',
           airportCode: 'ATL',
           imageUrl: '/images/stores/atl-a.webp',
-          customLocation: 'Located near the main rotunda of Concourse A next to the BlueWire kiosk and the Delta Help Desk.',
+          customLocation: 'Located near the main rotunda of Concourse A next to In Motion and the Delta Help Desk.',
           customHours: '7am - 7pm ET',
           displayName: 'Concourse A',
           waitwhileLocationId: 'CrX9VfmNjSdJXTRoFVb6', // ATL Concourse A
