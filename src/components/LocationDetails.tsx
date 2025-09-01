@@ -1,7 +1,7 @@
 'use client';
 
 import { useReducer, useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, cubicBezier } from 'framer-motion';
 import { ChevronLeftIcon } from '@heroicons/react/24/solid';
 import 'react-phone-number-input/style.css';
 import { z } from 'zod';
@@ -226,11 +226,11 @@ const fadeVariants = {
   },
   animate: {
     opacity: 1,
-    transition: { duration: 0.6, ease: [0.4, 0.0, 0.2, 1] }
+    transition: { duration: 0.6, ease: cubicBezier(0.4, 0.0, 0.2, 1) }
   },
   exit: {
     opacity: 0,
-    transition: { duration: 0.6, ease: [0.4, 0.0, 0.2, 1] }
+    transition: { duration: 0.6, ease: cubicBezier(0.4, 0.0, 0.2, 1) }
   }
 };
 
