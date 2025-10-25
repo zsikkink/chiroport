@@ -218,7 +218,14 @@ export class WaitwhileClient {
       };
       
       serviceId = serviceMapping[formData.selectedTreatment.title] || 'FtfCqXMwnkqdft5aL0ZX';
-      ailmentValue = formData.selectedTreatment.title;
+      const treatmentTitle = formData.selectedTreatment.title;
+      const massageTitles = new Set(['15 Minutes', '20 Minutes', '30 Minutes']);
+
+      if (massageTitles.has(treatmentTitle)) {
+        ailmentValue = 'No discomfort';
+      } else {
+        ailmentValue = treatmentTitle;
+      }
     } else {
       // Member: Use appropriate member service
       if (formData.spinalAdjustment === true) {
