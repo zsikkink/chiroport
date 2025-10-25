@@ -829,15 +829,22 @@ const CategoryStep = ({
 
 const MassageOptionsStep = ({
   selectedTreatment,
-  onSelect
+  onSelect,
+  onBack
 }: {
   selectedTreatment: Treatment | null;
   onSelect: (treatment: Treatment) => void;
+  onBack: () => void;
 }) => (
   <div className="space-y-6 py-4">
-    <BodyText size="3xl" className="font-bold text-white text-center">
-      Chair Massage Options
-    </BodyText>
+    <div className="relative flex items-center mb-4">
+      <BackButton onClick={onBack} />
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <BodyText size="3xl" className="font-bold text-white text-center">
+          Chair Massage Options
+        </BodyText>
+      </div>
+    </div>
     <div className="space-y-3">
       {MASSAGE_OPTIONS.map((option) => (
         <AnimatedButton
@@ -1320,6 +1327,7 @@ export default function LocationDetails({
               dispatch({ type: 'SELECT_TREATMENT', treatment });
               goTo(flowTransitions.afterTreatmentSelection);
             }}
+            onBack={goBack}
           />
         </motion.div>
       );
