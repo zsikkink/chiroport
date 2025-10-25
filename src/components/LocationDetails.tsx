@@ -335,9 +335,17 @@ interface AnimatedButtonProps {
   className?: string;
   disabled?: boolean;
   selected?: boolean;
+  persistSelection?: boolean;
 }
 
-const AnimatedButton = ({ children, onClick, className = '', disabled = false, selected = false }: AnimatedButtonProps) => {
+const AnimatedButton = ({
+  children,
+  onClick,
+  className = '',
+  disabled = false,
+  selected = false,
+  persistSelection = true
+}: AnimatedButtonProps) => {
   const [isAnimating, setIsAnimating] = useState(false);
 
   const handleClick = () => {
@@ -362,12 +370,13 @@ const AnimatedButton = ({ children, onClick, className = '', disabled = false, s
       <button
         onClick={handleClick}
         disabled={disabled}
+        data-selected={selected}
         className={`
           relative w-full text-lg font-semibold rounded-lg p-4 border-2 border-white 
           transition-all duration-200 overflow-hidden
           bg-primary hover:bg-[#475549] text-white shadow-lg
           min-h-[3rem] flex items-center justify-center
-          ${selected 
+          ${selected && (persistSelection || isAnimating)
             ? 'bg-white text-[#56655A] hover:bg-gray-100' 
             : 'bg-primary hover:bg-[#475549] text-white'
           }
@@ -808,18 +817,21 @@ const CategoryStep = ({
       <AnimatedButton
         onClick={() => onSelect('priority_pass')}
         selected={selectedCategory === 'priority_pass'}
+        persistSelection={false}
       >
         Priority Pass / Lounge Key
       </AnimatedButton>
       <AnimatedButton
         onClick={() => onSelect('chiropractor')}
         selected={selectedCategory === 'chiropractor'}
+        persistSelection={false}
       >
         Chiropractor
       </AnimatedButton>
       <AnimatedButton
         onClick={() => onSelect('massage')}
         selected={selectedCategory === 'massage'}
+        persistSelection={false}
       >
         Massage
       </AnimatedButton>
@@ -851,6 +863,7 @@ const MassageOptionsStep = ({
           key={option.title}
           onClick={() => onSelect(option)}
           selected={selectedTreatment?.title === option.title}
+          persistSelection={false}
         >
           <span className="w-full text-center font-bold">
             <span>{option.title}</span>{' '}
