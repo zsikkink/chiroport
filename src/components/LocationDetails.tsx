@@ -34,6 +34,7 @@ const TREATMENTS = [
 ] as const;
 
 type Step =
+  | 'category'
   | 'question'
   | 'join'
   | 'nonmember'
@@ -43,6 +44,7 @@ type Step =
   | 'massageMenu';
 
 type IntakeCategory = 'standard' | 'offers_massage';
+type VisitCategory = 'priority_pass' | 'chiropractor' | 'massage';
 type Treatment = (typeof TREATMENTS)[number];
 
 interface WizardState {
@@ -51,6 +53,7 @@ interface WizardState {
   isMember: boolean | null;
   spinalAdjustment: boolean | null;
   selectedTreatment: Treatment | null;
+  visitCategory: VisitCategory | null;
   details: {
     name: string;
     phone: string;
@@ -78,6 +81,8 @@ type Action =
   | { type: 'SET_SPINAL'; value: boolean }
   | { type: 'DESELECT_SPINAL' }
   | { type: 'SELECT_TREATMENT'; treatment: Treatment }
+  | { type: 'SET_VISIT_CATEGORY'; value: VisitCategory | null }
+  | { type: 'CLEAR_SELECTED_TREATMENT' }
   | { type: 'UPDATE_FIELD'; field: keyof WizardState['details']; value: string | boolean }
   | { type: 'UPDATE_DISCOMFORT'; values: string[] }
   | { type: 'ATTEMPT_SUBMIT' }
@@ -92,8 +97,8 @@ const FLOW_CONFIG: Record<IntakeCategory, { initialStep: Step; steps: Step[] }> 
     steps: ['question', 'join', 'nonmember', 'treatments', 'details', 'success'],
   },
   offers_massage: {
-    initialStep: 'question',
-    steps: ['question', 'join', 'nonmember', 'treatments', 'massageMenu', 'details', 'success'],
+    initialStep: 'category',
+    steps: ['category', 'join', 'treatments', 'massageMenu', 'details', 'success'],
   },
 };
 
@@ -102,6 +107,11 @@ type FlowTransitionMap = {
   afterMemberNo: Step;
   afterSpinalDecision: Step;
   afterTreatmentSelection: Step;
+  category?: {
+    priorityPass: Step;
+    chiropractor: Step;
+    massage: Step;
+  };
 };
 
 const FLOW_TRANSITIONS: Record<IntakeCategory, FlowTransitionMap> = {
@@ -116,6 +126,11 @@ const FLOW_TRANSITIONS: Record<IntakeCategory, FlowTransitionMap> = {
     afterMemberNo: 'treatments',
     afterSpinalDecision: 'details',
     afterTreatmentSelection: 'details',
+    category: {
+      priorityPass: 'join',
+      chiropractor: 'treatments',
+      massage: 'massageMenu',
+    },
   },
 };
 
@@ -135,6 +150,7 @@ const createWizardInitialState = (initialStep: Step): WizardState => ({
   isMember: null,
   spinalAdjustment: null,
   selectedTreatment: null,
+  visitCategory: null,
   details: createEmptyDetails(),
   submitAttempted: false,
   isSubmitting: false,
@@ -226,6 +242,12 @@ function wizardReducer(state: WizardState, action: Action): WizardState {
 
     case 'SELECT_TREATMENT':
       return { ...state, selectedTreatment: action.treatment };
+
+    case 'SET_VISIT_CATEGORY':
+      return { ...state, visitCategory: action.value };
+
+    case 'CLEAR_SELECTED_TREATMENT':
+      return { ...state, selectedTreatment: null };
 
     case 'UPDATE_FIELD':
       return {
@@ -753,6 +775,40 @@ const NonMemberStep = ({
   </div>
 );
 
+const CategoryStep = ({ 
+  selectedCategory,
+  onSelect
+}: {
+  selectedCategory: VisitCategory | null;
+  onSelect: (category: VisitCategory) => void;
+}) => (
+  <div className="space-y-6 py-4">
+    <BodyText size="3xl" className="font-bold text-white text-center">
+      Select category
+    </BodyText>
+    <div className="space-y-3">
+      <AnimatedButton
+        onClick={() => onSelect('priority_pass')}
+        selected={selectedCategory === 'priority_pass'}
+      >
+        Priority Pass / Lounge Key
+      </AnimatedButton>
+      <AnimatedButton
+        onClick={() => onSelect('chiropractor')}
+        selected={selectedCategory === 'chiropractor'}
+      >
+        Chiropractor
+      </AnimatedButton>
+      <AnimatedButton
+        onClick={() => onSelect('massage')}
+        selected={selectedCategory === 'massage'}
+      >
+        Massage
+      </AnimatedButton>
+    </div>
+  </div>
+);
+
 const TreatmentsStep = ({ 
   onSelect, 
   onBack 
@@ -1154,6 +1210,44 @@ export default function LocationDetails({
   };
 
   const renderOffersMassageFlowStep = () => {
+    if (state.step === 'category') {
+      return (
+        <motion.div
+          key={state.step}
+          variants={fadeVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+        >
+          <CategoryStep
+            selectedCategory={state.visitCategory}
+            onSelect={(category) => {
+              dispatch({ type: 'SET_VISIT_CATEGORY', value: category });
+              dispatch({ type: 'SET_MEMBER', value: category === 'priority_pass' });
+              dispatch({ type: 'DESELECT_SPINAL' });
+              dispatch({ type: 'CLEAR_SELECTED_TREATMENT' });
+
+              const categoryTransitions = flowTransitions.category;
+              if (!categoryTransitions) {
+                if (process.env.NODE_ENV !== 'production') {
+                  console.warn(`No category transitions configured for intake category "${intakeCategory}".`);
+                }
+                return;
+              }
+
+              if (category === 'priority_pass') {
+                goTo(categoryTransitions.priorityPass);
+              } else if (category === 'chiropractor') {
+                goTo(categoryTransitions.chiropractor);
+              } else {
+                goTo(categoryTransitions.massage);
+              }
+            }}
+          />
+        </motion.div>
+      );
+    }
+
     if (state.step === 'massageMenu') {
       return (
         <motion.div
