@@ -186,33 +186,44 @@ const validatePhoneNumber = (phone: string): boolean => {
   return false;
 };
 
-const detailsSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  phone: z.string().min(1, 'Phone is required').refine(validatePhoneNumber, 'Invalid phone number'),
-  email: z.string().email('Invalid email'),
-  birthday: z.string().min(1, 'Birthday is required').refine((date) => {
-    const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
-    if (!dateRegex.test(date)) return false;
-    
-    const parts = date.split('/').map(Number);
-    const [month, day, year] = parts;
-    
-    // Check if all parts are valid numbers
-    if (month === undefined || day === undefined || year === undefined) return false;
-    
-    const dateObj = new Date(year, month - 1, day);
-    
-    // Check if the date is valid and matches the input
-    return dateObj.getFullYear() === year && 
-           dateObj.getMonth() === month - 1 && 
-           dateObj.getDate() === day &&
-           year >= 1900 && 
-           year <= new Date().getFullYear();
-  }, 'Invalid date format (MM/DD/YYYY)'),
-  discomfort: z.array(z.string()).min(1, 'Please select at least one option'),
-  additionalInfo: z.string().optional(),
-  consent: z.boolean().refine(val => val === true, 'You must consent to treatment to proceed')
-});
+const createDetailsSchema = (requireDiscomfort: boolean) =>
+  z.object({
+    name: z.string().min(1, 'Name is required'),
+    phone: z
+      .string()
+      .min(1, 'Phone is required')
+      .refine(validatePhoneNumber, 'Invalid phone number'),
+    email: z.string().email('Invalid email'),
+    birthday: z
+      .string()
+      .min(1, 'Birthday is required')
+      .refine((date) => {
+        const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
+        if (!dateRegex.test(date)) return false;
+
+        const parts = date.split('/').map(Number);
+        const [month, day, year] = parts;
+
+        // Check if all parts are valid numbers
+        if (month === undefined || day === undefined || year === undefined) return false;
+
+        const dateObj = new Date(year, month - 1, day);
+
+        // Check if the date is valid and matches the input
+        return (
+          dateObj.getFullYear() === year &&
+          dateObj.getMonth() === month - 1 &&
+          dateObj.getDate() === day &&
+          year >= 1900 &&
+          year <= new Date().getFullYear()
+        );
+      }, 'Invalid date format (MM/DD/YYYY)'),
+    discomfort: requireDiscomfort
+      ? z.array(z.string()).min(1, 'Please select at least one option')
+      : z.array(z.string()),
+    additionalInfo: z.string().optional(),
+    consent: z.boolean().refine((val) => val === true, 'You must consent to treatment to proceed'),
+  });
 
 // ============================================================================
 // REDUCER
@@ -647,11 +658,12 @@ function DiscomfortField({ details, onUpdateDiscomfort, submitAttempted, errors 
   );
 }
 
-function ConsentField({ details, onUpdateField, submitAttempted, errors }: {
+function ConsentField({ details, onUpdateField, submitAttempted, errors, label }: {
   details: WizardState['details'];
   onUpdateField: (field: keyof WizardState['details'], value: boolean) => void;
   submitAttempted: boolean;
   errors: { [key: string]: string[] };
+  label: string;
 }) {
   const isChecked = details.consent;
 
@@ -680,7 +692,7 @@ function ConsentField({ details, onUpdateField, submitAttempted, errors }: {
           </div>
         </div>
         <span className="ml-3 text-white text-base leading-relaxed">
-          I consent to treatment at The Chiroport and understand the associated risks. *
+          {label} *
         </span>
       </label>
       {submitAttempted && errors.consent && (
@@ -887,7 +899,10 @@ const DetailsStep = ({
   submitAttempted,
   dispatch,
   isSubmitting,
-  submissionError
+  submissionError,
+  requireDiscomfort,
+  additionalInfoLabel,
+  consentLabel
 }: {
   details: WizardState['details'];
   onUpdateField: (field: keyof WizardState['details'], value: string | boolean) => void;
@@ -897,8 +912,11 @@ const DetailsStep = ({
   dispatch: (action: Action) => void;
   isSubmitting: boolean;
   submissionError: string | null;
+  requireDiscomfort: boolean;
+  additionalInfoLabel: string;
+  consentLabel: string;
 }) => {
-  const validation = detailsSchema.safeParse(details);
+  const validation = createDetailsSchema(requireDiscomfort).safeParse(details);
   const errors = validation.success ? {} : validation.error.formErrors.fieldErrors;
 
   return (
@@ -957,15 +975,17 @@ const DetailsStep = ({
         errors={errors}
       />
 
-      <DiscomfortField
-        details={details}
-        onUpdateDiscomfort={(values) => dispatch({ type: 'UPDATE_DISCOMFORT', values })}
-        submitAttempted={submitAttempted}
-        errors={errors}
-      />
+      {requireDiscomfort && (
+        <DiscomfortField
+          details={details}
+          onUpdateDiscomfort={(values) => dispatch({ type: 'UPDATE_DISCOMFORT', values })}
+          submitAttempted={submitAttempted}
+          errors={errors}
+        />
+      )}
 
       <TextAreaField
-        label="Is there anything else you would like the chiropractor to know? (Optional)"
+        label={additionalInfoLabel}
         value={details.additionalInfo}
         onChange={(value) => onUpdateField('additionalInfo', value)}
         placeholder="Add any additional information"
@@ -978,6 +998,7 @@ const DetailsStep = ({
         onUpdateField={(field, value) => onUpdateField(field, value as boolean)}
         submitAttempted={submitAttempted}
         errors={errors}
+        label={consentLabel}
       />
 
       <div className="mt-6">
@@ -1034,6 +1055,14 @@ export default function LocationDetails({
     flowConfig.initialStep,
     (initialStep: Step) => createWizardInitialState(initialStep)
   );
+  const isMassageVisitor = state.visitCategory === 'massage';
+  const requireDiscomfort = !isMassageVisitor;
+  const additionalInfoLabel = isMassageVisitor
+    ? 'Is there anything else you would like the therapist to know? (Optional)'
+    : 'Is there anything else you would like the chiropractor to know? (Optional)';
+  const consentLabel = isMassageVisitor
+    ? 'I consent to receive massage therapy, have disclosed any health conditions, and release the therapist and business from liability for any normal reactions or unintended effects except in cases of negligence.'
+    : 'I consent to treatment at The Chiroport and understand the associated risks.';
 
   // Scroll to top when navigating between service menu and details
   useEffect(() => {
@@ -1060,7 +1089,7 @@ export default function LocationDetails({
   const handleSubmit = async () => {
     dispatch({ type: 'ATTEMPT_SUBMIT' });
     
-    const validation = detailsSchema.safeParse(state.details);
+    const validation = createDetailsSchema(requireDiscomfort).safeParse(state.details);
     if (!validation.success) {
       return; // Form validation failed, errors will be shown
     }
@@ -1221,6 +1250,9 @@ export default function LocationDetails({
               dispatch={dispatch}
               isSubmitting={state.isSubmitting}
               submissionError={state.submissionError}
+              requireDiscomfort={requireDiscomfort}
+              additionalInfoLabel={additionalInfoLabel}
+              consentLabel={consentLabel}
             />
           </motion.div>
         );
