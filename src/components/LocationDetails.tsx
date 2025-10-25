@@ -1013,7 +1013,7 @@ const DetailsStep = ({
   );
 };
 
-const SuccessStep = ({ isMember }: { isMember: boolean | null }) => (
+const SuccessStep = () => (
   <div className="space-y-6 py-4 text-center">
     <div className="mb-6">
       <BodyText size="3xl" className="font-bold text-white mb-4">🎉 You&apos;re in the queue! 🎉</BodyText>
@@ -1023,15 +1023,6 @@ const SuccessStep = ({ isMember }: { isMember: boolean | null }) => (
       <BodyText size="lg" className="text-white">
         We&apos;ll text you when you&apos;re up next.
       </BodyText>
-      
-      {/* Priority Pass member message - only show if they are a member */}
-      {isMember && (
-        <div className="mt-6 p-4 rounded-lg">
-          <BodyText size="base" className="text-white">
-            Your membership will be scanned at arrival to confirm eligibility. If not covered, you&apos;ll still have access to our services at a preferred member rate.
-          </BodyText>
-        </div>
-      )}
     </div>
   </div>
 );
@@ -1062,7 +1053,7 @@ export default function LocationDetails({
     : 'Is there anything else you would like the chiropractor to know? (Optional)';
   const consentLabel = isMassageVisitor
     ? 'I consent to receive massage therapy, have disclosed any health conditions, and release the therapist and business from liability for any normal reactions or unintended effects except in cases of negligence.'
-    : 'I consent to treatment at The Chiroport and understand the associated risks.';
+    : 'I consent to receive chiropractic care, have disclosed any health conditions, and release the chiropractor and business from liability for any normal reactions or unintended effects except in cases of negligence.';
 
   // Scroll to top when navigating between service menu and details
   useEffect(() => {
@@ -1266,7 +1257,7 @@ export default function LocationDetails({
             animate="animate"
             exit="exit"
           >
-            <SuccessStep isMember={state.isMember} />
+            <SuccessStep />
           </motion.div>
         );
 
