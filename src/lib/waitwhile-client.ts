@@ -222,7 +222,7 @@ export class WaitwhileClient {
       const massageTitles = new Set(['15 Minutes', '20 Minutes', '30 Minutes']);
 
       if (massageTitles.has(treatmentTitle)) {
-        ailmentValue = 'No discomfort';
+        ailmentValue = 'N/A';
       } else {
         ailmentValue = treatmentTitle;
       }

@@ -1118,7 +1118,7 @@ export default function LocationDetails({
         phone: state.details.phone,
         email: state.details.email,
         birthday: state.details.birthday,
-        discomfort: requireDiscomfort ? state.details.discomfort : ['No discomfort'],
+        discomfort: requireDiscomfort ? state.details.discomfort : ['N/A'],
         additionalInfo: state.details.additionalInfo,
         consent: state.details.consent,
         selectedTreatment: state.selectedTreatment,
