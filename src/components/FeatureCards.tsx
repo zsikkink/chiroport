@@ -31,11 +31,11 @@ export default function FeatureCards({ className = '' }: FeatureCardsProps) {
           </li>
           <li className="text-xl font-medium text-white flex items-start">
             <span className="mr-2">•</span>
-            <span>Trigger point muscle therapy</span>
+            <span>Massage</span>
           </li>
           <li className="text-xl font-medium text-white flex items-start">
             <span className="mr-2">•</span>
-            <span>Massage</span>
+            <span>Trigger point muscle therapy</span>
           </li>
           <li className="text-xl font-medium text-white flex items-start">
             <span className="mr-2">•</span>
