@@ -11,6 +11,7 @@ export interface LocationInfo {
   customLocation: string;
   customHours: string;
   displayName: string;
+  intakeCategory?: 'standard' | 'offers_massage';
 }
 
 export interface ConcourseInfo {

@@ -33,7 +33,16 @@ const TREATMENTS = [
   { title: 'Undecided', price: '', time: '', description: 'Not sure which therapy is right? Discuss your needs with our chiropractor to choose the best treatment' }
 ] as const;
 
-type Step = 'question' | 'join' | 'nonmember' | 'treatments' | 'details' | 'success';
+type Step =
+  | 'question'
+  | 'join'
+  | 'nonmember'
+  | 'treatments'
+  | 'details'
+  | 'success'
+  | 'massageMenu';
+
+type IntakeCategory = 'standard' | 'offers_massage';
 type Treatment = (typeof TREATMENTS)[number];
 
 interface WizardState {
@@ -75,7 +84,63 @@ type Action =
   | { type: 'SUBMIT_START' }
   | { type: 'SUBMIT_SUCCESS'; payload: { customerId: string; visitId: string; queuePosition?: number; estimatedWaitTime?: number } }
   | { type: 'SUBMIT_ERROR'; error: string }
-  | { type: 'RESET' };
+  | { type: 'RESET'; step: Step };
+
+const FLOW_CONFIG: Record<IntakeCategory, { initialStep: Step; steps: Step[] }> = {
+  standard: {
+    initialStep: 'question',
+    steps: ['question', 'join', 'nonmember', 'treatments', 'details', 'success'],
+  },
+  offers_massage: {
+    initialStep: 'question',
+    steps: ['question', 'join', 'nonmember', 'treatments', 'massageMenu', 'details', 'success'],
+  },
+};
+
+type FlowTransitionMap = {
+  afterMemberYes: Step;
+  afterMemberNo: Step;
+  afterSpinalDecision: Step;
+  afterTreatmentSelection: Step;
+};
+
+const FLOW_TRANSITIONS: Record<IntakeCategory, FlowTransitionMap> = {
+  standard: {
+    afterMemberYes: 'join',
+    afterMemberNo: 'treatments',
+    afterSpinalDecision: 'details',
+    afterTreatmentSelection: 'details',
+  },
+  offers_massage: {
+    afterMemberYes: 'join',
+    afterMemberNo: 'treatments',
+    afterSpinalDecision: 'details',
+    afterTreatmentSelection: 'details',
+  },
+};
+
+const createEmptyDetails = (): WizardState['details'] => ({
+  name: '',
+  phone: '',
+  email: '',
+  birthday: '',
+  discomfort: [],
+  additionalInfo: '',
+  consent: false,
+});
+
+const createWizardInitialState = (initialStep: Step): WizardState => ({
+  step: initialStep,
+  history: [],
+  isMember: null,
+  spinalAdjustment: null,
+  selectedTreatment: null,
+  details: createEmptyDetails(),
+  submitAttempted: false,
+  isSubmitting: false,
+  submissionError: null,
+  submissionSuccess: null,
+});
 
 // ============================================================================
 // VALIDATION
@@ -130,19 +195,6 @@ const detailsSchema = z.object({
 // ============================================================================
 // REDUCER
 // ============================================================================
-
-const initialState: WizardState = {
-  step: 'question',
-  history: [],
-  isMember: null,
-  spinalAdjustment: null,
-  selectedTreatment: null,
-  details: { name: '', phone: '', email: '', birthday: '', discomfort: [], additionalInfo: '', consent: false },
-  submitAttempted: false,
-  isSubmitting: false,
-  submissionError: null,
-  submissionSuccess: null
-};
 
 function wizardReducer(state: WizardState, action: Action): WizardState {
   switch (action.type) {
@@ -209,7 +261,7 @@ function wizardReducer(state: WizardState, action: Action): WizardState {
       };
 
     case 'RESET':
-      return initialState;
+      return createWizardInitialState(action.step);
 
     default:
       return state;
@@ -884,16 +936,35 @@ export default function LocationDetails({
   locationInfo: LocationInfo; 
   className?: string;
 }) {
-  const [state, dispatch] = useReducer(wizardReducer, initialState);
+  const intakeCategory: IntakeCategory = locationInfo.intakeCategory ?? 'standard';
+  const flowConfig = FLOW_CONFIG[intakeCategory];
+  const flowTransitions = FLOW_TRANSITIONS[intakeCategory];
+  const [state, dispatch] = useReducer(
+    wizardReducer,
+    flowConfig.initialStep,
+    (initialStep: Step) => createWizardInitialState(initialStep)
+  );
 
   // Scroll to top when navigating between service menu and details
   useEffect(() => {
-    if (state.step === 'treatments' || state.step === 'details') {
+    if (state.step === 'treatments' || state.step === 'details' || state.step === 'massageMenu') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [state.step]);
 
-  const goTo = (step: Step) => dispatch({ type: 'GO_TO', step });
+  useEffect(() => {
+    dispatch({ type: 'RESET', step: flowConfig.initialStep });
+  }, [locationInfo.waitwhileLocationId, flowConfig.initialStep]);
+
+  const goTo = (step: Step) => {
+    if (!flowConfig.steps.includes(step)) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(`Attempted to navigate to unsupported step "${step}" for intake category "${intakeCategory}".`);
+      }
+      return;
+    }
+    dispatch({ type: 'GO_TO', step });
+  };
   const goBack = () => dispatch({ type: 'GO_BACK' });
 
   const handleSubmit = async () => {
@@ -963,7 +1034,7 @@ export default function LocationDetails({
     }
   };
 
-  const renderStep = () => {
+  const renderStandardFlowStep = () => {
     switch (state.step) {
       case 'question':
         return (
@@ -977,11 +1048,11 @@ export default function LocationDetails({
             <MembershipStep
               onYes={() => {
                 dispatch({ type: 'SET_MEMBER', value: true });
-                goTo('join');
+                goTo(flowTransitions.afterMemberYes);
               }}
               onNo={() => {
                 dispatch({ type: 'SET_MEMBER', value: false });
-                goTo('treatments');
+                goTo(flowTransitions.afterMemberNo);
               }}
             />
           </motion.div>
@@ -999,7 +1070,7 @@ export default function LocationDetails({
             <JoinStep
               onSetSpinal={(value) => {
                 dispatch({ type: 'SET_SPINAL', value });
-                goTo('details');
+                goTo(flowTransitions.afterSpinalDecision);
               }}
               onBack={goBack}
             />
@@ -1035,7 +1106,7 @@ export default function LocationDetails({
             <TreatmentsStep
               onSelect={(treatment) => {
                 dispatch({ type: 'SELECT_TREATMENT', treatment });
-                goTo('details');
+                goTo(flowTransitions.afterTreatmentSelection);
               }}
               onBack={goBack}
             />
@@ -1081,6 +1152,35 @@ export default function LocationDetails({
         return null;
     }
   };
+
+  const renderOffersMassageFlowStep = () => {
+    if (state.step === 'massageMenu') {
+      return (
+        <motion.div
+          key={state.step}
+          variants={fadeVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+        >
+          <TreatmentsStep
+            onSelect={(treatment) => {
+              dispatch({ type: 'SELECT_TREATMENT', treatment });
+              goTo(flowTransitions.afterTreatmentSelection);
+            }}
+            onBack={goBack}
+          />
+        </motion.div>
+      );
+    }
+
+    return renderStandardFlowStep();
+  };
+
+  const renderStep = () =>
+    intakeCategory === 'offers_massage'
+      ? renderOffersMassageFlowStep()
+      : renderStandardFlowStep();
 
   return (
     <div className={className}>

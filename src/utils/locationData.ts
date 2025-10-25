@@ -41,6 +41,7 @@ export interface LocationInfo {
   customHours: string;
   displayName: string;
   waitwhileLocationId: string; // Waitwhile location ID for API integration
+  intakeCategory?: 'standard' | 'offers_massage';
   // Add data field IDs specific to each location
   dataFieldIds: {
     ailment: string;
@@ -220,6 +221,7 @@ export const airportLocations: AirportLocation[] = [
           customHours: '7am - 8pm CT',
           displayName: 'Concourse C',
           waitwhileLocationId: 'TyHFt6NehcmCK7gCAHod', // MSP C
+          intakeCategory: 'offers_massage',
           dataFieldIds: {
             ailment: '3EyMmttdiJfOc7nmQaUC',
             dateOfBirth: 'wRArbngAg41dQp1hpDSC',
@@ -241,6 +243,7 @@ export const airportLocations: AirportLocation[] = [
           customHours: '7am - 7pm CT',
           displayName: 'Concourse F',
           waitwhileLocationId: 'xutzfkaetOGtbokSpnW1', // MSP F
+          intakeCategory: 'offers_massage',
           dataFieldIds: {
             ailment: '3EyMmttdiJfOc7nmQaUC',
             dateOfBirth: 'wRArbngAg41dQp1hpDSC',
