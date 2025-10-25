@@ -211,7 +211,10 @@ export class WaitwhileClient {
         'Trigger Point Muscle Therapy & Stretch': 'hD5KfCW1maA1Vx0za0fv',
         'Chiro Massage': 'ts1phHc92ktj04d0Gpve',
         'Chiro Massage Mini': 'J8qHXtrsRC2aNPA04YDc',
-        'Undecided': 'FtfCqXMwnkqdft5aL0ZX'
+        'Undecided': 'FtfCqXMwnkqdft5aL0ZX',
+        '15 Minutes': 'cyIjtFCpILcnJAD7c3Mo',
+        '20 Minutes': 'KCoFYD7S99YjNaCjzFxV',
+        '30 Minutes': 'ZBy2A2vgIAGUksm12RSQ',
       };
       
       serviceId = serviceMapping[formData.selectedTreatment.title] || 'FtfCqXMwnkqdft5aL0ZX';

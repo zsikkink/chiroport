@@ -33,6 +33,12 @@ const TREATMENTS = [
   { title: 'Undecided', price: '', time: '', description: 'Not sure which therapy is right? Discuss your needs with our chiropractor to choose the best treatment' }
 ] as const;
 
+const MASSAGE_OPTIONS = [
+  { title: '15 Minutes', price: '$55', time: '', description: '' },
+  { title: '20 Minutes', price: '$65', time: '', description: '' },
+  { title: '30 Minutes', price: '$85', time: '', description: '' },
+] as const;
+
 type Step =
   | 'category'
   | 'question'
@@ -41,11 +47,11 @@ type Step =
   | 'treatments'
   | 'details'
   | 'success'
-  | 'massageMenu';
+  | 'massage_options';
 
 type IntakeCategory = 'standard' | 'offers_massage';
 type VisitCategory = 'priority_pass' | 'chiropractor' | 'massage';
-type Treatment = (typeof TREATMENTS)[number];
+type Treatment = (typeof TREATMENTS)[number] | (typeof MASSAGE_OPTIONS)[number];
 
 interface WizardState {
   step: Step;
@@ -98,7 +104,7 @@ const FLOW_CONFIG: Record<IntakeCategory, { initialStep: Step; steps: Step[] }> 
   },
   offers_massage: {
     initialStep: 'category',
-    steps: ['category', 'join', 'treatments', 'massageMenu', 'details', 'success'],
+    steps: ['category', 'join', 'treatments', 'massage_options', 'details', 'success'],
   },
 };
 
@@ -129,7 +135,7 @@ const FLOW_TRANSITIONS: Record<IntakeCategory, FlowTransitionMap> = {
     category: {
       priorityPass: 'join',
       chiropractor: 'treatments',
-      massage: 'massageMenu',
+      massage: 'massage_options',
     },
   },
 };
@@ -809,6 +815,34 @@ const CategoryStep = ({
   </div>
 );
 
+const MassageOptionsStep = ({
+  selectedTreatment,
+  onSelect
+}: {
+  selectedTreatment: Treatment | null;
+  onSelect: (treatment: Treatment) => void;
+}) => (
+  <div className="space-y-6 py-4">
+    <BodyText size="3xl" className="font-bold text-white text-center">
+      Chair Massage Options
+    </BodyText>
+    <div className="space-y-3">
+      {MASSAGE_OPTIONS.map((option) => (
+        <AnimatedButton
+          key={option.title}
+          onClick={() => onSelect(option)}
+          selected={selectedTreatment?.title === option.title}
+        >
+          <span className="w-full text-center font-bold">
+            <span>{option.title}</span>{' '}
+            <span className="font-normal">{option.price}</span>
+          </span>
+        </AnimatedButton>
+      ))}
+    </div>
+  </div>
+);
+
 const TreatmentsStep = ({ 
   onSelect, 
   onBack 
@@ -1003,7 +1037,7 @@ export default function LocationDetails({
 
   // Scroll to top when navigating between service menu and details
   useEffect(() => {
-    if (state.step === 'treatments' || state.step === 'details' || state.step === 'massageMenu') {
+    if (state.step === 'treatments' || state.step === 'details' || state.step === 'massage_options') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [state.step]);
@@ -1248,7 +1282,7 @@ export default function LocationDetails({
       );
     }
 
-    if (state.step === 'massageMenu') {
+    if (state.step === 'massage_options') {
       return (
         <motion.div
           key={state.step}
@@ -1257,12 +1291,12 @@ export default function LocationDetails({
           animate="animate"
           exit="exit"
         >
-          <TreatmentsStep
+          <MassageOptionsStep
+            selectedTreatment={state.selectedTreatment}
             onSelect={(treatment) => {
               dispatch({ type: 'SELECT_TREATMENT', treatment });
               goTo(flowTransitions.afterTreatmentSelection);
             }}
-            onBack={goBack}
           />
         </motion.div>
       );
