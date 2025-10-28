@@ -768,7 +768,7 @@ const JoinStep = ({
     </BodyText>
     <div className="space-y-3 mt-12">
       <BodyText size="2xl" className="text-white">
-      Would you like to add spinal & neck adjustments for just $35  — a 50% Discount!
+      Would you like to add spinal & neck adjustments for only $35  — a 50% Discount!
       </BodyText>
       <div className="flex gap-4">
         <AnimatedButton onClick={() => onSetSpinal(true)}>
