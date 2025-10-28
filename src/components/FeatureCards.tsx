@@ -48,7 +48,7 @@ export default function FeatureCards({ className = '' }: FeatureCardsProps) {
       <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
         <ResponsiveCard title="About Us">
           <BodyText size="xl" className="font-medium">
-            The Chiroport offers walk-in chiropractic based wellness care in ATL, DFW, HOU, LAS, MSP airports. Our services are designed to relieve tension, stress, and pain for travelers. Join the queue to feel great at the gate!
+            The Chiroport offers wellness care in ATL, DFW, HOU, LAS, MSP airports. Our services are designed to relieve tension, stress, and pain for travelers. Join the queue to feel great at the gate!
           </BodyText>
         </ResponsiveCard>
         
