@@ -853,7 +853,7 @@ const MassageOptionsStep = ({
       <BackButton onClick={onBack} />
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <BodyText size="2xl" className="font-bold text-white text-center px-8">
-          Chair Massage Options
+          Chair Massage
         </BodyText>
       </div>
     </div>
