@@ -105,14 +105,14 @@ const FLOW_CONFIG: Record<IntakeCategory, { initialStep: Step; steps: Step[] }> 
   },
   offers_massage: {
     initialStep: 'category',
-    steps: ['category', 'join', 'treatments', 'massage_options', 'details', 'success'],
+    steps: ['category', 'massage_options', 'details', 'success'],
   },
 };
 
 type FlowTransitionMap = {
-  afterMemberYes: Step;
-  afterMemberNo: Step;
-  afterSpinalDecision: Step;
+  afterMemberYes?: Step;
+  afterMemberNo?: Step;
+  afterSpinalDecision?: Step;
   afterTreatmentSelection: Step;
   category?: {
     priorityPass: Step;
@@ -129,13 +129,10 @@ const FLOW_TRANSITIONS: Record<IntakeCategory, FlowTransitionMap> = {
     afterTreatmentSelection: 'details',
   },
   offers_massage: {
-    afterMemberYes: 'join',
-    afterMemberNo: 'treatments',
-    afterSpinalDecision: 'details',
     afterTreatmentSelection: 'details',
     category: {
-      priorityPass: 'join',
-      chiropractor: 'treatments',
+      priorityPass: 'massage_options',
+      chiropractor: 'details',
       massage: 'massage_options',
     },
   },
@@ -1247,11 +1244,11 @@ export default function LocationDetails({
             <MembershipStep
               onYes={() => {
                 dispatch({ type: 'SET_MEMBER', value: true });
-                goTo(flowTransitions.afterMemberYes);
+                goTo(flowTransitions.afterMemberYes ?? 'join');
               }}
               onNo={() => {
                 dispatch({ type: 'SET_MEMBER', value: false });
-                goTo(flowTransitions.afterMemberNo);
+                goTo(flowTransitions.afterMemberNo ?? 'treatments');
               }}
             />
           </motion.div>
@@ -1269,7 +1266,7 @@ export default function LocationDetails({
             <JoinStep
               onSetSpinal={(value) => {
                 dispatch({ type: 'SET_SPINAL', value });
-                goTo(flowTransitions.afterSpinalDecision);
+                goTo(flowTransitions.afterSpinalDecision ?? 'details');
               }}
               onBack={goBack}
             />
