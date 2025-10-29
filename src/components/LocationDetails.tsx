@@ -186,38 +186,48 @@ const validatePhoneNumber = (phone: string): boolean => {
   return false;
 };
 
-const createDetailsSchema = (requireDiscomfort: boolean) =>
+const isValidBirthday = (date: string): boolean => {
+  const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
+  if (!dateRegex.test(date)) return false;
+
+  const parts = date.split('/').map(Number);
+  const [month, day, year] = parts;
+
+  if (month === undefined || day === undefined || year === undefined) return false;
+
+  const dateObj = new Date(year, month - 1, day);
+
+  return (
+    dateObj.getFullYear() === year &&
+    dateObj.getMonth() === month - 1 &&
+    dateObj.getDate() === day &&
+    year >= 1900 &&
+    year <= new Date().getFullYear()
+  );
+};
+
+const createDetailsSchema = ({
+  requireDiscomfort,
+  requireEmail,
+  requireBirthday,
+}: {
+  requireDiscomfort: boolean;
+  requireEmail: boolean;
+  requireBirthday: boolean;
+}) =>
   z.object({
     name: z.string().min(1, 'Name is required'),
     phone: z
       .string()
       .min(1, 'Phone is required')
       .refine(validatePhoneNumber, 'Invalid phone number'),
-    email: z.string().email('Invalid email'),
-    birthday: z
-      .string()
-      .min(1, 'Birthday is required')
-      .refine((date) => {
-        const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
-        if (!dateRegex.test(date)) return false;
-
-        const parts = date.split('/').map(Number);
-        const [month, day, year] = parts;
-
-        // Check if all parts are valid numbers
-        if (month === undefined || day === undefined || year === undefined) return false;
-
-        const dateObj = new Date(year, month - 1, day);
-
-        // Check if the date is valid and matches the input
-        return (
-          dateObj.getFullYear() === year &&
-          dateObj.getMonth() === month - 1 &&
-          dateObj.getDate() === day &&
-          year >= 1900 &&
-          year <= new Date().getFullYear()
-        );
-      }, 'Invalid date format (MM/DD/YYYY)'),
+    email: requireEmail ? z.string().email('Invalid email') : z.string().optional(),
+    birthday: requireBirthday
+      ? z
+          .string()
+          .min(1, 'Birthday is required')
+          .refine((date) => isValidBirthday(date), 'Invalid date format (MM/DD/YYYY)')
+      : z.string().optional(),
     discomfort: requireDiscomfort
       ? z.array(z.string()).min(1, 'Please select at least one option')
       : z.array(z.string()),
@@ -921,8 +931,13 @@ const DetailsStep = ({
   isSubmitting,
   submissionError,
   requireDiscomfort,
+  requireEmail,
+  requireBirthday,
   additionalInfoLabel,
-  consentLabel
+  consentLabel,
+  showEmailField,
+  showBirthdayField,
+  showAdditionalInfoField
 }: {
   details: WizardState['details'];
   onUpdateField: (field: keyof WizardState['details'], value: string | boolean) => void;
@@ -933,10 +948,26 @@ const DetailsStep = ({
   isSubmitting: boolean;
   submissionError: string | null;
   requireDiscomfort: boolean;
+  requireEmail: boolean;
+  requireBirthday: boolean;
   additionalInfoLabel: string;
   consentLabel: string;
+  showEmailField: boolean;
+  showBirthdayField: boolean;
+  showAdditionalInfoField: boolean;
 }) => {
-  const validation = createDetailsSchema(requireDiscomfort).safeParse(details);
+  const sanitizedDetails = {
+    ...details,
+    email: showEmailField ? details.email : '',
+    birthday: showBirthdayField ? details.birthday : '',
+    additionalInfo: showAdditionalInfoField ? details.additionalInfo : '',
+  };
+
+  const validation = createDetailsSchema({
+    requireDiscomfort,
+    requireEmail,
+    requireBirthday,
+  }).safeParse(sanitizedDetails);
   const errors = validation.success ? {} : validation.error.formErrors.fieldErrors;
 
   return (
@@ -978,22 +1009,26 @@ const DetailsStep = ({
         errors={errors}
       />
 
-      <InputField
-        label="Email Address"
-        type="email"
-        value={details.email}
-        onChange={(value) => onUpdateField('email', value)}
-        placeholder="Email address"
-        {...(submitAttempted && errors.email?.[0] ? { error: errors.email[0] } : {})}
-        required
-      />
+      {showEmailField && (
+        <InputField
+          label="Email Address"
+          type="email"
+          value={details.email}
+          onChange={(value) => onUpdateField('email', value)}
+          placeholder="Email address"
+          {...(submitAttempted && errors.email?.[0] ? { error: errors.email[0] } : {})}
+          required={requireEmail}
+        />
+      )}
 
-      <BirthdayField
-        details={details}
-        onUpdateField={(field, value) => onUpdateField(field, value as string)}
-        submitAttempted={submitAttempted}
-        errors={errors}
-      />
+      {showBirthdayField && (
+        <BirthdayField
+          details={details}
+          onUpdateField={(field, value) => onUpdateField(field, value as string)}
+          submitAttempted={submitAttempted}
+          errors={errors}
+        />
+      )}
 
       {requireDiscomfort && (
         <DiscomfortField
@@ -1004,14 +1039,16 @@ const DetailsStep = ({
         />
       )}
 
-      <TextAreaField
-        label={additionalInfoLabel}
-        value={details.additionalInfo}
-        onChange={(value) => onUpdateField('additionalInfo', value)}
-        placeholder="Add any additional information"
-        {...(submitAttempted && errors.additionalInfo?.[0] ? { error: errors.additionalInfo[0] } : {})}
-        required={false}
-      />
+      {showAdditionalInfoField && (
+        <TextAreaField
+          label={additionalInfoLabel}
+          value={details.additionalInfo}
+          onChange={(value) => onUpdateField('additionalInfo', value)}
+          placeholder="Add any additional information"
+          {...(submitAttempted && errors.additionalInfo?.[0] ? { error: errors.additionalInfo[0] } : {})}
+          required={false}
+        />
+      )}
 
       <ConsentField
         details={details}
@@ -1068,11 +1105,16 @@ export default function LocationDetails({
   );
   const isMassageVisitor = state.visitCategory === 'massage';
   const requireDiscomfort = !isMassageVisitor;
+  const showEmailField = !isMassageVisitor;
+  const showBirthdayField = !isMassageVisitor;
+  const showAdditionalInfoField = !isMassageVisitor;
+  const requireEmail = showEmailField;
+  const requireBirthday = showBirthdayField;
   const additionalInfoLabel = isMassageVisitor
     ? 'Is there anything else you would like the therapist to know? (Optional)'
     : 'Is there anything else you would like the chiropractor to know? (Optional)';
   const consentLabel = isMassageVisitor
-    ? 'I consent to receive massage therapy, have disclosed any health conditions, and release the therapist and business from liability for any normal reactions or unintended effects except in cases of negligence.'
+    ? 'I consent to receive massage therapy and release the therapist and business from liability for any normal reactions or unintended effects except in cases of negligence.'
     : 'I consent to receive chiropractic care, have disclosed any health conditions, and release the chiropractor and business from liability for any normal reactions or unintended effects except in cases of negligence.';
 
   // Scroll to top when navigating between service menu and details
@@ -1100,7 +1142,18 @@ export default function LocationDetails({
   const handleSubmit = async () => {
     dispatch({ type: 'ATTEMPT_SUBMIT' });
     
-    const validation = createDetailsSchema(requireDiscomfort).safeParse(state.details);
+    const sanitizedDetails = {
+      ...state.details,
+      email: showEmailField ? state.details.email : '',
+      birthday: showBirthdayField ? state.details.birthday : '',
+      additionalInfo: showAdditionalInfoField ? state.details.additionalInfo : '',
+    };
+
+    const validation = createDetailsSchema({
+      requireDiscomfort,
+      requireEmail,
+      requireBirthday,
+    }).safeParse(sanitizedDetails);
     if (!validation.success) {
       return; // Form validation failed, errors will be shown
     }
@@ -1114,13 +1167,13 @@ export default function LocationDetails({
 
       // Prepare form data for API (no serviceId needed anymore)
       const formData = {
-        name: state.details.name,
-        phone: state.details.phone,
-        email: state.details.email,
-        birthday: state.details.birthday,
-        discomfort: requireDiscomfort ? state.details.discomfort : ['N/A'],
-        additionalInfo: state.details.additionalInfo,
-        consent: state.details.consent,
+        name: sanitizedDetails.name,
+        phone: sanitizedDetails.phone,
+        email: sanitizedDetails.email,
+        birthday: sanitizedDetails.birthday,
+        discomfort: requireDiscomfort ? sanitizedDetails.discomfort : ['N/A'],
+        additionalInfo: sanitizedDetails.additionalInfo,
+        consent: sanitizedDetails.consent,
         selectedTreatment: state.selectedTreatment,
         spinalAdjustment: state.spinalAdjustment,
         locationId: locationInfo.waitwhileLocationId
@@ -1262,8 +1315,13 @@ export default function LocationDetails({
               isSubmitting={state.isSubmitting}
               submissionError={state.submissionError}
               requireDiscomfort={requireDiscomfort}
+              requireEmail={requireEmail}
+              requireBirthday={requireBirthday}
               additionalInfoLabel={additionalInfoLabel}
               consentLabel={consentLabel}
+              showEmailField={showEmailField}
+              showBirthdayField={showBirthdayField}
+              showAdditionalInfoField={showAdditionalInfoField}
             />
           </motion.div>
         );
