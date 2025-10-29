@@ -242,6 +242,14 @@ function wizardReducer(state: WizardState, action: Action): WizardState {
     case 'GO_TO':
       return {
         ...state,
+        ...(action.step === 'category'
+          ? {
+              visitCategory: null,
+              isMember: null,
+              spinalAdjustment: null,
+              selectedTreatment: null,
+            }
+          : {}),
         history: [...state.history, state.step],
         step: action.step,
         submitAttempted: action.step === 'details' ? false : state.submitAttempted
@@ -251,6 +259,14 @@ function wizardReducer(state: WizardState, action: Action): WizardState {
       const previousStep = state.history[state.history.length - 1] || 'question';
       return {
         ...state,
+        ...(previousStep === 'category'
+          ? {
+              visitCategory: null,
+              isMember: null,
+              spinalAdjustment: null,
+              selectedTreatment: null,
+            }
+          : {}),
         step: previousStep,
         history: state.history.slice(0, -1),
         submitAttempted: false

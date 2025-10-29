@@ -172,6 +172,7 @@ export const airportLocations: AirportLocation[] = [
           customHours: '8am - 6pm PT',
           displayName: 'Concourse B',
           waitwhileLocationId: 'kjAmNhyUygMlvVUje1gc', // LAS B across from Starbucks
+          intakeCategory: 'offers_massage',
           dataFieldIds: {
             ailment: '3EyMmttdiJfOc7nmQaUC',
             dateOfBirth: 'wRArbngAg41dQp1hpDSC',
