@@ -105,7 +105,7 @@ const FLOW_CONFIG: Record<IntakeCategory, { initialStep: Step; steps: Step[] }> 
   },
   offers_massage: {
     initialStep: 'category',
-    steps: ['category', 'massage_options', 'details', 'success'],
+    steps: ['category', 'join', 'treatments', 'massage_options', 'details', 'success'],
   },
 };
 
@@ -131,8 +131,8 @@ const FLOW_TRANSITIONS: Record<IntakeCategory, FlowTransitionMap> = {
   offers_massage: {
     afterTreatmentSelection: 'details',
     category: {
-      priorityPass: 'massage_options',
-      chiropractor: 'details',
+      priorityPass: 'join',
+      chiropractor: 'treatments',
       massage: 'massage_options',
     },
   },
