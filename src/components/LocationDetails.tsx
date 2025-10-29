@@ -8,6 +8,7 @@ import { z } from 'zod';
 import ResponsiveCard from './ResponsiveCard';
 import { BodyText } from './Typography';
 import { LocationInfo } from '@/utils/locationData';
+import { FormSubmissionData } from '@/types/waitwhile';
 import { isValidPhoneNumber, AsYouType } from 'libphonenumber-js';
 import { submitFormSecurely, formSubmissionLimiter } from '@/utils/client-api';
 
@@ -956,18 +957,21 @@ const DetailsStep = ({
   showBirthdayField: boolean;
   showAdditionalInfoField: boolean;
 }) => {
-  const sanitizedDetails = {
-    ...details,
-    email: showEmailField ? details.email : '',
-    birthday: showBirthdayField ? details.birthday : '',
-    additionalInfo: showAdditionalInfoField ? details.additionalInfo : '',
+  const validationPayload = {
+    name: details.name,
+    phone: details.phone,
+    email: showEmailField ? details.email : undefined,
+    birthday: showBirthdayField ? details.birthday : undefined,
+    discomfort: requireDiscomfort ? details.discomfort : ['N/A'],
+    additionalInfo: showAdditionalInfoField ? details.additionalInfo : undefined,
+    consent: details.consent,
   };
 
   const validation = createDetailsSchema({
     requireDiscomfort,
     requireEmail,
     requireBirthday,
-  }).safeParse(sanitizedDetails);
+  }).safeParse(validationPayload);
   const errors = validation.success ? {} : validation.error.formErrors.fieldErrors;
 
   return (
@@ -1142,18 +1146,21 @@ export default function LocationDetails({
   const handleSubmit = async () => {
     dispatch({ type: 'ATTEMPT_SUBMIT' });
     
-    const sanitizedDetails = {
-      ...state.details,
-      email: showEmailField ? state.details.email : '',
-      birthday: showBirthdayField ? state.details.birthday : '',
-      additionalInfo: showAdditionalInfoField ? state.details.additionalInfo : '',
+    const validationPayload = {
+      name: state.details.name,
+      phone: state.details.phone,
+      email: showEmailField ? state.details.email : undefined,
+      birthday: showBirthdayField ? state.details.birthday : undefined,
+      discomfort: requireDiscomfort ? state.details.discomfort : ['N/A'],
+      additionalInfo: showAdditionalInfoField ? state.details.additionalInfo : undefined,
+      consent: state.details.consent,
     };
 
     const validation = createDetailsSchema({
       requireDiscomfort,
       requireEmail,
       requireBirthday,
-    }).safeParse(sanitizedDetails);
+    }).safeParse(validationPayload);
     if (!validation.success) {
       return; // Form validation failed, errors will be shown
     }
@@ -1166,18 +1173,27 @@ export default function LocationDetails({
       await formSubmissionLimiter.throttle();
 
       // Prepare form data for API (no serviceId needed anymore)
-      const formData = {
-        name: sanitizedDetails.name,
-        phone: sanitizedDetails.phone,
-        email: sanitizedDetails.email,
-        birthday: sanitizedDetails.birthday,
-        discomfort: requireDiscomfort ? sanitizedDetails.discomfort : ['N/A'],
-        additionalInfo: sanitizedDetails.additionalInfo,
-        consent: sanitizedDetails.consent,
+      const formData: FormSubmissionData = {
+        name: validationPayload.name,
+        phone: validationPayload.phone,
+        discomfort: validationPayload.discomfort,
+        consent: validationPayload.consent,
         selectedTreatment: state.selectedTreatment,
         spinalAdjustment: state.spinalAdjustment,
         locationId: locationInfo.waitwhileLocationId
       };
+
+      if (showEmailField && validationPayload.email) {
+        formData.email = validationPayload.email;
+      }
+
+      if (showBirthdayField && validationPayload.birthday) {
+        formData.birthday = validationPayload.birthday;
+      }
+
+      if (showAdditionalInfoField && validationPayload.additionalInfo) {
+        formData.additionalInfo = validationPayload.additionalInfo;
+      }
 
       // Submit using secure API client with automatic CSRF handling
       const result = await submitFormSecurely<SubmissionResponse>(formData);

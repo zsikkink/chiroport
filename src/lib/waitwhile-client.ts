@@ -21,7 +21,7 @@ interface CreateWaitwhileVisitRequest {
   locationId: string;
   name: string;
   phone: string;
-  email: string;
+  email?: string;
   state: "WAITING";
   serviceIds: string[];
   dataFields: Array<{
@@ -167,7 +167,7 @@ export class WaitwhileClient {
     }
 
     // Decode HTML entities and convert birthday from MM/DD/YYYY to YYYY-MM-DD format
-    let dateOfBirth = formData.birthday;
+    let dateOfBirth = formData.birthday ?? '';
     
     // First decode HTML entities (&#x2F; -> /)
     dateOfBirth = dateOfBirth
@@ -244,14 +244,17 @@ export class WaitwhileClient {
         values: [ailmentValue]
       },
       {
-        id: fieldIds.dateOfBirth,
-        values: [dateOfBirth]
-      },
-      {
         id: fieldIds.consent,
         values: [formData.consent ? 'Yes' : 'No']
       }
     ];
+
+    if (dateOfBirth) {
+      dataFields.splice(1, 0, {
+        id: fieldIds.dateOfBirth,
+        values: [dateOfBirth]
+      });
+    }
 
     // Add notes field only if there's additional info
     if (formData.additionalInfo && formData.additionalInfo.trim()) {
@@ -261,15 +264,20 @@ export class WaitwhileClient {
       });
     }
 
-    return {
+    const visitPayload: CreateWaitwhileVisitRequest = {
       locationId: formData.locationId,
       name: formData.name,
       phone: phone,
-      email: formData.email,
       state: "WAITING",
       serviceIds: [serviceId],
       dataFields: dataFields
     };
+
+    if (formData.email && formData.email.trim().length > 0) {
+      visitPayload.email = formData.email.trim().toLowerCase();
+    }
+
+    return visitPayload;
   }
 }
 
