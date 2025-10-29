@@ -962,7 +962,7 @@ const DetailsStep = ({
     phone: details.phone,
     email: showEmailField ? details.email : undefined,
     birthday: showBirthdayField ? details.birthday : undefined,
-    discomfort: requireDiscomfort ? details.discomfort : ['N/A'],
+    discomfort: requireDiscomfort ? details.discomfort : [],
     additionalInfo: showAdditionalInfoField ? details.additionalInfo : undefined,
     consent: details.consent,
   };
@@ -1151,7 +1151,7 @@ export default function LocationDetails({
       phone: state.details.phone,
       email: showEmailField ? state.details.email : undefined,
       birthday: showBirthdayField ? state.details.birthday : undefined,
-      discomfort: requireDiscomfort ? state.details.discomfort : ['N/A'],
+      discomfort: requireDiscomfort ? state.details.discomfort : [],
       additionalInfo: showAdditionalInfoField ? state.details.additionalInfo : undefined,
       consent: state.details.consent,
     };

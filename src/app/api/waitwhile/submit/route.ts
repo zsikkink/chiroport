@@ -19,7 +19,7 @@ const submissionSchema = z.object({
   phone: z.string().min(1, 'Phone is required'),
   email: z.string().email('Invalid email').optional(),
   birthday: z.string().min(1, 'Birthday is required').optional(),
-  discomfort: z.array(z.string()).min(1, 'At least one discomfort area is required'),
+  discomfort: z.array(z.string()),
   additionalInfo: z.string().optional(),
   consent: z.boolean().refine(val => val === true, 'Consent to treatment is required'),
   selectedTreatment: z.object({

@@ -199,7 +199,6 @@ export class WaitwhileClient {
 
     // Determine service ID based on user's journey
     let serviceId: string;
-    let ailmentValue: string;
 
     if (formData.selectedTreatment) {
       // Non-member: Use the service ID for their selected treatment
@@ -218,43 +217,36 @@ export class WaitwhileClient {
       };
       
       serviceId = serviceMapping[formData.selectedTreatment.title] || 'FtfCqXMwnkqdft5aL0ZX';
-      const treatmentTitle = formData.selectedTreatment.title;
-      const massageTitles = new Set(['15 Minutes', '20 Minutes', '30 Minutes']);
-
-      if (massageTitles.has(treatmentTitle)) {
-        ailmentValue = 'N/A';
-      } else {
-        ailmentValue = treatmentTitle;
-      }
     } else {
       // Member: Use appropriate member service
       if (formData.spinalAdjustment === true) {
         serviceId = 'DoCvBDfuyv3HjlCra5Jc'; // Members with $29 spinal adjustment
-        ailmentValue = 'Priority Pass + Body on the Go';
       } else {
         serviceId = 'mZChb5bacT7AeVU7E3Rz'; // Members without spinal adjustment
-        ailmentValue = 'Priority Pass & Lounge Key Members';
       }
     }
 
     // Build dataFields array using location-specific field IDs
-    const dataFields: Array<{ id: string; values: string[] }> = [
-      {
+    const dataFields: Array<{ id: string; values: string[] }> = [];
+
+    if (formData.discomfort && formData.discomfort.length > 0) {
+      dataFields.push({
         id: fieldIds.ailment,
-        values: [ailmentValue]
-      },
-      {
-        id: fieldIds.consent,
-        values: [formData.consent ? 'Yes' : 'No']
-      }
-    ];
+        values: formData.discomfort
+      });
+    }
 
     if (dateOfBirth) {
-      dataFields.splice(1, 0, {
+      dataFields.push({
         id: fieldIds.dateOfBirth,
         values: [dateOfBirth]
       });
     }
+
+    dataFields.push({
+      id: fieldIds.consent,
+      values: [formData.consent ? 'Yes' : 'No']
+    });
 
     // Add notes field only if there's additional info
     if (formData.additionalInfo && formData.additionalInfo.trim()) {
