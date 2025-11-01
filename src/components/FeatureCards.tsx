@@ -2,6 +2,7 @@
 
 import ResponsiveCard from './ResponsiveCard';
 import { BodyText } from './Typography';
+import { serviceItems, aboutCopy, contactInfo } from '@/content/services';
 
 interface FeatureCardsProps {
   className?: string;
@@ -25,22 +26,12 @@ export default function FeatureCards({ className = '' }: FeatureCardsProps) {
       {/* Services card - full width within constraints */}
       <ResponsiveCard title="Services Include" className="mb-4 sm:mb-6">
         <ul className="list-disc list-inside space-y-2">
-          <li className="text-xl font-medium text-white flex items-start">
-            <span className="mr-2">•</span>
-            <span>Chiropractic adjustments</span>
-          </li>
-          <li className="text-xl font-medium text-white flex items-start">
-            <span className="mr-2">•</span>
-            <span>Massage</span>
-          </li>
-          <li className="text-xl font-medium text-white flex items-start">
-            <span className="mr-2">•</span>
-            <span>Trigger point muscle therapy</span>
-          </li>
-          <li className="text-xl font-medium text-white flex items-start">
-            <span className="mr-2">•</span>
-            <span>Stretching</span>
-          </li>
+          {serviceItems.map((item) => (
+            <li key={item} className="text-xl font-medium text-white flex items-start">
+              <span className="mr-2">•</span>
+              <span>{item}</span>
+            </li>
+          ))}
         </ul>
       </ResponsiveCard>
 
@@ -48,17 +39,17 @@ export default function FeatureCards({ className = '' }: FeatureCardsProps) {
       <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
         <ResponsiveCard title="About Us">
           <BodyText size="xl" className="font-medium">
-            The Chiroport offers wellness care in ATL, DFW, HOU, LAS, MSP airports. Our services are designed to relieve tension, stress, and pain for travelers. Join the queue to feel great at the gate!
+            {aboutCopy}
           </BodyText>
         </ResponsiveCard>
         
         <ResponsiveCard title="Contact">
           <div className="space-y-2">
             <BodyText size="xl" className="font-medium">
-              Email: info@thechiroport.com
+              Email: {contactInfo.email}
             </BodyText>
             <BodyText size="xl" className="font-medium">
-              Phone: (612) 568-1224
+              Phone: {contactInfo.phone}
             </BodyText>
           </div>
         </ResponsiveCard>
