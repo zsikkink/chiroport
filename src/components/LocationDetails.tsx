@@ -2,7 +2,6 @@
 
 import { useReducer, useEffect } from 'react';
 import { motion, AnimatePresence, cubicBezier } from 'framer-motion';
-import { ChevronLeftIcon } from '@heroicons/react/24/solid';
 import 'react-phone-number-input/style.css';
 import ResponsiveCard from './ResponsiveCard';
 import { BodyText } from './Typography';
@@ -27,6 +26,8 @@ import {
 } from '@/features/locationDetails/config';
 import { createWizardInitialState, wizardReducer } from '@/features/locationDetails/reducer';
 import AnimatedButton from '@/features/locationDetails/components/AnimatedButton';
+import BackButton from '@/features/locationDetails/components/BackButton';
+import YesNoButtons from '@/features/locationDetails/components/YesNoButtons';
 
 // Define the expected API response structure
 interface SubmissionResponse {
@@ -68,43 +69,6 @@ const fadeVariants = {
 // ============================================================================
 // ANIMATED BUTTON COMPONENT
 // ============================================================================
-
-// ============================================================================
-// REUSABLE COMPONENTS
-// ============================================================================
-
-const BackButton = ({ onClick }: { onClick: () => void }) => (
-  <button onClick={onClick} aria-label="Go back" className="text-white flex items-center mb-2">
-    <ChevronLeftIcon className="w-6 h-6" />
-  </button>
-);
-
-const YesNoButtons = ({ 
-  onYes, 
-  onNo, 
-  selected,
-  onDeselect
-}: { 
-  onYes: () => void; 
-  onNo: () => void; 
-  selected: boolean | null;
-  onDeselect?: () => void;
-}) => (
-  <div className="flex gap-4">
-    <AnimatedButton
-      onClick={() => selected === true && onDeselect ? onDeselect() : onYes()}
-      selected={selected === true}
-    >
-      Yes
-    </AnimatedButton>
-    <AnimatedButton
-      onClick={() => selected === false && onDeselect ? onDeselect() : onNo()}
-      selected={selected === false}
-    >
-      No
-    </AnimatedButton>
-  </div>
-);
 
 const InputField = ({ 
   label, 
