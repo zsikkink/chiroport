@@ -6,11 +6,18 @@ import { ChevronLeftIcon } from '@heroicons/react/24/solid';
 import 'react-phone-number-input/style.css';
 import ResponsiveCard from './ResponsiveCard';
 import { BodyText } from './Typography';
-import { LocationInfo } from '@/utils/locationData';
 import { FormSubmissionData } from '@/types/waitwhile';
 import { AsYouType } from 'libphonenumber-js';
 import { submitFormSecurely, formSubmissionLimiter } from '@/utils/client-api';
 import { detailsSchemaFactory } from '@/schemas/intake';
+import type {
+  LocationDetailsProps,
+  Step,
+  WizardState,
+  WizardAction,
+  TreatmentOption,
+} from '@/features/locationDetails/types';
+import type { IntakeCategory } from '@/constants/waitwhile';
 
 // Define the expected API response structure
 interface SubmissionResponse {
@@ -23,7 +30,7 @@ interface SubmissionResponse {
 // DATA & TYPES
 // ============================================================================
 
-const TREATMENTS = [
+const TREATMENTS: readonly TreatmentOption[] = [
   { title: 'Body on the Go', price: '$69', time: '10 min', description: 'Full spinal and neck adjustment' },
   { title: 'Total Wellness', price: '$99', time: '20 min', description: 'Our signature service—trigger point muscle therapy, full-body stretch, and complete spinal & neck adjustments' },
   { title: 'Sciatica & Lower Back Targeted Therapy', price: '$119', time: '20 min', description: 'Focused spinal adjustments and muscle work to relieve sciatica and lower back discomfort' },
@@ -32,71 +39,15 @@ const TREATMENTS = [
   { title: 'Chiro Massage', price: '$79', time: '20 min', description: 'Thai-inspired massage blending trigger-point muscle therapy, dynamic stretching, and mechanical massagers' },
   { title: 'Chiro Massage Mini', price: '$39', time: '10 min', description: 'Thai-inspired massage blending trigger-point muscle therapy and mechanical massagers' },
   { title: 'Undecided', price: '', time: '', description: 'Not sure which therapy is right? Discuss your needs with our chiropractor to choose the best treatment' }
-] as const;
+];
 
-const MASSAGE_OPTIONS = [
+const MASSAGE_OPTIONS: readonly TreatmentOption[] = [
   { title: '15 Minutes', price: '$55', time: '', description: '' },
   { title: '20 Minutes', price: '$65', time: '', description: '' },
   { title: '30 Minutes', price: '$85', time: '', description: '' },
-] as const;
+];
 
-type Step =
-  | 'category'
-  | 'question'
-  | 'join'
-  | 'nonmember'
-  | 'treatments'
-  | 'details'
-  | 'success'
-  | 'massage_options';
-
-type IntakeCategory = 'standard' | 'offers_massage';
-type VisitCategory = 'priority_pass' | 'chiropractor' | 'massage';
-type Treatment = (typeof TREATMENTS)[number] | (typeof MASSAGE_OPTIONS)[number];
-
-interface WizardState {
-  step: Step;
-  history: Step[];
-  isMember: boolean | null;
-  spinalAdjustment: boolean | null;
-  selectedTreatment: Treatment | null;
-  visitCategory: VisitCategory | null;
-  details: {
-    name: string;
-    phone: string;
-    email: string;
-    birthday: string;
-    discomfort: string[];
-    additionalInfo: string;
-    consent: boolean;
-  };
-  submitAttempted: boolean;
-  isSubmitting: boolean;
-  submissionError: string | null;
-  submissionSuccess: {
-    customerId: string;
-    visitId: string;
-    queuePosition?: number;
-    estimatedWaitTime?: number;
-  } | null;
-}
-
-type Action =
-  | { type: 'GO_TO'; step: Step }
-  | { type: 'GO_BACK' }
-  | { type: 'SET_MEMBER'; value: boolean }
-  | { type: 'SET_SPINAL'; value: boolean }
-  | { type: 'DESELECT_SPINAL' }
-  | { type: 'SELECT_TREATMENT'; treatment: Treatment }
-  | { type: 'SET_VISIT_CATEGORY'; value: VisitCategory | null }
-  | { type: 'CLEAR_SELECTED_TREATMENT' }
-  | { type: 'UPDATE_FIELD'; field: keyof WizardState['details']; value: string | boolean }
-  | { type: 'UPDATE_DISCOMFORT'; values: string[] }
-  | { type: 'ATTEMPT_SUBMIT' }
-  | { type: 'SUBMIT_START' }
-  | { type: 'SUBMIT_SUCCESS'; payload: { customerId: string; visitId: string; queuePosition?: number; estimatedWaitTime?: number } }
-  | { type: 'SUBMIT_ERROR'; error: string }
-  | { type: 'RESET'; step: Step };
+type VisitCategory = WizardState['visitCategory'];
 
 const FLOW_CONFIG: Record<IntakeCategory, { initialStep: Step; steps: Step[] }> = {
   standard: {
@@ -173,7 +124,7 @@ const createDetailsSchema = detailsSchemaFactory;
 // REDUCER
 // ============================================================================
 
-function wizardReducer(state: WizardState, action: Action): WizardState {
+function wizardReducer(state: WizardState, action: WizardAction): WizardState {
   switch (action.type) {
     case 'GO_TO':
       return {
@@ -804,8 +755,8 @@ const MassageOptionsStep = ({
   onSelect,
   onBack
 }: {
-  selectedTreatment: Treatment | null;
-  onSelect: (treatment: Treatment) => void;
+  selectedTreatment: TreatmentOption | null;
+  onSelect: (treatment: TreatmentOption) => void;
   onBack: () => void;
 }) => (
   <div className="space-y-6 py-4">
@@ -835,11 +786,11 @@ const MassageOptionsStep = ({
   </div>
 );
 
-const TreatmentsStep = ({ 
-  onSelect, 
-  onBack 
-}: { 
-  onSelect: (treatment: Treatment) => void;
+const TreatmentsStep = ({
+  onSelect,
+  onBack,
+}: {
+  onSelect: (treatment: TreatmentOption) => void;
   onBack: () => void;
 }) => (
   <div className="space-y-4 py-4">
@@ -894,7 +845,7 @@ const DetailsStep = ({
   onSubmit: () => void;
   onBack: () => void;
   submitAttempted: boolean;
-  dispatch: (action: Action) => void;
+  dispatch: (action: WizardAction) => void;
   isSubmitting: boolean;
   submissionError: string | null;
   requireDiscomfort: boolean;
@@ -1041,13 +992,10 @@ const SuccessStep = () => (
 // MAIN COMPONENT
 // ============================================================================
 
-export default function LocationDetails({ 
-  locationInfo, 
-  className = '' 
-}: { 
-  locationInfo: LocationInfo; 
-  className?: string;
-}) {
+export default function LocationDetails({
+  locationInfo,
+  className = '',
+}: LocationDetailsProps) {
   const intakeCategory: IntakeCategory = locationInfo.intakeCategory ?? 'standard';
   const flowConfig = FLOW_CONFIG[intakeCategory];
   const flowTransitions = FLOW_TRANSITIONS[intakeCategory];
