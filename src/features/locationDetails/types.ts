@@ -69,3 +69,5 @@ export interface LocationDetailsProps {
   locationInfo: LocationInfo;
   className?: string;
 }
+
+export type VisitCategory = WizardState['visitCategory'];

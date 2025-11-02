@@ -16,8 +16,15 @@ import type {
   WizardState,
   WizardAction,
   TreatmentOption,
+  VisitCategory,
 } from '@/features/locationDetails/types';
 import type { IntakeCategory } from '@/constants/waitwhile';
+import {
+  FLOW_CONFIG,
+  FLOW_TRANSITIONS,
+  MASSAGE_OPTIONS,
+  TREATMENTS,
+} from '@/features/locationDetails/config';
 
 // Define the expected API response structure
 interface SubmissionResponse {
@@ -30,64 +37,6 @@ interface SubmissionResponse {
 // DATA & TYPES
 // ============================================================================
 
-const TREATMENTS: readonly TreatmentOption[] = [
-  { title: 'Body on the Go', price: '$69', time: '10 min', description: 'Full spinal and neck adjustment' },
-  { title: 'Total Wellness', price: '$99', time: '20 min', description: 'Our signature service—trigger point muscle therapy, full-body stretch, and complete spinal & neck adjustments' },
-  { title: 'Sciatica & Lower Back Targeted Therapy', price: '$119', time: '20 min', description: 'Focused spinal adjustments and muscle work to relieve sciatica and lower back discomfort' },
-  { title: 'Neck & Upper Back Targeted Therapy', price: '$119', time: '20 min', description: 'Focused spinal adjustments and muscle work to relieve neck and upper back discomfort' },
-  { title: 'Trigger Point Muscle Therapy & Stretch', price: '$89', time: '20 min', description: 'Relieve postural muscle tightness from travel, enhance blood flow, and calm your nervous system' },
-  { title: 'Chiro Massage', price: '$79', time: '20 min', description: 'Thai-inspired massage blending trigger-point muscle therapy, dynamic stretching, and mechanical massagers' },
-  { title: 'Chiro Massage Mini', price: '$39', time: '10 min', description: 'Thai-inspired massage blending trigger-point muscle therapy and mechanical massagers' },
-  { title: 'Undecided', price: '', time: '', description: 'Not sure which therapy is right? Discuss your needs with our chiropractor to choose the best treatment' }
-];
-
-const MASSAGE_OPTIONS: readonly TreatmentOption[] = [
-  { title: '15 Minutes', price: '$55', time: '', description: '' },
-  { title: '20 Minutes', price: '$65', time: '', description: '' },
-  { title: '30 Minutes', price: '$85', time: '', description: '' },
-];
-
-type VisitCategory = WizardState['visitCategory'];
-
-const FLOW_CONFIG: Record<IntakeCategory, { initialStep: Step; steps: Step[] }> = {
-  standard: {
-    initialStep: 'question',
-    steps: ['question', 'join', 'nonmember', 'treatments', 'details', 'success'],
-  },
-  offers_massage: {
-    initialStep: 'category',
-    steps: ['category', 'join', 'treatments', 'massage_options', 'details', 'success'],
-  },
-};
-
-type FlowTransitionMap = {
-  afterMemberYes?: Step;
-  afterMemberNo?: Step;
-  afterSpinalDecision?: Step;
-  afterTreatmentSelection: Step;
-  category?: {
-    priorityPass: Step;
-    chiropractor: Step;
-    massage: Step;
-  };
-};
-
-const FLOW_TRANSITIONS: Record<IntakeCategory, FlowTransitionMap> = {
-  standard: {
-    afterMemberYes: 'join',
-    afterMemberNo: 'treatments',
-    afterSpinalDecision: 'details',
-    afterTreatmentSelection: 'details',
-  },
-  offers_massage: {
-    afterTreatmentSelection: 'details',
-    category: {
-      priorityPass: 'join',
-      chiropractor: 'treatments',
-      massage: 'massage_options',
-    },
-  },
-};
 
 const createEmptyDetails = (): WizardState['details'] => ({
   name: '',
@@ -1284,7 +1233,7 @@ export default function LocationDetails({
               }
 
               if (category === 'priority_pass') {
-                goTo(categoryTransitions.priorityPass);
+                goTo(categoryTransitions.priority_pass);
               } else if (category === 'chiropractor') {
                 goTo(categoryTransitions.chiropractor);
               } else {
