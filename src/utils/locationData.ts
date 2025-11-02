@@ -5,31 +5,15 @@
  * managing location information across the application.
  */
 
-// Service configuration for Waitwhile integration
-export interface ServiceConfig {
-  // Member services (Priority Pass/Lounge Key)
-  memberWithSpinal: string;    // YES to membership, YES to $29 spinal
-  memberWithoutSpinal: string; // YES to membership, NO to $29 spinal
-  
-  // Non-member services (treatment selection)
-  treatments: { [treatmentTitle: string]: string };
-}
+import {
+  intakeCategoryByLocationId,
+  waitwhileServiceConfig,
+  type ServiceConfig,
+  type IntakeCategory,
+} from '@/content/waitwhile';
 
 // Global service configuration (same across all locations)
-export const waitwhileServices: ServiceConfig = {
-  memberWithSpinal: 'DoCvBDfuyv3HjlCra5Jc',
-  memberWithoutSpinal: 'mZChb5bacT7AeVU7E3Rz',
-  treatments: {
-    'Body on the Go': 'IhqDpECD89j2e7pmHCEW',
-    'Total Wellness': '11AxkuHmsd0tClHLitZ7',
-    'Sciatica & Lower Back Targeted Therapy': 'QhSWYhwLpnoEFHJZkGQf',
-    'Neck & Upper Back Targeted Therapy': '59q5NJG9miDfAgdtn8nK',
-    'Trigger Point Muscle Therapy & Stretch': 'hD5KfCW1maA1Vx0za0fv',
-    'Chiro Massage': 'ts1phHc92ktj04d0Gpve',
-    'Chiro Massage Mini': 'J8qHXtrsRC2aNPA04YDc',
-    'Undecided': 'FtfCqXMwnkqdft5aL0ZX'
-  }
-};
+export const waitwhileServices: ServiceConfig = waitwhileServiceConfig;
 
 // Simplified type definitions
 export interface LocationInfo {
@@ -41,7 +25,7 @@ export interface LocationInfo {
   customHours: string;
   displayName: string;
   waitwhileLocationId: string; // Waitwhile location ID for API integration
-  intakeCategory?: 'standard' | 'offers_massage';
+  intakeCategory?: IntakeCategory;
   // Add data field IDs specific to each location
   dataFieldIds: {
     ailment: string;
@@ -65,6 +49,15 @@ export interface ConcourseInfo {
   locationInfo: LocationInfo;
 }
 
+const createLocationInfo = (
+  info: Omit<LocationInfo, 'intakeCategory'>
+): LocationInfo => ({
+  ...info,
+  ...(intakeCategoryByLocationId[info.waitwhileLocationId]
+    ? { intakeCategory: intakeCategoryByLocationId[info.waitwhileLocationId] }
+    : {}),
+});
+
 /**
  * All airport locations with embedded location data - single source of truth
  * This eliminates the need for complex lookup functions and special case handling
@@ -79,7 +72,7 @@ export const airportLocations: AirportLocation[] = [
         name: 'concourse-a',
         slug: 'concourse-a',
         displayName: 'Concourse A',
-        locationInfo: {
+        locationInfo: createLocationInfo({
           gate: 'A18',
           landmark: 'Delta Help Desk',
           airportCode: 'ATL',
@@ -94,7 +87,7 @@ export const airportLocations: AirportLocation[] = [
             notes: 'dlaxD8sZ1VPchcgcra9w',
             consent: 'uhLZqSrUJaok6R52Powg',
           },
-        }
+        })
       }
     ]
   },
@@ -107,7 +100,7 @@ export const airportLocations: AirportLocation[] = [
         name: 'concourse-a',
         slug: 'concourse-a',
         displayName: 'Concourse A',
-        locationInfo: {
+        locationInfo: createLocationInfo({
           gate: 'A29',
           landmark: 'California Pizza Kitchen',
           airportCode: 'DFW',
@@ -122,7 +115,7 @@ export const airportLocations: AirportLocation[] = [
             notes: 'dlaxD8sZ1VPchcgcra9w',
             consent: 'uhLZqSrUJaok6R52Powg',
           },
-        }
+        })
       }
     ]
   },
@@ -135,7 +128,7 @@ export const airportLocations: AirportLocation[] = [
         name: 'concourse-a',
         slug: 'concourse-a',
         displayName: 'West Concourse', // Explicit display name - no special case needed
-        locationInfo: {
+        locationInfo: createLocationInfo({
           gate: 'A-9',
           landmark: 'Common Bond',
           airportCode: 'HOU',
@@ -150,7 +143,7 @@ export const airportLocations: AirportLocation[] = [
             notes: 'dlaxD8sZ1VPchcgcra9w',
             consent: 'uhLZqSrUJaok6R52Powg',
           },
-        }
+        })
       }
     ]
   },
@@ -163,7 +156,7 @@ export const airportLocations: AirportLocation[] = [
         name: 'concourse-b',
         slug: 'concourse-b',
         displayName: 'Concourse B',
-        locationInfo: {
+        locationInfo: createLocationInfo({
           gate: 'B-15',
           landmark: 'Starbucks',
           airportCode: 'LAS',
@@ -172,20 +165,19 @@ export const airportLocations: AirportLocation[] = [
           customHours: '8am - 6pm PT',
           displayName: 'Concourse B',
           waitwhileLocationId: 'kjAmNhyUygMlvVUje1gc', // LAS B across from Starbucks
-          intakeCategory: 'offers_massage',
           dataFieldIds: {
             ailment: '3EyMmttdiJfOc7nmQaUC',
             dateOfBirth: 'wRArbngAg41dQp1hpDSC',
             notes: 'dlaxD8sZ1VPchcgcra9w',
             consent: 'uhLZqSrUJaok6R52Powg',
           },
-        }
+        })
       },
       {
         name: 'concourse-c',
         slug: 'concourse-c',
         displayName: 'Concourse C',
-        locationInfo: {
+        locationInfo: createLocationInfo({
           gate: 'C-24',
           landmark: 'Raiders memorabilia store',
           airportCode: 'LAS',
@@ -200,7 +192,7 @@ export const airportLocations: AirportLocation[] = [
             notes: 'dlaxD8sZ1VPchcgcra9w',
             consent: 'uhLZqSrUJaok6R52Powg',
           },
-        }
+        })
       }
     ]
   },
@@ -213,7 +205,7 @@ export const airportLocations: AirportLocation[] = [
         name: 'concourse-c',
         slug: 'concourse-c',
         displayName: 'Concourse C',
-        locationInfo: {
+        locationInfo: createLocationInfo({
           gate: 'C-12',
           landmark: 'Delta SkyClub',
           airportCode: 'MSP',
@@ -222,20 +214,19 @@ export const airportLocations: AirportLocation[] = [
           customHours: '7am - 8pm CT',
           displayName: 'Concourse C',
           waitwhileLocationId: 'TyHFt6NehcmCK7gCAHod', // MSP C
-          intakeCategory: 'offers_massage',
           dataFieldIds: {
             ailment: '3EyMmttdiJfOc7nmQaUC',
             dateOfBirth: 'wRArbngAg41dQp1hpDSC',
             notes: 'dlaxD8sZ1VPchcgcra9w',
             consent: 'uhLZqSrUJaok6R52Powg',
           },
-        }
+        })
       },
       {
         name: 'concourse-f',
         slug: 'concourse-f',
         displayName: 'Concourse F',
-        locationInfo: {
+        locationInfo: createLocationInfo({
           gate: 'F-6',
           landmark: 'Local Marketplace',
           airportCode: 'MSP',
@@ -244,20 +235,19 @@ export const airportLocations: AirportLocation[] = [
           customHours: '7am - 7pm CT',
           displayName: 'Concourse F',
           waitwhileLocationId: 'xutzfkaetOGtbokSpnW1', // MSP F
-          intakeCategory: 'offers_massage',
           dataFieldIds: {
             ailment: '3EyMmttdiJfOc7nmQaUC',
             dateOfBirth: 'wRArbngAg41dQp1hpDSC',
             notes: 'dlaxD8sZ1VPchcgcra9w',
             consent: 'uhLZqSrUJaok6R52Powg',
           },
-        }
+        })
       },
       {
         name: 'concourse-g',
         slug: 'concourse-g',
         displayName: 'Concourse G',
-        locationInfo: {
+        locationInfo: createLocationInfo({
           gate: 'G-1',
           landmark: 'help desk',
           airportCode: 'MSP',
@@ -272,7 +262,7 @@ export const airportLocations: AirportLocation[] = [
             notes: 'dlaxD8sZ1VPchcgcra9w',
             consent: 'uhLZqSrUJaok6R52Powg',
           },
-        }
+        })
       }
     ]
   }
