@@ -4,13 +4,13 @@ import { useReducer, useEffect, useState } from 'react';
 import { motion, AnimatePresence, cubicBezier } from 'framer-motion';
 import { ChevronLeftIcon } from '@heroicons/react/24/solid';
 import 'react-phone-number-input/style.css';
-import { z } from 'zod';
 import ResponsiveCard from './ResponsiveCard';
 import { BodyText } from './Typography';
 import { LocationInfo } from '@/utils/locationData';
 import { FormSubmissionData } from '@/types/waitwhile';
-import { isValidPhoneNumber, AsYouType } from 'libphonenumber-js';
+import { AsYouType } from 'libphonenumber-js';
 import { submitFormSecurely, formSubmissionLimiter } from '@/utils/client-api';
+import { detailsSchemaFactory } from '@/schemas/intake';
 
 // Define the expected API response structure
 interface SubmissionResponse {
@@ -166,72 +166,8 @@ const createWizardInitialState = (initialStep: Step): WizardState => ({
 // VALIDATION
 // ============================================================================
 
-// Custom phone validation that handles US numbers properly
-const validatePhoneNumber = (phone: string): boolean => {
-  if (!phone) return false;
-  
-  // If it starts with +, it's international - validate as-is
-  if (phone.startsWith('+')) {
-    return isValidPhoneNumber(phone);
-  }
-  
-  // For US numbers (just digits), add +1 country code for validation
-  const digitsOnly = phone.replace(/\D/g, '');
-  if (digitsOnly.length === 10) {
-    return isValidPhoneNumber(`+1${digitsOnly}`);
-  }
-  
-  return false;
-};
 
-const isValidBirthday = (date: string): boolean => {
-  const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
-  if (!dateRegex.test(date)) return false;
-
-  const parts = date.split('/').map(Number);
-  const [month, day, year] = parts;
-
-  if (month === undefined || day === undefined || year === undefined) return false;
-
-  const dateObj = new Date(year, month - 1, day);
-
-  return (
-    dateObj.getFullYear() === year &&
-    dateObj.getMonth() === month - 1 &&
-    dateObj.getDate() === day &&
-    year >= 1900 &&
-    year <= new Date().getFullYear()
-  );
-};
-
-const createDetailsSchema = ({
-  requireDiscomfort,
-  requireEmail,
-  requireBirthday,
-}: {
-  requireDiscomfort: boolean;
-  requireEmail: boolean;
-  requireBirthday: boolean;
-}) =>
-  z.object({
-    name: z.string().min(1, 'Name is required'),
-    phone: z
-      .string()
-      .min(1, 'Phone is required')
-      .refine(validatePhoneNumber, 'Invalid phone number'),
-    email: requireEmail ? z.string().email('Invalid email') : z.string().optional(),
-    birthday: requireBirthday
-      ? z
-          .string()
-          .min(1, 'Birthday is required')
-          .refine((date) => isValidBirthday(date), 'Invalid date format (MM/DD/YYYY)')
-      : z.string().optional(),
-    discomfort: requireDiscomfort
-      ? z.array(z.string()).min(1, 'Please select at least one option')
-      : z.array(z.string()),
-    additionalInfo: z.string().optional(),
-    consent: z.boolean().refine((val) => val === true, 'You must consent to treatment to proceed'),
-  });
+const createDetailsSchema = detailsSchemaFactory;
 
 // ============================================================================
 // REDUCER
