@@ -10,7 +10,7 @@ import {
   waitwhileServiceConfig,
   type ServiceConfig,
   type IntakeCategory,
-} from '@/content/waitwhile';
+} from '@/constants/waitwhile';
 
 // Global service configuration (same across all locations)
 export const waitwhileServices: ServiceConfig = waitwhileServiceConfig;
