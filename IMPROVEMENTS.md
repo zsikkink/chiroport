@@ -86,8 +86,6 @@ This document outlines the comprehensive improvements made to the Chiroport code
 ```
 src/
 ├── components/
-│   ├── forms/           # Form-related components
-│   │   └── FormWizard.tsx
 │   └── ...
 ├── utils/
 │   ├── logger.ts        # Centralized logging
@@ -164,19 +162,6 @@ console.log('User submitted form', data);
 // New way
 import { logger } from '@/utils/logger';
 logger.userAction('Form submitted', { component: 'ContactForm' }, data);
-```
-
-### Using New Form Wizard
-```typescript
-// Import the new FormWizard component
-import { FormWizard } from '@/components/forms/FormWizard';
-
-// Use with render props pattern for maximum flexibility
-<FormWizard locationInfo={locationInfo} onSubmit={handleSubmit}>
-  {({ state, goTo, goBack, handleSubmit }) => (
-    // Your form UI here
-  )}
-</FormWizard>
 ```
 
 ### API Rate Limiting
