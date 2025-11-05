@@ -7,7 +7,7 @@ import ResponsiveCard from './ResponsiveCard';
 import { BodyText } from './Typography';
 import { FormSubmissionData } from '@/types/waitwhile';
 import { AsYouType } from 'libphonenumber-js';
-import { submitFormSecurely, formSubmissionLimiter } from '@/utils/client-api';
+import { submitWaitwhileForm } from '@/utils/api-client';
 import { detailsSchemaFactory } from '@/schemas/intake';
 import type {
   LocationDetailsProps,
@@ -789,9 +789,6 @@ export default function LocationDetails({
     dispatch({ type: 'SUBMIT_START' });
 
     try {
-      // Apply client-side rate limiting
-      await formSubmissionLimiter.throttle();
-
       // Prepare form data for API (no serviceId needed anymore)
       const formData: FormSubmissionData = {
         name: validationPayload.name,
@@ -816,7 +813,7 @@ export default function LocationDetails({
       }
 
       // Submit using secure API client with automatic CSRF handling
-      const result = await submitFormSecurely<SubmissionResponse>(formData);
+      const result = await submitWaitwhileForm<SubmissionResponse>(formData);
 
       if (!result.success) {
         throw new Error(result.error || result.message || 'Submission failed');

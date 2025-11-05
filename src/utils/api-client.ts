@@ -1,45 +1,76 @@
 /**
- * API Client Utility
- * 
- * Provides secure API communication with automatic CSRF token handling
- * and proper error handling for the frontend components.
+ * Unified API client used across client and server environments.
+ * Handles JSON parsing, CSRF protection, optional rate limiting,
+ * and provides convenience helpers for common application flows.
  */
 
-interface APIResponse<T = unknown> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
   message?: string;
+  status?: number;
 }
 
-class APIClient {
+export interface RateLimiter {
+  throttle(): Promise<void>;
+}
+
+export interface ApiClientOptions {
+  fetchImpl?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+  csrfEndpoint?: string;
+  includeCredentials?: RequestCredentials;
+  defaultHeaders?: Record<string, string>;
+}
+
+export interface RequestOptions {
+  csrf?: boolean;
+  throttle?: RateLimiter;
+  headers?: Record<string, string>;
+}
+
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+class ApiClient {
   private csrfToken: string | null = null;
   private csrfPromise: Promise<void> | null = null;
+  private readonly fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+  private readonly csrfEndpoint: string;
+  private readonly credentials: RequestCredentials;
+  private readonly defaultHeaders: Record<string, string>;
 
-  /**
-   * Fetch CSRF token from the server
-   */
+  constructor(options: ApiClientOptions = {}) {
+    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.csrfEndpoint = options.csrfEndpoint ?? '/api/csrf-token';
+    this.credentials = options.includeCredentials ?? 'include';
+    this.defaultHeaders = {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      ...options.defaultHeaders,
+    };
+  }
+
   private async fetchCSRFToken(): Promise<void> {
     try {
-      const response = await fetch('/api/csrf-token', {
+      const response = await this.fetchImpl(this.csrfEndpoint, {
         method: 'GET',
-        credentials: 'include', // Include cookies
+        credentials: this.credentials,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        this.csrfToken = data.token;
-      } else {
+      if (!response.ok) {
         console.warn('Failed to fetch CSRF token');
+        return;
+      }
+
+      const payload = await this.parseJson<{ token?: string }>(response);
+      if (payload?.token) {
+        this.csrfToken = payload.token;
       }
     } catch (error) {
       console.error('Error fetching CSRF token:', error);
     }
   }
 
-  /**
-   * Ensure CSRF token is available before making requests
-   */
   private async ensureCSRFToken(): Promise<void> {
     if (this.csrfToken) {
       return;
@@ -53,135 +84,169 @@ class APIClient {
     this.csrfPromise = null;
   }
 
-  /**
-   * Make a secure API request with CSRF protection
-   */
-  private async makeRequest<T>(
-    url: string,
-    options: RequestInit = {}
-  ): Promise<APIResponse<T>> {
+  private async parseJson<T>(response: Response): Promise<T | null> {
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/json') && response.status !== 204) {
+      return null;
+    }
+
     try {
-      // For state-changing operations, ensure CSRF token is available
-      if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method || 'GET')) {
+      return (await response.json()) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  private normalizeHeaders(
+    base: Record<string, string>,
+    override?: HeadersInit
+  ): Record<string, string> {
+    if (!override) {
+      return { ...base };
+    }
+
+    if (Array.isArray(override)) {
+      return override.reduce<Record<string, string>>((acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      }, { ...base });
+    }
+
+    if (override instanceof Headers) {
+      const entries: Record<string, string> = { ...base };
+      override.forEach((value, key) => {
+        entries[key] = value;
+      });
+      return entries;
+    }
+
+    return { ...base, ...override };
+  }
+
+  private async request<T>(
+    url: string,
+    init: RequestInit = {},
+    options: RequestOptions = {}
+  ): Promise<ApiResponse<T>> {
+    const method = (init.method ?? 'GET').toUpperCase();
+    const requiresCsrf = options.csrf ?? MUTATING_METHODS.has(method);
+
+    try {
+      if (options.throttle) {
+        await options.throttle.throttle();
+      }
+
+      if (requiresCsrf) {
         await this.ensureCSRFToken();
       }
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest', // Additional CSRF protection
-        ...(options.headers as Record<string, string>),
-      };
+      let headers = this.normalizeHeaders(this.defaultHeaders, init.headers);
+      if (options.headers) {
+        headers = { ...headers, ...options.headers };
+      }
 
-      // Add CSRF token for state-changing operations
-      if (this.csrfToken && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method || 'GET')) {
+      if (requiresCsrf && this.csrfToken) {
         headers['X-CSRF-Token'] = this.csrfToken;
       }
 
-      const response = await fetch(url, {
-        ...options,
+      const response = await this.fetchImpl(url, {
+        ...init,
         headers,
-        credentials: 'include', // Include cookies for CSRF validation
+        credentials: this.credentials,
       });
 
-      const data = await response.json();
+      const payload = await this.parseJson<ApiResponse<T>>(response);
 
       if (!response.ok) {
-        // Handle CSRF token expiry
-        if (response.status === 403 && data.error?.includes('CSRF')) {
-          this.csrfToken = null; // Clear expired token
-          console.warn('CSRF token expired, will fetch new one on next request');
+        if (response.status === 403 && payload?.error?.includes('CSRF')) {
+          this.csrfToken = null;
+          console.warn('CSRF token expired, will refetch on next request');
         }
 
-        return {
+        const errorResponse: ApiResponse<T> = {
           success: false,
-          error: data.error || 'Request failed',
-          message: data.message,
+          status: response.status,
         };
+
+        errorResponse.error =
+          payload?.error || response.statusText || 'Request failed';
+
+        if (payload?.message) {
+          errorResponse.message = payload.message;
+        }
+
+        return errorResponse;
       }
 
-      return {
+      const dataSource = payload?.data ?? payload;
+      const successResponse: ApiResponse<T> = {
         success: true,
-        data: data.data || data,
-        message: data.message,
+        status: response.status,
       };
+
+      if (payload?.message) {
+        successResponse.message = payload.message;
+      }
+
+      if (dataSource !== undefined && dataSource !== null) {
+        successResponse.data = dataSource as T;
+      }
+
+      return successResponse;
     } catch (error) {
       console.error('API request failed:', error);
-      return {
+      const fallback: ApiResponse<T> = {
         success: false,
         error: 'Network error or server unavailable',
-        message: 'Please check your connection and try again',
       };
+      fallback.message = 'Please check your connection and try again';
+      return fallback;
     }
   }
 
-  /**
-   * GET request
-   */
-  async get<T>(url: string): Promise<APIResponse<T>> {
-    return this.makeRequest<T>(url, { method: 'GET' });
+  async get<T>(url: string, options?: RequestOptions): Promise<ApiResponse<T>> {
+    return this.request<T>(url, { method: 'GET' }, { csrf: false, ...options });
   }
 
-  /**
-   * POST request
-   */
-  async post<T>(url: string, data?: unknown): Promise<APIResponse<T>> {
-    const options: RequestInit = {
-      method: 'POST',
-    };
-    
-    if (data) {
-      options.body = JSON.stringify(data);
+  async post<T>(
+    url: string,
+    data?: unknown,
+    options?: RequestOptions
+  ): Promise<ApiResponse<T>> {
+    const init: RequestInit = { method: 'POST' };
+    if (data !== undefined) {
+      init.body = JSON.stringify(data);
     }
-    
-    return this.makeRequest<T>(url, options);
+    return this.request<T>(url, init, options);
   }
 
-  /**
-   * PUT request
-   */
-  async put<T>(url: string, data?: unknown): Promise<APIResponse<T>> {
-    const options: RequestInit = {
-      method: 'PUT',
-    };
-    
-    if (data) {
-      options.body = JSON.stringify(data);
+  async put<T>(
+    url: string,
+    data?: unknown,
+    options?: RequestOptions
+  ): Promise<ApiResponse<T>> {
+    const init: RequestInit = { method: 'PUT' };
+    if (data !== undefined) {
+      init.body = JSON.stringify(data);
     }
-    
-    return this.makeRequest<T>(url, options);
+    return this.request<T>(url, init, options);
   }
 
-  /**
-   * DELETE request
-   */
-  async delete<T>(url: string): Promise<APIResponse<T>> {
-    return this.makeRequest<T>(url, { method: 'DELETE' });
+  async delete<T>(
+    url: string,
+    options?: RequestOptions
+  ): Promise<ApiResponse<T>> {
+    return this.request<T>(url, { method: 'DELETE' }, options);
   }
 
-  /**
-   * Clear cached CSRF token (useful for logout or token refresh)
-   */
   clearCSRFToken(): void {
     this.csrfToken = null;
   }
 }
 
-// Export singleton instance
-export const apiClient = new APIClient();
-
-// Convenience functions for common operations
-export async function submitForm<T>(data: unknown): Promise<APIResponse<T>> {
-  return apiClient.post<T>('/api/waitwhile/submit', data);
-}
-
-export async function getVisitStatus<T>(visitId: string): Promise<APIResponse<T>> {
-  return apiClient.get<T>(`/api/waitwhile/visit/${visitId}`);
-}
-
-// Rate limiting helper for client-side
-export class ClientRateLimiter {
+export class SimpleRateLimiter implements RateLimiter {
   private lastRequest = 0;
-  private minInterval: number;
+  private readonly minInterval: number;
 
   constructor(requestsPerMinute: number = 10) {
     this.minInterval = (60 * 1000) / requestsPerMinute;
@@ -189,10 +254,10 @@ export class ClientRateLimiter {
 
   async throttle(): Promise<void> {
     const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequest;
+    const elapsed = now - this.lastRequest;
 
-    if (timeSinceLastRequest < this.minInterval) {
-      const waitTime = this.minInterval - timeSinceLastRequest;
+    if (elapsed < this.minInterval) {
+      const waitTime = this.minInterval - elapsed;
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
 
@@ -200,5 +265,31 @@ export class ClientRateLimiter {
   }
 }
 
-// Export rate limiter for form submissions
-export const formSubmissionLimiter = new ClientRateLimiter(2); // 2 submissions per minute 
+export const apiClient = new ApiClient();
+export const formSubmissionLimiter = new SimpleRateLimiter(2);
+
+interface SubmitFormOptions {
+  client?: ApiClient;
+  limiter?: RateLimiter;
+}
+
+export async function submitWaitwhileForm<T>(
+  data: unknown,
+  options: SubmitFormOptions = {}
+): Promise<ApiResponse<T>> {
+  const client = options.client ?? apiClient;
+  const limiter = options.limiter ?? formSubmissionLimiter;
+
+  return client.post<T>('/api/waitwhile/submit', data, {
+    throttle: limiter,
+  });
+}
+
+// Backwards-compatible alias
+export const submitFormSecurely = submitWaitwhileForm;
+
+export async function getVisitStatus<T>(visitId: string): Promise<ApiResponse<T>> {
+  return apiClient.get<T>(`/api/waitwhile/visit/${visitId}`);
+}
+
+export { ApiClient };

@@ -4,7 +4,7 @@
  * Handles all queue-related API operations with rate limiting
  */
 
-import { formSubmissionLimiter, submitFormSecurely } from '@/utils/client-api';
+import { submitWaitwhileForm } from '@/utils/api-client';
 import { SubmissionResponse, Treatment, WizardState } from '@/types/wizard';
 
 export interface JoinQueuePayload {
@@ -15,9 +15,6 @@ export interface JoinQueuePayload {
 }
 
 export async function joinQueue(payload: JoinQueuePayload) {
-  // Apply client-side rate limiting
-  await formSubmissionLimiter.throttle();
-
   // Prepare form data for API
   const formData = {
     name: payload.details.name,
@@ -33,7 +30,7 @@ export async function joinQueue(payload: JoinQueuePayload) {
   };
 
   // Submit using secure API client with automatic CSRF handling
-  const result = await submitFormSecurely<SubmissionResponse>(formData);
+  const result = await submitWaitwhileForm<SubmissionResponse>(formData);
 
   if (!result.success) {
     throw new Error(result.error || result.message || 'Submission failed');
