@@ -1,272 +1,46 @@
 /**
  * Location Data - Simplified Structure
- * 
- * This file contains a simplified, explicit data structure for 
- * managing location information across the application.
+ *
+ * Provides typed helpers on top of the JSON-based Waitwhile data source.
  */
 
 import {
-  intakeCategoryByLocationId,
-  waitwhileServiceConfig,
+  airportLocations as airportData,
+  waitwhileServices as waitwhileServicesConfig,
+  type AirportData,
+  type ConcourseData,
+  type LocationInfoData,
   type ServiceConfig,
-  type IntakeCategory,
-} from '@/constants/waitwhile';
+} from '@/data/waitwhileData';
+
+// Simplified type definitions (aliases for the shared data types)
+export type LocationInfo = LocationInfoData;
+export type ConcourseInfo = ConcourseData;
+export type AirportLocation = AirportData;
 
 // Global service configuration (same across all locations)
-export const waitwhileServices: ServiceConfig = waitwhileServiceConfig;
+export const waitwhileServices: ServiceConfig = waitwhileServicesConfig;
 
-// Simplified type definitions
-export interface LocationInfo {
-  gate: string;
-  landmark: string;
-  airportCode: string;
-  imageUrl: string;
-  customLocation: string;
-  customHours: string;
-  displayName: string;
-  waitwhileLocationId: string; // Waitwhile location ID for API integration
-  intakeCategory?: IntakeCategory;
-  // Add data field IDs specific to each location
-  dataFieldIds: {
-    ailment: string;
-    dateOfBirth: string;
-    notes: string;
-    consent: string;
-  };
-}
-
-export interface AirportLocation {
-  name: string;
-  code: string;
-  slug: string; // URL-friendly identifier
-  concourses: ConcourseInfo[];
-}
-
-export interface ConcourseInfo {
-  name: string;
-  slug: string; // URL-friendly identifier
-  displayName: string;
-  locationInfo: LocationInfo;
-}
-
-const createLocationInfo = (
-  info: Omit<LocationInfo, 'intakeCategory'>
-): LocationInfo => ({
-  ...info,
-  ...(intakeCategoryByLocationId[info.waitwhileLocationId]
-    ? { intakeCategory: intakeCategoryByLocationId[info.waitwhileLocationId] }
-    : {}),
-});
+/**
+ * Deep copy the airport data so downstream mutations don't affect the shared source.
+ * Intake category defaults to "standard" when omitted.
+ */
+export const airportLocations: AirportLocation[] = airportData.map((airport) => ({
+  ...airport,
+  concourses: airport.concourses.map((concourse) => ({
+    ...concourse,
+    locationInfo: {
+      ...concourse.locationInfo,
+      intakeCategory: concourse.locationInfo.intakeCategory ?? 'standard',
+      dataFieldIds: { ...concourse.locationInfo.dataFieldIds },
+    },
+  })),
+}));
 
 /**
  * All airport locations with embedded location data - single source of truth
  * This eliminates the need for complex lookup functions and special case handling
  */
-export const airportLocations: AirportLocation[] = [
-  {
-    name: 'Atlanta',
-    code: 'ATL',
-    slug: 'atlanta',
-    concourses: [
-      {
-        name: 'concourse-a',
-        slug: 'concourse-a',
-        displayName: 'Concourse A',
-        locationInfo: createLocationInfo({
-          gate: 'A18',
-          landmark: 'Delta Help Desk',
-          airportCode: 'ATL',
-          imageUrl: '/images/stores/atl-a.webp',
-          customLocation: 'Located near the main rotunda of Concourse A next to In Motion and the Delta Help Desk.',
-          customHours: '7am - 7pm ET',
-          displayName: 'Concourse A',
-          waitwhileLocationId: 'CrX9VfmNjSdJXTRoFVb6', // ATL Concourse A
-          dataFieldIds: {
-            ailment: '3EyMmttdiJfOc7nmQaUC',
-            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
-            notes: 'dlaxD8sZ1VPchcgcra9w',
-            consent: 'uhLZqSrUJaok6R52Powg',
-          },
-        })
-      }
-    ]
-  },
-  {
-    name: 'Dallas',
-    code: 'DFW',
-    slug: 'dallas',
-    concourses: [
-      {
-        name: 'concourse-a',
-        slug: 'concourse-a',
-        displayName: 'Concourse A',
-        locationInfo: createLocationInfo({
-          gate: 'A29',
-          landmark: 'California Pizza Kitchen',
-          airportCode: 'DFW',
-          imageUrl: '/images/stores/dfw-a.webp',
-          customLocation: 'Located between Gate A29 and California Pizza Kitchen.',
-          customHours: '7am - 7pm CT',
-          displayName: 'Concourse A',
-          waitwhileLocationId: 'PSpPokkQXjTJzFcWskcU', // DFW A 29
-          dataFieldIds: {
-            ailment: '3EyMmttdiJfOc7nmQaUC',
-            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
-            notes: 'dlaxD8sZ1VPchcgcra9w',
-            consent: 'uhLZqSrUJaok6R52Powg',
-          },
-        })
-      }
-    ]
-  },
-  {
-    name: 'Houston',
-    code: 'HOU',
-    slug: 'houston',
-    concourses: [
-      {
-        name: 'concourse-a',
-        slug: 'concourse-a',
-        displayName: 'West Concourse', // Explicit display name - no special case needed
-        locationInfo: createLocationInfo({
-          gate: 'A-9',
-          landmark: 'Common Bond',
-          airportCode: 'HOU',
-          imageUrl: '/images/stores/hou-w.webp',
-          customLocation: 'Located in the West Concourse near the Common Bond restaurant and Gate 1.',
-          customHours: '8am - 6pm CT',
-          displayName: 'West Concourse',
-          waitwhileLocationId: 'a4ffR8xjhkhV7EKlzhxJ', // Houston Hobby
-          dataFieldIds: {
-            ailment: '3EyMmttdiJfOc7nmQaUC',
-            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
-            notes: 'dlaxD8sZ1VPchcgcra9w',
-            consent: 'uhLZqSrUJaok6R52Powg',
-          },
-        })
-      }
-    ]
-  },
-  {
-    name: 'Las Vegas',
-    code: 'LAS',
-    slug: 'las-vegas',
-    concourses: [
-      {
-        name: 'concourse-b',
-        slug: 'concourse-b',
-        displayName: 'Concourse B',
-        locationInfo: createLocationInfo({
-          gate: 'B-15',
-          landmark: 'Starbucks',
-          airportCode: 'LAS',
-          imageUrl: '/images/stores/las-b.webp',
-          customLocation: 'Located across from Starbucks and near the walkway to Concourse C.',
-          customHours: '8am - 6pm PT',
-          displayName: 'Concourse B',
-          waitwhileLocationId: 'kjAmNhyUygMlvVUje1gc', // LAS B across from Starbucks
-          dataFieldIds: {
-            ailment: '3EyMmttdiJfOc7nmQaUC',
-            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
-            notes: 'dlaxD8sZ1VPchcgcra9w',
-            consent: 'uhLZqSrUJaok6R52Powg',
-          },
-        })
-      },
-      {
-        name: 'concourse-c',
-        slug: 'concourse-c',
-        displayName: 'Concourse C',
-        locationInfo: createLocationInfo({
-          gate: 'C-24',
-          landmark: 'Raiders memorabilia store',
-          airportCode: 'LAS',
-          imageUrl: '/images/stores/las-c.webp',
-          customLocation: 'Located near Gate C24 and directly across from the Raiders memorabilia store.',
-          customHours: '8am - 6pm PT',
-          displayName: 'Concourse C',
-          waitwhileLocationId: 'BKncaAgwFhUrywvRCgXT', // Las Vegas C24
-          dataFieldIds: {
-            ailment: '3EyMmttdiJfOc7nmQaUC',
-            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
-            notes: 'dlaxD8sZ1VPchcgcra9w',
-            consent: 'uhLZqSrUJaok6R52Powg',
-          },
-        })
-      }
-    ]
-  },
-  {
-    name: 'Minneapolis',
-    code: 'MSP',
-    slug: 'minneapolis',
-    concourses: [
-      {
-        name: 'concourse-c',
-        slug: 'concourse-c',
-        displayName: 'Concourse C',
-        locationInfo: createLocationInfo({
-          gate: 'C-12',
-          landmark: 'Delta SkyClub',
-          airportCode: 'MSP',
-          imageUrl: '/images/stores/msp-c.webp',
-          customLocation: 'Located near Gate C12 and across from Delta SkyClub.',
-          customHours: '7am - 8pm CT',
-          displayName: 'Concourse C',
-          waitwhileLocationId: 'TyHFt6NehcmCK7gCAHod', // MSP C
-          dataFieldIds: {
-            ailment: '3EyMmttdiJfOc7nmQaUC',
-            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
-            notes: 'dlaxD8sZ1VPchcgcra9w',
-            consent: 'uhLZqSrUJaok6R52Powg',
-          },
-        })
-      },
-      {
-        name: 'concourse-f',
-        slug: 'concourse-f',
-        displayName: 'Concourse F',
-        locationInfo: createLocationInfo({
-          gate: 'F-6',
-          landmark: 'Local Marketplace',
-          airportCode: 'MSP',
-          imageUrl: '/images/stores/msp-f.webp',
-          customLocation: 'Located near Gate F6, across from the food court and next to the Local Marketplace.',
-          customHours: '7am - 7pm CT',
-          displayName: 'Concourse F',
-          waitwhileLocationId: 'xutzfkaetOGtbokSpnW1', // MSP F
-          dataFieldIds: {
-            ailment: '3EyMmttdiJfOc7nmQaUC',
-            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
-            notes: 'dlaxD8sZ1VPchcgcra9w',
-            consent: 'uhLZqSrUJaok6R52Powg',
-          },
-        })
-      },
-      {
-        name: 'concourse-g',
-        slug: 'concourse-g',
-        displayName: 'Concourse G',
-        locationInfo: createLocationInfo({
-          gate: 'G-1',
-          landmark: 'help desk',
-          airportCode: 'MSP',
-          imageUrl: '/images/stores/msp-g.webp',
-          customLocation: 'Located at the entrance to the G concourse, across from the help desk.',
-          customHours: '7am - 7pm CT',
-          displayName: 'Concourse G',
-          waitwhileLocationId: 'xmGfroUQYjy5de88a3Wz', // MSP G
-          dataFieldIds: {
-            ailment: '3EyMmttdiJfOc7nmQaUC',
-            dateOfBirth: 'wRArbngAg41dQp1hpDSC',
-            notes: 'dlaxD8sZ1VPchcgcra9w',
-            consent: 'uhLZqSrUJaok6R52Powg',
-          },
-        })
-      }
-    ]
-  }
-];
 
 /**
  * Simplified lookup functions - no complex fallback logic needed
