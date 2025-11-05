@@ -27,45 +27,6 @@ const nextConfig: NextConfig = {
   
   // Security headers are now handled by middleware.ts for better control
   
-  // Webpack configuration - disable problematic caching in development
-  webpack: (config, { dev, isServer }) => {
-    // DISABLE filesystem caching in development to prevent corruption
-    if (dev) {
-      config.cache = false; // Completely disable caching in development
-      
-      // Optimize for development stability over speed
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          chunks: 'async', // More conservative chunking
-          minSize: 20000,
-          maxSize: 200000, // Smaller chunks to prevent memory issues
-          cacheGroups: {
-            default: {
-              minChunks: 2,
-              priority: -20,
-              reuseExistingChunk: true,
-            },
-            vendor: {
-              test: /[\\/]node_modules[\\/]/,
-              name: 'vendors',
-              priority: -10,
-              chunks: 'all',
-              maxSize: 200000,
-            },
-          },
-        },
-      };
-    }
-    
-    // Production optimizations only
-    if (!dev && !isServer) {
-      config.optimization.splitChunks.chunks = 'all';
-    }
-    
-    return config;
-  },
-  
   // Experimental features - only stable ones
   experimental: {
     optimizePackageImports: ['@heroicons/react'],
