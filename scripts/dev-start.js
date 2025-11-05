@@ -1,141 +1,113 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const { execSync } = require('child_process');
+const fs = require('fs/promises');
 const path = require('path');
+const { spawn } = require('child_process');
 
-/**
- * Robust Development Startup Script
- * 
- * This script ensures a completely clean development environment
- * to prevent webpack cache corruption issues.
- */
+const ROOT = process.cwd();
+const CACHE_DIRS = [
+  '.next',
+  'node_modules/.cache',
+  '.turbo',
+].map(dir => path.join(ROOT, dir));
 
-console.log('🚀 Starting Chiroport development environment...\n');
-
-function executeCommand(command, description) {
-  console.log(`📋 ${description}...`);
+async function pathExists(targetPath) {
   try {
-    execSync(command, { stdio: 'inherit' });
-    console.log(`✅ ${description} completed\n`);
-  } catch (error) {
-    console.log(`⚠️  ${description} completed with warnings\n`);
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
   }
 }
 
-function cleanEnvironment() {
-  console.log('🧹 Cleaning development environment...\n');
-  
-  // Kill any existing Next.js processes
-  executeCommand("pkill -f 'next dev' || true", "Stopping existing dev servers");
-  
-  // Remove all cache directories
-  const cacheDirs = [
-    '.next',
-    'node_modules/.cache',
-    '.cache',
-    '.webpack',
-    'tmp'
-  ];
-  
-  cacheDirs.forEach(dir => {
-    if (fs.existsSync(dir)) {
-      executeCommand(`rm -rf ${dir}`, `Removing ${dir}`);
+async function removeDir(targetPath) {
+  const exists = await pathExists(targetPath);
+  if (!exists) {
+    return;
+  }
+
+  await fs.rm(targetPath, { recursive: true, force: true });
+  console.log(`🧹 Removed ${path.relative(ROOT, targetPath)}`);
+}
+
+async function cleanCaches() {
+  console.log('🧼 Clearing local caches (scoped)...');
+
+  for (const dir of CACHE_DIRS) {
+    await removeDir(dir);
+  }
+}
+
+async function ensureDirectories() {
+  const required = ['src/components', 'src/app', 'scripts', 'docs'];
+
+  for (const dir of required) {
+    const fullPath = path.join(ROOT, dir);
+    if (!(await pathExists(fullPath))) {
+      await fs.mkdir(fullPath, { recursive: true });
+      console.log(`📂 Created directory ${dir}`);
     }
-  });
-  
-  // Clean npm cache
-  executeCommand('npm cache clean --force', 'Cleaning npm cache');
-  
-  // Remove any suspicious webpack files
-  executeCommand("find . -name '*.js' -path '*/.next/*' -exec rm -f {} + 2>/dev/null || true", "Removing orphaned webpack files");
+  }
 }
 
-function validateEnvironment() {
-  console.log('🔍 Validating environment...\n');
-  
-  // Check Node.js version
-  const nodeVersion = process.version;
-  console.log(`📌 Node.js version: ${nodeVersion}`);
-  
-  // Check if package.json exists
-  if (!fs.existsSync('package.json')) {
-    console.error('❌ package.json not found!');
-    process.exit(1);
-  }
-  
-  // Check if next.config.ts exists
-  if (!fs.existsSync('next.config.ts')) {
-    console.error('❌ next.config.ts not found!');
-    process.exit(1);
-  }
-  
-  console.log('✅ Environment validation passed\n');
-}
+async function validateEnvironment() {
+  const requiredFiles = ['package.json', 'next.config.ts'];
 
-function ensureDirectoryStructure() {
-  console.log('📁 Ensuring directory structure...\n');
-  
-  const requiredDirs = [
-    'src/components',
-    'src/app',
-    'scripts',
-    'docs'
-  ];
-  
-  requiredDirs.forEach(dir => {
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-      console.log(`📂 Created directory: ${dir}`);
+  for (const file of requiredFiles) {
+    const fullPath = path.join(ROOT, file);
+    if (!(await pathExists(fullPath))) {
+      throw new Error(`Required file "${file}" not found`);
     }
-  });
-  
-  console.log('✅ Directory structure validated\n');
-}
-
-function startDevelopmentServer() {
-  console.log('🎯 Starting development server...\n');
-  
-  try {
-    // Start the development server
-    execSync('npm run dev', { stdio: 'inherit' });
-  } catch (error) {
-    console.error('❌ Failed to start development server');
-    console.error('💡 Try running: npm run reset');
-    process.exit(1);
   }
 }
 
-// Main execution
+function runTelemetryDisable() {
+  return new Promise(resolve => {
+    const child = spawn(
+      process.platform === 'win32' ? 'npx.cmd' : 'npx',
+      ['next', 'telemetry', 'disable'],
+      { stdio: 'ignore', env: process.env }
+    );
+
+    child.on('exit', () => resolve());
+    child.on('error', () => resolve());
+  });
+}
+
+function startDevServer() {
+  const child = spawn('npm', ['run', 'dev'], {
+    stdio: 'inherit',
+    env: process.env,
+  });
+
+  const stopDev = () => {
+    child.kill('SIGINT');
+  };
+
+  process.on('SIGINT', stopDev);
+  process.on('SIGTERM', stopDev);
+
+  child.on('exit', (code, signal) => {
+    process.exitCode = code ?? (signal ? 1 : 0);
+  });
+}
+
 async function main() {
   try {
-    validateEnvironment();
-    cleanEnvironment();
-    ensureDirectoryStructure();
-    
-    console.log('🎉 Environment prepared successfully!\n');
-    console.log('🌐 Starting development server on http://localhost:3000\n');
-    
-    startDevelopmentServer();
-    
+    console.log('🚀 Preparing development environment...\n');
+
+    await validateEnvironment();
+    await ensureDirectories();
+    await cleanCaches();
+    await runTelemetryDisable();
+
+    console.log('\n✅ Environment ready. Launching dev server...\n');
+    startDevServer();
   } catch (error) {
-    console.error('❌ Failed to start development environment:', error.message);
-    console.error('\n🆘 Emergency recovery commands:');
-    console.error('   npm run clean:full');
-    console.error('   npm run reset');
+    console.error('❌ Unable to start development environment.');
+    console.error(error instanceof Error ? error.message : error);
     process.exit(1);
   }
 }
 
-// Handle script interruption
-process.on('SIGINT', () => {
-  console.log('\n🛑 Development server stopped');
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  console.log('\n🛑 Development server terminated');
-  process.exit(0);
-});
-
-main(); 
+main();

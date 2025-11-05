@@ -20,18 +20,18 @@ interface RateLimitResult {
 class RateLimiter {
   private cache = new Map<string, { count: number; resetTime: number }>();
   private config: RateLimitConfig;
+  private lastCleanup = 0;
 
   constructor(config: RateLimitConfig) {
     this.config = config;
-    
-    // Clean up expired entries every minute
-    setInterval(() => {
-      this.cleanup();
-    }, 60000);
   }
 
   async limit(identifier: string): Promise<RateLimitResult> {
     const now = Date.now();
+
+    if (now - this.lastCleanup > 60_000) {
+      this.cleanup(now);
+    }
     
     // Get or create entry for this identifier
     let entry = this.cache.get(identifier);
@@ -73,13 +73,13 @@ class RateLimiter {
     };
   }
 
-  private cleanup(): void {
-    const now = Date.now();
+  private cleanup(now: number): void {
     for (const [key, entry] of this.cache.entries()) {
       if (entry.resetTime <= now) {
         this.cache.delete(key);
       }
     }
+    this.lastCleanup = now;
   }
 
   getStats(): { activeEntries: number; totalRequests: number } {
