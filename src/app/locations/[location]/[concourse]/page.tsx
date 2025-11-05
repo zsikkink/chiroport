@@ -11,7 +11,7 @@ interface PageParams {
 }
 
 interface PageProps {
-  params: PageParams;
+  params: Promise<PageParams>;
 }
 
 /**
@@ -37,8 +37,8 @@ export async function generateStaticParams() {
  * Generate metadata for each location page
  * Improves SEO with dynamic titles and descriptions
  */
-export function generateMetadata({ params }: PageProps): Metadata {
-  const { location, concourse } = params;
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { location, concourse } = await params;
   const airport = findAirport(location);
   const concourseInfo = findConcourse(location, concourse);
   
@@ -89,8 +89,8 @@ export function generateMetadata({ params }: PageProps): Metadata {
  * - Client components hydrated after initial render
  * - No hooks in server components
  */
-export default function ConcoursePage({ params }: PageProps) {
-  const { location, concourse } = params;
+export default async function ConcoursePage({ params }: PageProps) {
+  const { location, concourse } = await params;
   
   // Get location data - if not found, show 404
   const locationInfo = getLocationInfo(location, concourse);
