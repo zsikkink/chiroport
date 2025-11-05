@@ -5,11 +5,13 @@ import { Metadata } from 'next';
 import ScrollHeader from '@/components/ScrollHeader';
 import LocationDetails from '@/components/LocationDetails';
 
+interface PageParams {
+  location: string;
+  concourse: string;
+}
+
 interface PageProps {
-  params: Promise<{
-    location: string;
-    concourse: string;
-  }>;
+  params: PageParams;
 }
 
 /**
@@ -35,8 +37,8 @@ export async function generateStaticParams() {
  * Generate metadata for each location page
  * Improves SEO with dynamic titles and descriptions
  */
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { location, concourse } = await params;
+export function generateMetadata({ params }: PageProps): Metadata {
+  const { location, concourse } = params;
   const airport = findAirport(location);
   const concourseInfo = findConcourse(location, concourse);
   
@@ -87,8 +89,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
  * - Client components hydrated after initial render
  * - No hooks in server components
  */
-export default async function ConcoursePage({ params }: PageProps) {
-  const { location, concourse } = await params;
+export default function ConcoursePage({ params }: PageProps) {
+  const { location, concourse } = params;
   
   // Get location data - if not found, show 404
   const locationInfo = getLocationInfo(location, concourse);

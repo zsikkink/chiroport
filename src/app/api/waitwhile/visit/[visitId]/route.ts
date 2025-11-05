@@ -9,13 +9,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getVisit } from '@/lib/waitwhile-client';
 import { debugLog, logError } from '@/utils/config';
 
+interface RouteParams {
+  visitId: string;
+}
+
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { visitId: string } }
+  { params }: { params: RouteParams }
 ) {
-  try {
-    const { visitId } = await params;
+  const { visitId } = params;
 
+  try {
     if (!visitId) {
       return NextResponse.json(
         { error: 'Visit ID is required' },
@@ -50,7 +54,6 @@ export async function GET(
     });
 
   } catch (error) {
-    const { visitId } = await params;
     logError(error as Error, `Failed to get visit status for ${visitId}`);
 
     // Handle different types of errors
