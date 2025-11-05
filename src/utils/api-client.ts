@@ -40,7 +40,12 @@ class ApiClient {
   private readonly defaultHeaders: Record<string, string>;
 
   constructor(options: ApiClientOptions = {}) {
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    const providedFetch = options.fetchImpl ?? fetch;
+    if (typeof window !== 'undefined' && providedFetch === window.fetch) {
+      this.fetchImpl = providedFetch.bind(window);
+    } else {
+      this.fetchImpl = providedFetch;
+    }
     this.csrfEndpoint = options.csrfEndpoint ?? '/api/csrf-token';
     this.credentials = options.includeCredentials ?? 'include';
     this.defaultHeaders = {
