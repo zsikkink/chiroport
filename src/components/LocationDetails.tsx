@@ -398,9 +398,9 @@ const JoinStep = ({
   <div className="py-4">
     <BackButton onClick={onBack} />
     <BodyText size="2xl" className="font-medium text-white mt-4">
-      The Priority Pass & Lounge Key service includes stretching, muscle work, and massage.
+      Service includes stretching, muscle work, and massage.
     </BodyText>
-    <div className="space-y-3 mt-12">
+    <div className="space-y-3 mt-8">
       <BodyText size="2xl" className="text-white">
       Would you like to add spinal & neck adjustments for only $35  — a 50% Discount!
       </BodyText>
@@ -487,7 +487,7 @@ const MassageOptionsStep = ({
       <BackButton onClick={onBack} />
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <BodyText size="2xl" className="font-bold text-white text-center px-8">
-          Chair Massage
+          Massage
         </BodyText>
       </div>
     </div>
@@ -704,8 +704,11 @@ const SuccessStep = () => (
     </div>
 
     <div className="space-y-4">
-      <BodyText size="lg" className="text-white">
+      <BodyText size="xl" className="text-white">
         We&apos;ll text you when you&apos;re up next.
+      </BodyText>
+      <BodyText size="xl" className="text-white">
+        If you enjoy your experience, a gratuity is greatly appreciated!
       </BodyText>
     </div>
   </div>
