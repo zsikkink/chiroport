@@ -675,7 +675,7 @@ const SuccessStep = () => (
       <BodyText size="xl" className="text-white">
         We&apos;ll text you when you&apos;re up next.
       </BodyText>
-      <BodyText size="xl" className="text-white">
+      <BodyText size="xl" className="text-white break-keep">
         If you enjoy your experience, a gratuity is greatly appreciated!
       </BodyText>
     </div>
