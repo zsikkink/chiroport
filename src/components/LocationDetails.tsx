@@ -48,6 +48,10 @@ interface SubmissionResponse {
 
 const createDetailsSchema = detailsSchemaFactory;
 
+const UNDECIDED_TREATMENT = TREATMENTS.find(
+  (treatment) => treatment.title === 'Undecided'
+);
+
 // ============================================================================
 // ANIMATION
 // ============================================================================
@@ -509,42 +513,6 @@ const MassageOptionsStep = ({
   </div>
 );
 
-const TreatmentsStep = ({
-  onSelect,
-  onBack,
-}: {
-  onSelect: (treatment: TreatmentOption) => void;
-  onBack: () => void;
-}) => (
-  <div className="space-y-4 py-4">
-    <div className="relative flex items-center mb-6">
-      <BackButton onClick={onBack} />
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <BodyText size="3xl" className="font-bold text-white text-center">Select Service</BodyText>
-      </div>
-    </div>
-    <div className="space-y-3">
-      {TREATMENTS.map((treatment) => (
-        <AnimatedButton 
-          key={treatment.title}
-          onClick={() => onSelect(treatment)}
-          className="!text-left !items-start !justify-start"
-        >
-          <div className="w-full text-left">
-            <h3 className="font-bold text-lg mb-1">{treatment.title}</h3>
-            {treatment.price && treatment.time && (
-              <div className="text-sm font-bold mb-2">
-                {treatment.price} • {treatment.time}
-              </div>
-            )}
-            <p className="text-base leading-relaxed">{treatment.description}</p>
-          </div>
-        </AnimatedButton>
-      ))}
-    </div>
-  </div>
-);
-
 const DetailsStep = ({ 
   details, 
   onUpdateField, 
@@ -744,9 +712,19 @@ export default function LocationDetails({
     ? 'I consent to receive massage therapy and release the therapist and business from liability for any normal reactions or unintended effects except in cases of negligence.'
     : 'I consent to receive chiropractic care, have disclosed any health conditions, and release the chiropractor and business from liability for any normal reactions or unintended effects except in cases of negligence.';
 
+  const selectUndecidedTreatment = () => {
+    if (!UNDECIDED_TREATMENT) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('Undecided treatment option not found in TREATMENTS list.');
+      }
+      return;
+    }
+    dispatch({ type: 'SELECT_TREATMENT', treatment: UNDECIDED_TREATMENT });
+  };
+
   // Scroll to top when navigating between service menu and details
   useEffect(() => {
-    if (state.step === 'treatments' || state.step === 'details' || state.step === 'massage_options') {
+    if (state.step === 'details' || state.step === 'massage_options') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [state.step]);
@@ -871,7 +849,8 @@ export default function LocationDetails({
               }}
               onNo={() => {
                 dispatch({ type: 'SET_MEMBER', value: false });
-                goTo(flowTransitions.afterMemberNo ?? 'treatments');
+                selectUndecidedTreatment();
+                goTo(flowTransitions.afterMemberNo ?? 'details');
               }}
             />
           </motion.div>
@@ -906,27 +885,11 @@ export default function LocationDetails({
             exit="exit"
           >
             <NonMemberStep
-              onProceed={() => goTo('treatments')}
-              onSchedule={() => console.log('Schedule future treatment')}
-              onBack={goBack}
-            />
-          </motion.div>
-        );
-
-      case 'treatments':
-        return (
-          <motion.div
-            key={state.step}
-            variants={fadeVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-          >
-            <TreatmentsStep
-              onSelect={(treatment) => {
-                dispatch({ type: 'SELECT_TREATMENT', treatment });
-                goTo(flowTransitions.afterTreatmentSelection);
+              onProceed={() => {
+                selectUndecidedTreatment();
+                goTo('details');
               }}
+              onSchedule={() => console.log('Schedule future treatment')}
               onBack={goBack}
             />
           </motion.div>
@@ -1009,6 +972,7 @@ export default function LocationDetails({
               if (category === 'priority_pass') {
                 goTo(categoryTransitions.priority_pass);
               } else if (category === 'chiropractor') {
+                selectUndecidedTreatment();
                 goTo(categoryTransitions.chiropractor);
               } else {
                 goTo(categoryTransitions.massage);
@@ -1032,7 +996,8 @@ export default function LocationDetails({
             selectedTreatment={state.selectedTreatment}
             onSelect={(treatment) => {
               dispatch({ type: 'SELECT_TREATMENT', treatment });
-              goTo(flowTransitions.afterTreatmentSelection);
+              const nextStep = flowTransitions.afterTreatmentSelection ?? 'details';
+              goTo(nextStep);
             }}
             onBack={goBack}
           />
