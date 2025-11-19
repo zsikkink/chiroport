@@ -499,7 +499,7 @@ export default function LocationDetails({
   const requireEmail = showEmailField;
   const consentLabel = isMassageVisitor
     ? 'I consent to receive massage therapy and release the therapist and business from liability for any normal reactions or unintended effects except in cases of negligence.'
-    : 'I consent to receive chiropractic care, have disclosed any health conditions, and release the chiropractor and business from liability for any normal reactions or unintended effects except in cases of negligence.';
+    : 'I consent to receive chiropractic care and release the chiropractor and business from liability for any normal reactions or unintended effects except in cases of negligence.';
 
   const selectUndecidedTreatment = () => {
     if (!UNDECIDED_TREATMENT) {
