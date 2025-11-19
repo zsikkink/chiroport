@@ -71,9 +71,10 @@
     font-family: var(--font-sans);
     min-height: 100vh;
     line-height: 1.6;
-    /* Prevent text overflow globally */
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+    /* Prevent mid-word splitting */
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
   }
   
   /* Apply box-sizing to all elements */
@@ -84,8 +85,9 @@
   /* Ensure headings are responsive */
   h1, h2, h3, h4, h5, h6 {
     line-height: 1.2;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
   }
 }
 
@@ -101,9 +103,9 @@
   
   /* Text overflow prevention utility */
   .text-safe {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    hyphens: auto;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
     max-width: 100%;
   }
   
