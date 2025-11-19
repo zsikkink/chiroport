@@ -29,9 +29,6 @@ export interface WizardState {
     name: string;
     phone: string;
     email: string;
-    birthday: string;
-    discomfort: string[];
-    additionalInfo: string;
     consent: boolean;
   };
   submitAttempted: boolean;
@@ -54,7 +51,6 @@ export type WizardAction =
   | { type: 'DESELECT_SPINAL' }
   | { type: 'SELECT_TREATMENT'; treatment: Treatment }
   | { type: 'UPDATE_FIELD'; field: keyof WizardState['details']; value: string | boolean }
-  | { type: 'UPDATE_DISCOMFORT'; values: string[] }
   | { type: 'ATTEMPT_SUBMIT' }
   | { type: 'SUBMIT_START' }
   | { type: 'SUBMIT_SUCCESS'; payload: { customerId: string; visitId: string; queuePosition?: number; estimatedWaitTime?: number } }

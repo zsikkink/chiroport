@@ -21,9 +21,6 @@ export interface WizardDetails {
   name: string;
   phone: string;
   email: string;
-  birthday: string;
-  discomfort: string[];
-  additionalInfo: string;
   consent: boolean;
 }
 
@@ -58,7 +55,6 @@ export type WizardAction =
   | { type: 'SET_VISIT_CATEGORY'; value: WizardState['visitCategory'] }
   | { type: 'CLEAR_SELECTED_TREATMENT' }
   | { type: 'UPDATE_FIELD'; field: keyof WizardState['details']; value: string | boolean }
-  | { type: 'UPDATE_DISCOMFORT'; values: string[] }
   | { type: 'ATTEMPT_SUBMIT' }
   | { type: 'SUBMIT_START' }
   | { type: 'SUBMIT_SUCCESS'; payload: SubmissionMeta }

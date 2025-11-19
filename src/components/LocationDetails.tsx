@@ -13,7 +13,6 @@ import type {
   LocationDetailsProps,
   Step,
   WizardState,
-  WizardAction,
   TreatmentOption,
   VisitCategory,
 } from '@/features/locationDetails/types';
@@ -176,135 +175,6 @@ function PhoneField({ details, onUpdateField, submitAttempted, errors }: {
   );
 }
 
-function BirthdayField({ details, onUpdateField, submitAttempted, errors }: {
-  details: WizardState['details'];
-  onUpdateField: (field: keyof WizardState['details'], value: string) => void;
-  submitAttempted: boolean;
-  errors: { [key: string]: string[] };
-}) {
-  // Format birthday as MM/DD/YYYY
-  const formatBirthday = (value: string) => {
-    const cleaned = value.replace(/\D/g, '');
-    if (cleaned.length <= 2) return cleaned;
-    if (cleaned.length <= 4) return `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
-    return `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
-  };
-
-  const handleBirthdayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    // Extract only digits and format
-    const digitsOnly = value.replace(/\D/g, '');
-    // Limit to 8 digits (MMDDYYYY)
-    const limited = digitsOnly.slice(0, 8);
-    const formatted = formatBirthday(limited);
-    onUpdateField('birthday', formatted);
-  };
-
-  return (
-    <div>
-      <label className="block text-white text-base font-bold mb-2">
-        Birthday *
-      </label>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={details.birthday || ''}
-        onChange={handleBirthdayChange}
-        placeholder="MM/DD/YYYY"
-        className="w-full bg-white text-black rounded-lg p-4 border-2 border-white focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-500"
-      />
-      {submitAttempted && errors.birthday && (
-        <p className="text-red-400 text-sm mt-1">{errors.birthday[0]}</p>
-      )}
-    </div>
-  );
-}
-
-const DISCOMFORT_OPTIONS = [
-  'Neck Tension or Stiffness',
-  'Headache',
-  'Upper Back Tightness',
-  'Lower Back Tightness',
-  'Sciatica',
-  'General Soreness',
-  'No discomfort'
-] as const;
-
-function DiscomfortField({ details, onUpdateDiscomfort, submitAttempted, errors }: {
-  details: WizardState['details'];
-  onUpdateDiscomfort: (values: string[]) => void;
-  submitAttempted: boolean;
-  errors: { [key: string]: string[] };
-}) {
-  const handleCheckboxChange = (option: string, checked: boolean) => {
-    let newDiscomfort = [...details.discomfort];
-    
-    if (option === 'No discomfort') {
-      // If "No discomfort" is selected, clear all others
-      if (checked) {
-        newDiscomfort = ['No discomfort'];
-      } else {
-        newDiscomfort = [];
-      }
-    } else {
-      // If any other option is selected, remove "No discomfort"
-      if (checked) {
-        newDiscomfort = newDiscomfort.filter(item => item !== 'No discomfort');
-        newDiscomfort.push(option);
-      } else {
-        newDiscomfort = newDiscomfort.filter(item => item !== option);
-      }
-    }
-    
-    onUpdateDiscomfort(newDiscomfort);
-  };
-
-  return (
-    <div>
-      <label className="block text-white text-base font-bold mb-3">
-        Where are you experiencing discomfort? (Select all that apply) *
-      </label>
-      <div className="space-y-3">
-        {DISCOMFORT_OPTIONS.map((option) => {
-          const isChecked = details.discomfort.includes(option);
-          return (
-            <label
-              key={option}
-              className="flex items-center cursor-pointer group"
-            >
-              <div className="relative flex items-center">
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={(e) => handleCheckboxChange(option, e.target.checked)}
-                  className="sr-only"
-                />
-                <div className={`
-                  w-5 h-5 rounded border-2 border-white flex items-center justify-center transition-colors duration-200
-                  ${isChecked 
-                    ? 'bg-white' 
-                    : 'bg-transparent group-hover:bg-white/25'
-                  }
-                `}>
-                  {isChecked && (
-                    <svg className="w-3 h-3 text-[#56655A]" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-              </div>
-              <span className="ml-3 text-white text-base">{option}</span>
-            </label>
-          );
-        })}
-      </div>
-      {submitAttempted && errors.discomfort && (
-        <p className="text-red-400 text-sm mt-2">{errors.discomfort[0]}</p>
-      )}
-    </div>
-  );
-}
-
 function ConsentField({ details, onUpdateField, submitAttempted, errors, label }: {
   details: WizardState['details'];
   onUpdateField: (field: keyof WizardState['details'], value: boolean) => void;
@@ -348,36 +218,6 @@ function ConsentField({ details, onUpdateField, submitAttempted, errors, label }
     </div>
   );
 }
-
-const TextAreaField = ({ 
-  label, 
-  value, 
-  onChange, 
-  placeholder, 
-  error,
-  required = false
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  error?: string;
-  required?: boolean;
-}) => (
-  <div>
-    <label className="block text-white text-base font-bold mb-2">
-      {label} {required && '*'}
-    </label>
-    <textarea
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      rows={4}
-      className="w-full bg-white text-black rounded-lg p-4 border-2 border-white focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-500 resize-vertical"
-    />
-    {error && <p className="text-red-400 text-sm mt-1">{error}</p>}
-  </div>
-);
 
 // ============================================================================
 // STEP COMPONENTS
@@ -513,55 +353,40 @@ const MassageOptionsStep = ({
   </div>
 );
 
-const DetailsStep = ({ 
-  details, 
-  onUpdateField, 
-  onSubmit, 
-  onBack, 
+const DetailsStep = ({
+  details,
+  onUpdateField,
+  onSubmit,
+  onBack,
   submitAttempted,
-  dispatch,
+  onDismissError,
   isSubmitting,
   submissionError,
-  requireDiscomfort,
   requireEmail,
-  requireBirthday,
-  additionalInfoLabel,
   consentLabel,
   showEmailField,
-  showBirthdayField,
-  showAdditionalInfoField
 }: {
   details: WizardState['details'];
   onUpdateField: (field: keyof WizardState['details'], value: string | boolean) => void;
   onSubmit: () => void;
   onBack: () => void;
   submitAttempted: boolean;
-  dispatch: (action: WizardAction) => void;
+  onDismissError: () => void;
   isSubmitting: boolean;
   submissionError: string | null;
-  requireDiscomfort: boolean;
   requireEmail: boolean;
-  requireBirthday: boolean;
-  additionalInfoLabel: string;
   consentLabel: string;
   showEmailField: boolean;
-  showBirthdayField: boolean;
-  showAdditionalInfoField: boolean;
 }) => {
   const validationPayload = {
     name: details.name,
     phone: details.phone,
     email: showEmailField ? details.email : undefined,
-    birthday: showBirthdayField ? details.birthday : undefined,
-    discomfort: requireDiscomfort ? details.discomfort : [],
-    additionalInfo: showAdditionalInfoField ? details.additionalInfo : undefined,
     consent: details.consent,
   };
 
   const validation = createDetailsSchema({
-    requireDiscomfort,
     requireEmail,
-    requireBirthday,
   }).safeParse(validationPayload);
   const errors = validation.success ? {} : validation.error.formErrors.fieldErrors;
 
@@ -580,7 +405,7 @@ const DetailsStep = ({
             ❌ {submissionError}
           </BodyText>
           <button
-            onClick={() => dispatch({ type: 'SUBMIT_ERROR', error: '' })}
+            onClick={onDismissError}
             className="text-white/80 text-sm mt-2 underline hover:text-white hover:bg-white/10 px-2 py-1 rounded transition-all duration-200"
           >
             Dismiss
@@ -613,35 +438,6 @@ const DetailsStep = ({
           placeholder="Email address"
           {...(submitAttempted && errors.email?.[0] ? { error: errors.email[0] } : {})}
           required={requireEmail}
-        />
-      )}
-
-      {showBirthdayField && (
-        <BirthdayField
-          details={details}
-          onUpdateField={(field, value) => onUpdateField(field, value as string)}
-          submitAttempted={submitAttempted}
-          errors={errors}
-        />
-      )}
-
-      {requireDiscomfort && (
-        <DiscomfortField
-          details={details}
-          onUpdateDiscomfort={(values) => dispatch({ type: 'UPDATE_DISCOMFORT', values })}
-          submitAttempted={submitAttempted}
-          errors={errors}
-        />
-      )}
-
-      {showAdditionalInfoField && (
-        <TextAreaField
-          label={additionalInfoLabel}
-          value={details.additionalInfo}
-          onChange={(value) => onUpdateField('additionalInfo', value)}
-          placeholder="Add any additional information"
-          {...(submitAttempted && errors.additionalInfo?.[0] ? { error: errors.additionalInfo[0] } : {})}
-          required={false}
         />
       )}
 
@@ -699,15 +495,8 @@ export default function LocationDetails({
     (initialStep: Step) => createWizardInitialState(initialStep)
   );
   const isMassageVisitor = state.visitCategory === 'massage';
-  const requireDiscomfort = !isMassageVisitor;
   const showEmailField = !isMassageVisitor;
-  const showBirthdayField = !isMassageVisitor;
-  const showAdditionalInfoField = !isMassageVisitor;
   const requireEmail = showEmailField;
-  const requireBirthday = showBirthdayField;
-  const additionalInfoLabel = isMassageVisitor
-    ? 'Is there anything else you would like the therapist to know? (Optional)'
-    : 'Is there anything else you would like the chiropractor to know? (Optional)';
   const consentLabel = isMassageVisitor
     ? 'I consent to receive massage therapy and release the therapist and business from liability for any normal reactions or unintended effects except in cases of negligence.'
     : 'I consent to receive chiropractic care, have disclosed any health conditions, and release the chiropractor and business from liability for any normal reactions or unintended effects except in cases of negligence.';
@@ -751,16 +540,11 @@ export default function LocationDetails({
       name: state.details.name,
       phone: state.details.phone,
       email: showEmailField ? state.details.email : undefined,
-      birthday: showBirthdayField ? state.details.birthday : undefined,
-      discomfort: requireDiscomfort ? state.details.discomfort : [],
-      additionalInfo: showAdditionalInfoField ? state.details.additionalInfo : undefined,
       consent: state.details.consent,
     };
 
     const validation = createDetailsSchema({
-      requireDiscomfort,
       requireEmail,
-      requireBirthday,
     }).safeParse(validationPayload);
     if (!validation.success) {
       return; // Form validation failed, errors will be shown
@@ -774,7 +558,6 @@ export default function LocationDetails({
       const formData: FormSubmissionData = {
         name: validationPayload.name,
         phone: validationPayload.phone,
-        discomfort: validationPayload.discomfort,
         consent: validationPayload.consent,
         selectedTreatment: state.selectedTreatment,
         spinalAdjustment: state.spinalAdjustment,
@@ -783,14 +566,6 @@ export default function LocationDetails({
 
       if (showEmailField && validationPayload.email) {
         formData.email = validationPayload.email;
-      }
-
-      if (showBirthdayField && validationPayload.birthday) {
-        formData.birthday = validationPayload.birthday;
-      }
-
-      if (showAdditionalInfoField && validationPayload.additionalInfo) {
-        formData.additionalInfo = validationPayload.additionalInfo;
       }
 
       // Submit using secure API client with automatic CSRF handling
@@ -910,17 +685,12 @@ export default function LocationDetails({
               onSubmit={handleSubmit}
               onBack={goBack}
               submitAttempted={state.submitAttempted}
-              dispatch={dispatch}
+              onDismissError={() => dispatch({ type: 'SUBMIT_ERROR', error: '' })}
               isSubmitting={state.isSubmitting}
               submissionError={state.submissionError}
-              requireDiscomfort={requireDiscomfort}
               requireEmail={requireEmail}
-              requireBirthday={requireBirthday}
-              additionalInfoLabel={additionalInfoLabel}
               consentLabel={consentLabel}
               showEmailField={showEmailField}
-              showBirthdayField={showBirthdayField}
-              showAdditionalInfoField={showAdditionalInfoField}
             />
           </motion.div>
         );

@@ -4,9 +4,6 @@ export const createEmptyDetails = (): WizardState['details'] => ({
   name: '',
   phone: '',
   email: '',
-  birthday: '',
-  discomfort: [],
-  additionalInfo: '',
   consent: false,
 });
 
@@ -81,12 +78,6 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return {
         ...state,
         details: { ...state.details, [action.field]: action.value },
-      };
-
-    case 'UPDATE_DISCOMFORT':
-      return {
-        ...state,
-        details: { ...state.details, discomfort: action.values },
       };
 
     case 'ATTEMPT_SUBMIT':

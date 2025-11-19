@@ -166,37 +166,6 @@ export class WaitwhileClient {
       phone = '+' + phone;
     }
 
-    // Decode HTML entities and convert birthday from MM/DD/YYYY to YYYY-MM-DD format
-    let dateOfBirth = formData.birthday ?? '';
-    
-    // First decode HTML entities (&#x2F; -> /)
-    dateOfBirth = dateOfBirth
-      .replace(/&#x2F;/g, '/')
-      .replace(/&#47;/g, '/')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#x27;/g, "'");
-    
-    // Convert MM/DD/YYYY to YYYY-MM-DD (ISO 8601 format)
-    if (dateOfBirth.includes('/')) {
-      const parts = dateOfBirth.split('/');
-      const [month, day, year] = parts;
-      
-      // Check if all parts exist and are valid
-      if (month && day && year && parts.length === 3) {
-        dateOfBirth = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        debugLog('Date transformation:', { 
-          original: formData.birthday,
-          decoded: dateOfBirth,
-          parts: { month, day, year }
-        });
-      } else {
-        logError(new Error(`Invalid date format: ${dateOfBirth}`), 'Date transformation failed');
-      }
-    }
-
     // Determine service ID based on user's journey
     let serviceId: string;
 
@@ -229,32 +198,10 @@ export class WaitwhileClient {
     // Build dataFields array using location-specific field IDs
     const dataFields: Array<{ id: string; values: string[] }> = [];
 
-    if (formData.discomfort && formData.discomfort.length > 0) {
-      dataFields.push({
-        id: fieldIds.ailment,
-        values: formData.discomfort
-      });
-    }
-
-    if (dateOfBirth) {
-      dataFields.push({
-        id: fieldIds.dateOfBirth,
-        values: [dateOfBirth]
-      });
-    }
-
     dataFields.push({
       id: fieldIds.consent,
       values: [formData.consent ? 'Yes' : 'No']
     });
-
-    // Add notes field only if there's additional info
-    if (formData.additionalInfo && formData.additionalInfo.trim()) {
-      dataFields.push({
-        id: fieldIds.notes,
-        values: [formData.additionalInfo.trim()]
-      });
-    }
 
     const visitPayload: CreateWaitwhileVisitRequest = {
       locationId: formData.locationId,

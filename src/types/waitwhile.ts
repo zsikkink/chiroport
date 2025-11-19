@@ -133,9 +133,6 @@ export interface FormSubmissionData {
   name: string;
   phone: string;
   email?: string | undefined;
-  birthday?: string | undefined;
-  discomfort: string[];
-  additionalInfo?: string;
   consent: boolean;
   selectedTreatment: {
     title: string;
