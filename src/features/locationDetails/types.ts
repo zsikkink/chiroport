@@ -5,7 +5,6 @@ export type Step =
   | 'question'
   | 'join'
   | 'nonmember'
-  | 'treatments'
   | 'details'
   | 'success'
   | 'massage_options';

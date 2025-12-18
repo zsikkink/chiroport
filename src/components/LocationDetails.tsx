@@ -51,6 +51,11 @@ const UNDECIDED_TREATMENT = TREATMENTS.find(
   (treatment) => treatment.title === 'Undecided'
 );
 
+const LAS_VEGAS_LOCATION_IDS = new Set<string>([
+  'kjAmNhyUygMlvVUje1gc', // LAS - Concourse B
+  'BKncaAgwFhUrywvRCgXT', // LAS - Concourse C
+]);
+
 // ============================================================================
 // ANIMATION
 // ============================================================================
@@ -282,10 +287,12 @@ const NonMemberStep = ({
 
 const CategoryStep = ({ 
   selectedCategory,
-  onSelect
+  onSelect,
+  massageLabel,
 }: {
   selectedCategory: VisitCategory | null;
   onSelect: (category: VisitCategory) => void;
+  massageLabel: string;
 }) => (
   <div className="space-y-6 py-4">
     <BodyText size="3xl" className="font-bold text-white text-center">
@@ -311,7 +318,7 @@ const CategoryStep = ({
         selected={selectedCategory === 'massage'}
         persistSelection={false}
       >
-        Massage
+        {massageLabel}
       </AnimatedButton>
     </div>
   </div>
@@ -320,18 +327,20 @@ const CategoryStep = ({
 const MassageOptionsStep = ({
   selectedTreatment,
   onSelect,
-  onBack
+  onBack,
+  title,
 }: {
   selectedTreatment: TreatmentOption | null;
   onSelect: (treatment: TreatmentOption) => void;
   onBack: () => void;
+  title: string;
 }) => (
   <div className="space-y-6 py-4">
     <div className="relative flex items-center mb-4">
       <BackButton onClick={onBack} />
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <BodyText size="2xl" className="font-bold text-white text-center px-8">
-          Massage
+          {title}
         </BodyText>
       </div>
     </div>
@@ -495,11 +504,14 @@ export default function LocationDetails({
     (initialStep: Step) => createWizardInitialState(initialStep)
   );
   const isMassageVisitor = state.visitCategory === 'massage';
-  const showEmailField = !isMassageVisitor;
-  const requireEmail = showEmailField;
+  const showEmailField = true;
+  const requireEmail = true;
   const consentLabel = isMassageVisitor
     ? 'I consent to receive massage therapy and release the therapist and The Chiroport from liability for any normal reactions or unintended effects except in cases of negligence.'
     : 'I consent to chiropractic treatment and release The Chiroport and its providers from liability for any normal side effects or reactions that are not caused by negligence.';
+  const massageLabel = LAS_VEGAS_LOCATION_IDS.has(locationInfo.waitwhileLocationId)
+    ? 'Chiro Massage'
+    : 'Massage';
 
   const selectUndecidedTreatment = () => {
     if (!UNDECIDED_TREATMENT) {
@@ -539,7 +551,7 @@ export default function LocationDetails({
     const validationPayload = {
       name: state.details.name,
       phone: state.details.phone,
-      email: showEmailField ? state.details.email : undefined,
+      email: state.details.email,
       consent: state.details.consent,
     };
 
@@ -558,15 +570,12 @@ export default function LocationDetails({
       const formData: FormSubmissionData = {
         name: validationPayload.name,
         phone: validationPayload.phone,
+        email: validationPayload.email,
         consent: validationPayload.consent,
         selectedTreatment: state.selectedTreatment,
         spinalAdjustment: state.spinalAdjustment,
         locationId: locationInfo.waitwhileLocationId
       };
-
-      if (showEmailField && validationPayload.email) {
-        formData.email = validationPayload.email;
-      }
 
       // Submit using secure API client with automatic CSRF handling
       const result = await submitWaitwhileForm<SubmissionResponse>(formData);
@@ -725,6 +734,7 @@ export default function LocationDetails({
         >
           <CategoryStep
             selectedCategory={state.visitCategory}
+            massageLabel={massageLabel}
             onSelect={(category) => {
               dispatch({ type: 'SET_VISIT_CATEGORY', value: category });
               dispatch({ type: 'SET_MEMBER', value: category === 'priority_pass' });
@@ -764,6 +774,7 @@ export default function LocationDetails({
         >
           <MassageOptionsStep
             selectedTreatment={state.selectedTreatment}
+            title={massageLabel}
             onSelect={(treatment) => {
               dispatch({ type: 'SELECT_TREATMENT', treatment });
               const nextStep = flowTransitions.afterTreatmentSelection ?? 'details';

@@ -132,7 +132,7 @@ export interface WaitwhileClientConfig {
 export interface FormSubmissionData {
   name: string;
   phone: string;
-  email?: string | undefined;
+  email: string;
   consent: boolean;
   selectedTreatment: {
     title: string;

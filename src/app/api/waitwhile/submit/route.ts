@@ -81,15 +81,12 @@ export async function POST(request: NextRequest) {
     const visitPayload: FormSubmissionData = {
       name: validatedData.name,
       phone: validatedData.phone,
+      email: validatedData.email,
       consent: validatedData.consent,
       selectedTreatment: validatedData.selectedTreatment,
       spinalAdjustment: validatedData.spinalAdjustment,
       locationId: validatedData.locationId,
     };
-
-    if (validatedData.email) {
-      visitPayload.email = validatedData.email;
-    }
 
     // Create visit directly using the new Waitwhile API structure
     const visit = await createVisit(visitPayload);

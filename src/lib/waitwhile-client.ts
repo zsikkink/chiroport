@@ -21,7 +21,7 @@ interface CreateWaitwhileVisitRequest {
   locationId: string;
   name: string;
   phone: string;
-  email?: string;
+  email: string;
   state: "WAITING";
   serviceIds: string[];
   dataFields: Array<{
@@ -207,14 +207,11 @@ export class WaitwhileClient {
       locationId: formData.locationId,
       name: formData.name,
       phone: phone,
+      email: formData.email.trim().toLowerCase(),
       state: "WAITING",
       serviceIds: [serviceId],
       dataFields: dataFields
     };
-
-    if (formData.email && formData.email.trim().length > 0) {
-      visitPayload.email = formData.email.trim().toLowerCase();
-    }
 
     return visitPayload;
   }

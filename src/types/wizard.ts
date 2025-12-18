@@ -11,7 +11,6 @@ export type Step =
   | 'question'
   | 'join'
   | 'nonmember'
-  | 'treatments'
   | 'details'
   | 'success';
 

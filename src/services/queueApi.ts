@@ -19,11 +19,11 @@ export async function joinQueue(payload: JoinQueuePayload) {
   const formData = {
     name: payload.details.name,
     phone: payload.details.phone,
+    email: payload.details.email,
     consent: payload.details.consent,
     selectedTreatment: payload.selectedTreatment,
     spinalAdjustment: payload.spinalAdjustment,
     locationId: payload.locationId,
-    ...(payload.details.email ? { email: payload.details.email } : {}),
   };
 
   // Submit using secure API client with automatic CSRF handling
