@@ -29,7 +29,7 @@
     "axios": "^1.7.0",
     "framer-motion": "^12.15.0",
     "libphonenumber-js": "^1.12.8",
-    "next": "15.3.2",
+    "next": "15.3.8",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-input-mask": "^2.0.4",
