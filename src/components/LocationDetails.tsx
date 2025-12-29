@@ -239,15 +239,17 @@ const MembershipStep = ({ onYes, onNo }: { onYes: () => void; onNo: () => void }
 
 const JoinStep = ({ 
   onSetSpinal, 
-  onBack
+  onBack,
+  serviceSummary,
 }: { 
   onSetSpinal: (value: boolean) => void;
   onBack: () => void;
+  serviceSummary: string;
 }) => (
   <div className="py-4">
     <BackButton onClick={onBack} />
     <BodyText size="2xl" className="font-medium text-white mt-4">
-      Service includes stretching, muscle work, and massage.
+      {serviceSummary}
     </BodyText>
     <div className="space-y-3 mt-8">
       <BodyText size="2xl" className="text-white">
@@ -512,6 +514,9 @@ export default function LocationDetails({
   const isLasVegasLocation = LAS_VEGAS_LOCATION_IDS.has(locationInfo.waitwhileLocationId);
   const massageCategoryLabel = isLasVegasLocation ? 'Massage Therapist' : 'Massage';
   const massageOptionsTitle = isLasVegasLocation ? 'Body Work' : massageCategoryLabel;
+  const joinServiceSummary = isLasVegasLocation
+    ? 'Service includes stretching, muscle work, and vibration massager.'
+    : 'Service includes stretching, muscle work, and massage.';
 
   const selectUndecidedTreatment = () => {
     if (!UNDECIDED_TREATMENT) {
@@ -655,6 +660,7 @@ export default function LocationDetails({
                 goTo(flowTransitions.afterSpinalDecision ?? 'details');
               }}
               onBack={goBack}
+              serviceSummary={joinServiceSummary}
             />
           </motion.div>
         );
