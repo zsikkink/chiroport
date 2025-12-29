@@ -509,9 +509,9 @@ export default function LocationDetails({
   const consentLabel = isMassageVisitor
     ? 'I consent to receive massage therapy and release the therapist and The Chiroport from liability for any normal reactions or unintended effects except in cases of negligence.'
     : 'I consent to chiropractic treatment and release The Chiroport and its providers from liability for any normal side effects or reactions that are not caused by negligence.';
-  const massageLabel = LAS_VEGAS_LOCATION_IDS.has(locationInfo.waitwhileLocationId)
-    ? 'Chiro Massage'
-    : 'Massage';
+  const isLasVegasLocation = LAS_VEGAS_LOCATION_IDS.has(locationInfo.waitwhileLocationId);
+  const massageCategoryLabel = isLasVegasLocation ? 'Massage Therapist' : 'Massage';
+  const massageOptionsTitle = isLasVegasLocation ? 'Body Work' : massageCategoryLabel;
 
   const selectUndecidedTreatment = () => {
     if (!UNDECIDED_TREATMENT) {
@@ -734,7 +734,7 @@ export default function LocationDetails({
         >
           <CategoryStep
             selectedCategory={state.visitCategory}
-            massageLabel={massageLabel}
+            massageLabel={massageCategoryLabel}
             onSelect={(category) => {
               dispatch({ type: 'SET_VISIT_CATEGORY', value: category });
               dispatch({ type: 'SET_MEMBER', value: category === 'priority_pass' });
@@ -774,7 +774,7 @@ export default function LocationDetails({
         >
           <MassageOptionsStep
             selectedTreatment={state.selectedTreatment}
-            title={massageLabel}
+            title={massageOptionsTitle}
             onSelect={(treatment) => {
               dispatch({ type: 'SELECT_TREATMENT', treatment });
               const nextStep = flowTransitions.afterTreatmentSelection ?? 'details';
