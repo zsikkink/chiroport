@@ -38,6 +38,9 @@ export const metadata: Metadata = {
   ),
   title: "Chiroport",                      // Browser tab title
   description: "Walk-in chiropractic services at airport locations nationwide. Quick, professional wellness care while you travel.", // Improved description for search engines
+  formatDetection: {
+    telephone: false,
+  },
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },

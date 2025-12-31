@@ -361,11 +361,6 @@ npm run dev:robust
 - **Testing**: Jest + React Testing Library
 - **API Integration**: Waitwhile API
 
-## 📚 Documentation
-
-- [Cache Management Guide](docs/CACHE_MANAGEMENT.md) - Comprehensive cache troubleshooting
-- [Development Improvements](docs/DEVELOPMENT_IMPROVEMENTS.md) - Project enhancement guide
-
 ## 🚨 Troubleshooting
 
 ### Common Issues
@@ -376,15 +371,12 @@ npm run dev:robust
 
 **Build Errors**: Run `npm run clean:full` then `npm run build`
 
-For detailed troubleshooting, see [Cache Management Guide](docs/CACHE_MANAGEMENT.md).
-
 ## 📞 Support
 
 If you encounter persistent cache issues:
 
 1. Try `npm run dev:robust`
-2. Check [Cache Management Guide](docs/CACHE_MANAGEMENT.md)
-3. Use `npm run reset` as last resort
+2. Use `npm run reset` as last resort
 
 ---
 

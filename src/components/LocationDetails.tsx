@@ -505,12 +505,20 @@ export default function LocationDetails({
     flowConfig.initialStep,
     (initialStep: Step) => createWizardInitialState(initialStep)
   );
-  const isMassageVisitor = state.visitCategory === 'massage';
+  // Consent text rules:
+  // - Priority Pass / Lounge Key members use the "bodywork" consent (even in the standard flow,
+  //   where `visitCategory` is never set).
+  // - Massage visitors use the same "bodywork" consent.
+  // - Chiropractor visitors use chiropractic consent.
+  const isBodyworkVisitor =
+    state.isMember === true ||
+    state.visitCategory === 'massage' ||
+    state.visitCategory === 'priority_pass';
   const showEmailField = true;
   const requireEmail = true;
-  const consentLabel = isMassageVisitor
-    ? 'I consent to receive massage therapy and release the therapist and The Chiroport from liability for any normal reactions or unintended effects except in cases of negligence.'
-    : 'I consent to chiropractic treatment and release The Chiroport and its providers from liability for any normal side effects or reactions that are not caused by negligence.';
+  const consentLabel = isBodyworkVisitor
+  ? 'I consent to bodywork services from The Chiroport and release The Chiroport and its providers from liability for normal reactions except in cases of negligence. I agree to receive SMS updates about my visit. Msg & data rates may apply. Reply STOP to unsubscribe.'
+  : 'I consent to receiving chiropractic care from The Chiroport. I understand that chiropractic adjustments are generally safe and effective, and I release The Chiroport and its providers from any liability for injuries or effects except those caused by gross negligence. I agree to receive SMS updates about my visit. Msg & data rates may apply. Reply STOP to unsubscribe.';
   const isLasVegasLocation = LAS_VEGAS_LOCATION_IDS.has(locationInfo.waitwhileLocationId);
   const massageCategoryLabel = isLasVegasLocation ? 'Massage Therapist' : 'Massage';
   const massageOptionsTitle = isLasVegasLocation ? 'Body Work' : massageCategoryLabel;
