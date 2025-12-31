@@ -174,6 +174,15 @@ The app integrates with Waitwhile for queue management:
 - **Responsive**: Multiple sizes for different screen densities
 - **Lazy Loading**: Images load as needed
 
+### Hosting a static proof image (SMS consent)
+To host an image at `https://www.thechiroport.com/sms-consent-proof.png`, place the PNG at:
+
+- `public/sms-consent-proof.png`
+
+Next.js serves files in `public/` from the site root, so this will be available at:
+
+- `/sms-consent-proof.png`
+
 ### Performance
 - **Font Loading**: Optimized Google Fonts with `font-display: swap`
 - **CSS**: Minimal, efficient styles with Tailwind
