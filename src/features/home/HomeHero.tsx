@@ -1,6 +1,6 @@
 'use client';
 
-import { Title } from '@/components/ui/Typography';
+import { Title } from '@/components/ui';
 
 interface HomeHeroProps {
   title: string;

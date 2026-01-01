@@ -1,9 +1,8 @@
-import StaticLayout from '@/components/layout/StaticLayout';
+import { ScrollHeader, StaticLayout } from '@/components/layout';
 import { getLocationInfo, findAirport, findConcourse, airportLocations } from '@/lib/locationData';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
-import ScrollHeader from '@/components/layout/ScrollHeader';
-import LocationDetails from '@/features/location-details/LocationDetails';
+import { LocationDetails } from '@/features/location-details';
 
 interface PageParams {
   location: string;

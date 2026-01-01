@@ -1,6 +1,5 @@
-import StaticLayout from '@/components/layout/StaticLayout';
-import DynamicHomeContent from '@/features/home/DynamicHomeContent';
-import ScrollHeader from '@/components/layout/ScrollHeader';
+import { ScrollHeader, StaticLayout } from '@/components/layout';
+import { DynamicHomeContent } from '@/features/home';
 
 /**
  * Home Page (Server-Side Rendered)

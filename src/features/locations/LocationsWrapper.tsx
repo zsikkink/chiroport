@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useLayoutEffect, useCallback, useEffect } from 'react';
-import { PrimaryButton } from '@/components/ui/Button';
+import { PrimaryButton } from '@/components/ui';
 import LocationsList from './LocationsDropdown';
 
 interface LocationsWrapperProps {

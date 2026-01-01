@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Title } from '@/components/ui/Typography';
+import { Title } from '@/components/ui';
 import Image from 'next/image';
 
 interface ScrollHeaderProps {

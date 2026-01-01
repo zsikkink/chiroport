@@ -3,8 +3,7 @@
 import { useReducer, useEffect } from 'react';
 import { motion, AnimatePresence, cubicBezier } from 'framer-motion';
 import 'react-phone-number-input/style.css';
-import ResponsiveCard from '@/components/ui/ResponsiveCard';
-import { BodyText } from '@/components/ui/Typography';
+import { BodyText, ResponsiveCard } from '@/components/ui';
 import { FormSubmissionData } from '@/types/waitwhile';
 import { AsYouType } from 'libphonenumber-js';
 import { submitWaitwhileForm } from '@/lib/api-client';

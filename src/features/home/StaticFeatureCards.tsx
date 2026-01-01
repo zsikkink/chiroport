@@ -1,5 +1,4 @@
-import StaticResponsiveCard from '@/components/ui/StaticResponsiveCard';
-import { StaticBodyText } from '@/components/ui/StaticTypography';
+import { StaticBodyText, StaticResponsiveCard } from '@/components/ui';
 import { serviceItems, aboutCopy, contactInfo } from '@/content/services';
 
 interface StaticFeatureCardsProps {
