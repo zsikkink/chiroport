@@ -351,7 +351,7 @@ npm install
 
 3. **Set up environment variables**
 ```bash
-cp .env.example .env.local
+cp env.template .env.local
 # Edit .env.local with your API keys
 ```
 
@@ -362,13 +362,21 @@ npm run dev:robust
 
 ## 🏗️ Tech Stack
 
-- **Framework**: Next.js 15.3.2 with App Router
+- **Framework**: Next.js 15.5.9 with App Router
 - **Language**: TypeScript
 - **UI**: Tailwind CSS
 - **Animations**: Framer Motion
 - **Validation**: Zod
 - **Testing**: Jest + React Testing Library
 - **API Integration**: Waitwhile API
+
+## 🧭 Project Structure
+
+- `src/app`: Route handlers, layouts, and pages
+- `src/components`: Shared UI primitives and layout shells
+- `src/features`: Feature modules (home, locations, location-details)
+- `src/lib`: Client-safe helpers (API client, location data)
+- `src/server`: Server-only helpers (config, security, CSRF, API clients)
 
 ## 🚨 Troubleshooting
 
