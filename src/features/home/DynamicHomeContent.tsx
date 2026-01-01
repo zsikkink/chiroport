@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import LocationsWrapper from '@/components/LocationsWrapper';
+import LocationsWrapper from '@/features/locations/LocationsWrapper';
 import StaticFeatureCards from './StaticFeatureCards';
 
 /**
