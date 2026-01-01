@@ -6,14 +6,21 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { config, env } from '@/server';
 
 export async function GET(request: NextRequest) {
   try {
-    const healthCheckSecret = process.env.HEALTH_CHECK_SECRET;
-    const providedSecret = request.headers.get('x-health-secret') || 
-                          request.nextUrl.searchParams.get('secret');
+    const healthCheckSecret = env.HEALTH_CHECK_SECRET;
+    const providedSecret =
+      request.headers.get('x-health-secret') ||
+      request.nextUrl.searchParams.get('secret');
+    const isProduction = env.NODE_ENV === 'production';
 
     // Basic authentication for health endpoint
+    if (isProduction && !healthCheckSecret) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
     if (healthCheckSecret && providedSecret !== healthCheckSecret) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -23,11 +30,11 @@ export async function GET(request: NextRequest) {
 
     // Check environment configuration
     const envChecks = {
-      csrfSecret: !!process.env.CSRF_SECRET,
-      waitwhileApiKey: !!process.env.WAITWHILE_API_KEY,
+      csrfSecret: !!config.security.csrf.secret,
+      waitwhileApiKey: !!config.api.waitwhile.apiKey,
       rateLimit: {
-        api: process.env.RATE_LIMIT_API || '30',
-        submit: process.env.RATE_LIMIT_SUBMIT || '5'
+        api: config.security.rateLimit.api,
+        submit: config.security.rateLimit.submit
       }
     };
 
@@ -35,7 +42,7 @@ export async function GET(request: NextRequest) {
     const health = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV,
+      environment: env.NODE_ENV,
       uptime: process.uptime(),
       memory: {
         used: Math.round((process.memoryUsage().heapUsed / 1024 / 1024) * 100) / 100,
@@ -44,13 +51,13 @@ export async function GET(request: NextRequest) {
       security: {
         csrfEnabled: envChecks.csrfSecret,
         rateLimitingEnabled: true,
-        apiProtected: !!process.env.WAITWHILE_API_KEY,
+        apiProtected: envChecks.waitwhileApiKey,
         rateLimit: envChecks.rateLimit
       },
       services: {
         waitwhile: {
-          configured: !!process.env.WAITWHILE_API_KEY,
-          url: process.env.WAITWHILE_API_URL || 'https://api.waitwhile.com/v2'
+          configured: envChecks.waitwhileApiKey,
+          url: config.api.waitwhile.url
         }
       }
     };
