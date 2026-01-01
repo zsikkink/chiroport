@@ -8,7 +8,7 @@ import 'server-only';
  */
 
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
-import { config, debugLog, logError } from '@/server/config';
+import { config, debugLog, logError } from '@/server';
 import {
   WaitwhileApiError,
   WaitwhileVisit,

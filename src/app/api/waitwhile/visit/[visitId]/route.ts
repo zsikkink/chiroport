@@ -6,8 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getVisit } from '@/server/waitwhile-client';
-import { debugLog, logError } from '@/server/config';
+import { debugLog, getVisit, logError } from '@/server';
 
 interface RouteParams {
   visitId: string;
