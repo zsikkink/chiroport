@@ -128,6 +128,11 @@
               "dateOfBirth": "wRArbngAg41dQp1hpDSC",
               "notes": "dlaxD8sZ1VPchcgcra9w",
               "consent": "uhLZqSrUJaok6R52Powg"
+            },
+            "uiOverrides": {
+              "massageCategoryLabel": "Massage Therapist",
+              "massageOptionsTitle": "Body Work",
+              "joinServiceSummary": "Service includes stretching, muscle work, and vibration massager."
             }
           }
         },
@@ -150,6 +155,11 @@
               "dateOfBirth": "wRArbngAg41dQp1hpDSC",
               "notes": "dlaxD8sZ1VPchcgcra9w",
               "consent": "uhLZqSrUJaok6R52Powg"
+            },
+            "uiOverrides": {
+              "massageCategoryLabel": "Massage Therapist",
+              "massageOptionsTitle": "Body Work",
+              "joinServiceSummary": "Service includes stretching, muscle work, and vibration massager."
             }
           }
         }
