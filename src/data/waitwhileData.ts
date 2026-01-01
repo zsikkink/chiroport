@@ -15,6 +15,12 @@ export interface DataFieldIds {
   consent: string;
 }
 
+export interface UiOverrides {
+  massageCategoryLabel?: string;
+  massageOptionsTitle?: string;
+  joinServiceSummary?: string;
+}
+
 export interface LocationInfoData {
   gate: string;
   landmark: string;
@@ -26,6 +32,7 @@ export interface LocationInfoData {
   waitwhileLocationId: string;
   intakeCategory?: IntakeCategory;
   dataFieldIds: DataFieldIds;
+  uiOverrides?: UiOverrides;
 }
 
 export interface ConcourseData {
