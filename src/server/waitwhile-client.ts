@@ -6,7 +6,7 @@
  */
 
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
-import { config, debugLog, logError } from '@/utils/config';
+import { config, debugLog, logError } from '@/server/config';
 import {
   WaitwhileApiError,
   WaitwhileVisit,
@@ -223,7 +223,7 @@ export const waitwhileClient = new WaitwhileClient();
 // Export convenience functions
 export const createVisit = async (data: FormSubmissionData) => {
   // Dynamic import to avoid circular dependencies
-  const { getLocationDataByWaitwhileId } = await import('@/utils/locationData');
+  const { getLocationDataByWaitwhileId } = await import('@/lib/locationData');
   
   // Get location-specific data field IDs
   const locationData = getLocationDataByWaitwhileId(data.locationId);

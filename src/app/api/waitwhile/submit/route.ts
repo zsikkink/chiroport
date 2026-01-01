@@ -6,11 +6,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createVisit } from '@/lib/waitwhile-client';
+import { createVisit } from '@/server/waitwhile-client';
 import { FormSubmissionData } from '@/types/waitwhile';
-import { debugLog, logError, logSecurityEvent } from '@/utils/config';
-import { validateCSRF } from '@/utils/csrf';
-import { performSecurityCheck, sanitizeFormData } from '@/utils/security';
+import { debugLog, logError, logSecurityEvent } from '@/server/config';
+import { validateCSRF } from '@/server/csrf';
+import { performSecurityCheck, sanitizeFormData } from '@/server/security';
 import { submissionSchema } from '@/schemas/intake';
 import { ZodError } from 'zod';
 

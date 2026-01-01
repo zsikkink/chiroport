@@ -6,7 +6,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { generateCSRFResponse } from '@/utils/csrf';
+import { generateCSRFResponse } from '@/server/csrf';
 
 export async function GET() {
   try {

@@ -7,7 +7,7 @@ import ResponsiveCard from '@/components/ui/ResponsiveCard';
 import { BodyText } from '@/components/ui/Typography';
 import { FormSubmissionData } from '@/types/waitwhile';
 import { AsYouType } from 'libphonenumber-js';
-import { submitWaitwhileForm } from '@/utils/api-client';
+import { submitWaitwhileForm } from '@/lib/api-client';
 import { detailsSchemaFactory } from '@/schemas/intake';
 import type {
   LocationDetailsProps,

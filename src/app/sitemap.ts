@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next';
-import { airportLocations } from '@/utils/locationData';
+import { airportLocations } from '@/lib/locationData';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://chiroport.com';

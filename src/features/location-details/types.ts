@@ -1,4 +1,4 @@
-import type { LocationInfo } from '@/utils/locationData';
+import type { LocationInfo } from '@/lib/locationData';
 
 export type Step =
   | 'category'
