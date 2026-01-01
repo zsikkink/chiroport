@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Lato, Libre_Baskerville } from "next/font/google";
+import { env } from '@/server';
 import "./globals.css";
 
 /**
@@ -32,9 +33,8 @@ const libreBaskerville = Libre_Baskerville({
  */
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_BASE_URL || 
-    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
-    'http://localhost:3000'
+    env.NEXT_PUBLIC_BASE_URL ??
+      (env.VERCEL_URL ? `https://${env.VERCEL_URL}` : 'http://localhost:3000')
   ),
   title: "Chiroport",                      // Browser tab title
   description: "Walk-in chiropractic services at airport locations nationwide. Quick, professional wellness care while you travel.", // Improved description for search engines
