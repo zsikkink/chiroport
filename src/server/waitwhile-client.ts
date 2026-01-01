@@ -225,7 +225,7 @@ export const waitwhileClient = new WaitwhileClient();
 // Export convenience functions
 export const createVisit = async (data: FormSubmissionData) => {
   // Dynamic import to avoid circular dependencies
-  const { getLocationDataByWaitwhileId } = await import('@/lib/locationData');
+  const { getLocationDataByWaitwhileId } = await import('@/lib');
   
   // Get location-specific data field IDs
   const locationData = getLocationDataByWaitwhileId(data.locationId);

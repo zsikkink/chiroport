@@ -6,7 +6,7 @@ import 'react-phone-number-input/style.css';
 import { BodyText, ResponsiveCard } from '@/components/ui';
 import { FormSubmissionData } from '@/types/waitwhile';
 import { AsYouType } from 'libphonenumber-js';
-import { submitWaitwhileForm } from '@/lib/api-client';
+import { submitWaitwhileForm } from '@/lib';
 import { detailsSchemaFactory } from '@/schemas/intake';
 import type {
   LocationDetailsProps,

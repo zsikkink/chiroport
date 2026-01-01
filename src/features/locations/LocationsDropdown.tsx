@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
 import { DropdownCard, LocationButton } from '@/components/ui';
-import { airportLocations, getLocationRoute } from '@/lib/locationData';
+import { airportLocations, getLocationRoute } from '@/lib';
 
 interface LocationsListProps {
   screenWidth: number;

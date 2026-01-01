@@ -1,5 +1,5 @@
 import { ScrollHeader, StaticLayout } from '@/components/layout';
-import { getLocationInfo, findAirport, findConcourse, airportLocations } from '@/lib/locationData';
+import { getLocationInfo, findAirport, findConcourse, airportLocations } from '@/lib';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { LocationDetails } from '@/features/location-details';
