@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { env } from '@/server/env';
+
 /**
  * Application Configuration
  * 
@@ -10,59 +12,59 @@ import 'server-only';
 // Environment variables with defaults
 export const config = {
   // Environment
-  isDevelopment: process.env.NODE_ENV === 'development',
-  isProduction: process.env.NODE_ENV === 'production',
+  isDevelopment: env.NODE_ENV === 'development',
+  isProduction: env.NODE_ENV === 'production',
   
   // API Configuration
   api: {
-    baseUrl: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
+    baseUrl: env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
     waitwhile: {
-      url: process.env.WAITWHILE_API_URL || 'https://api.waitwhile.com/v2',
-      apiKey: process.env.WAITWHILE_API_KEY,
-      webhookSecret: process.env.WAITWHILE_WEBHOOK_SECRET,
+      url: env.WAITWHILE_API_URL || 'https://api.waitwhile.com/v2',
+      apiKey: env.WAITWHILE_API_KEY,
+      webhookSecret: env.WAITWHILE_WEBHOOK_SECRET,
     }
   },
 
   // Security Configuration
   security: {
     csrf: {
-      secret: process.env.CSRF_SECRET,
-      enabled: !!process.env.CSRF_SECRET,
+      secret: env.CSRF_SECRET,
+      enabled: !!env.CSRF_SECRET,
     },
     rateLimit: {
-      api: parseInt(process.env.RATE_LIMIT_API || '30', 10),
-      submit: parseInt(process.env.RATE_LIMIT_SUBMIT || '5', 10),
+      api: parseInt(env.RATE_LIMIT_API || '30', 10),
+      submit: parseInt(env.RATE_LIMIT_SUBMIT || '5', 10),
       enabled: true,
     },
     headers: {
-      csp: process.env.CONTENT_SECURITY_POLICY || "default-src 'self'",
-      hsts: process.env.NODE_ENV === 'production',
+      csp: env.CONTENT_SECURITY_POLICY || "default-src 'self'",
+      hsts: env.NODE_ENV === 'production',
     }
   },
 
   // Feature Flags
   features: {
-    analytics: process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === 'true',
-    errorReporting: process.env.NEXT_PUBLIC_ENABLE_ERROR_REPORTING === 'true',
-    debugMode: process.env.NEXT_PUBLIC_DEBUG_MODE === 'true',
+    analytics: env.NEXT_PUBLIC_ENABLE_ANALYTICS === 'true',
+    errorReporting: env.NEXT_PUBLIC_ENABLE_ERROR_REPORTING === 'true',
+    debugMode: env.NEXT_PUBLIC_DEBUG_MODE === 'true',
   },
 
   // Monitoring
   monitoring: {
     healthCheck: {
-      enabled: process.env.HEALTH_CHECK_ENABLED === 'true',
-      secret: process.env.HEALTH_CHECK_SECRET,
+      enabled: env.HEALTH_CHECK_ENABLED === 'true',
+      secret: env.HEALTH_CHECK_SECRET,
     },
     logging: {
-      level: process.env.LOG_LEVEL || 'info',
+      level: env.LOG_LEVEL || 'info',
       enabled: true,
     }
   },
 
   // Performance
   performance: {
-    imageQuality: parseInt(process.env.NEXT_PUBLIC_IMAGE_QUALITY || '85', 10),
-    cacheTimeout: parseInt(process.env.NEXT_PUBLIC_CACHE_TIMEOUT || '300000', 10),
+    imageQuality: parseInt(env.NEXT_PUBLIC_IMAGE_QUALITY || '85', 10),
+    cacheTimeout: parseInt(env.NEXT_PUBLIC_CACHE_TIMEOUT || '300000', 10),
   }
 };
 
@@ -164,7 +166,7 @@ export function logSecurityEvent(event: string, details: unknown): void {
     event,
     details,
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV
+    environment: env.NODE_ENV
   };
 
   console.warn('[SECURITY]', securityLog);
