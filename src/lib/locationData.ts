@@ -61,30 +61,6 @@ export function getLocationInfo(airportSlug: string, concourseSlug: string): Loc
   return concourse?.locationInfo || null;
 }
 
-// Helper function to determine the correct service ID based on user selections
-export function getServiceId(
-  isMember: boolean,
-  spinalAdjustment: boolean | null,
-  selectedTreatment: { title: string } | null
-): string | undefined {
-  if (isMember) {
-    // Member path: depends on spinal adjustment choice
-    if (spinalAdjustment === true) {
-      return waitwhileServices.memberWithSpinal;
-    } else if (spinalAdjustment === false) {
-      return waitwhileServices.memberWithoutSpinal;
-    }
-    // If spinalAdjustment is null, they haven't made a choice yet
-    return undefined;
-  } else {
-    // Non-member path: depends on treatment selection
-    if (selectedTreatment) {
-      return waitwhileServices.treatments[selectedTreatment.title];
-    }
-    return undefined;
-  }
-}
-
 // Generate route paths for navigation
 export function getLocationRoute(airportSlug: string, concourseSlug: string): string {
   return `/locations/${airportSlug}/${concourseSlug}`;
