@@ -1,6 +1,6 @@
 'use client';
 
-import { Heading } from './Typography';
+import { Heading } from '@/components/ui/Typography';
 
 /**
  * LocationHeader Component

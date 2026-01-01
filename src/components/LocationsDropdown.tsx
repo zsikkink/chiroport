@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
-import { LocationButton } from './Button';
-import DropdownCard from './DropdownCard';
+import { LocationButton } from '@/components/ui/Button';
+import DropdownCard from '@/components/ui/DropdownCard';
 import { airportLocations, getLocationRoute } from '@/utils/locationData';
 
 interface LocationsListProps {
