@@ -8,9 +8,10 @@ import 'server-only';
  */
 
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
+import { env } from '@/server/env';
 
 const CSRF_TOKEN_LENGTH = 32;
-const CSRF_SECRET = process.env.CSRF_SECRET || 'fallback-secret-change-in-production';
+const CSRF_SECRET = env.CSRF_SECRET ?? 'fallback-secret-change-in-production';
 
 /**
  * Generate a cryptographically secure CSRF token
@@ -115,7 +116,7 @@ export function validateCSRF(request: Request): boolean {
  */
 export function createCSRFCookie(token: string): string {
   const hashedToken = hashCSRFToken(token);
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = env.NODE_ENV === 'production';
   
   return `csrf-token=${encodeURIComponent(hashedToken)}; Path=/; SameSite=Strict; HttpOnly${isProduction ? '; Secure' : ''}`;
 }
