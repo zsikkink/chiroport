@@ -8,6 +8,7 @@ import 'server-only';
  */
 
 import { NextRequest } from 'next/server';
+import { env } from '@/server/env';
 
 // Suspicious patterns that might indicate attacks
 const SUSPICIOUS_PATTERNS = [
@@ -176,7 +177,7 @@ export function validateOrigin(request: NextRequest): boolean {
   }
   
   // In development, be more lenient
-  if (process.env.NODE_ENV === 'development') {
+  if (env.NODE_ENV === 'development') {
     if (origin?.includes('localhost') || referer?.includes('localhost')) {
       return true;
     }
@@ -186,7 +187,7 @@ export function validateOrigin(request: NextRequest): boolean {
   
   // For production, first check allowed origins
   const allowedOrigins = [
-    process.env.NEXT_PUBLIC_BASE_URL,
+    env.NEXT_PUBLIC_BASE_URL,
     'https://chiroport.com',
     'https://www.chiroport.com',
   ].filter((origin): origin is string => Boolean(origin));
