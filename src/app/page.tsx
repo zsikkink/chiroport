@@ -1,5 +1,5 @@
 import StaticLayout from '@/components/layout/StaticLayout';
-import DynamicHomeContent from '@/components/DynamicHomeContent';
+import DynamicHomeContent from '@/features/home/DynamicHomeContent';
 import ScrollHeader from '@/components/layout/ScrollHeader';
 
 /**
