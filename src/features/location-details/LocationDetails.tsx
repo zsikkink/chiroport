@@ -15,18 +15,18 @@ import type {
   WizardState,
   TreatmentOption,
   VisitCategory,
-} from '@/features/locationDetails/types';
+} from '@/features/location-details/types';
 import type { IntakeCategory } from '@/constants/waitwhile';
 import {
   FLOW_CONFIG,
   FLOW_TRANSITIONS,
   MASSAGE_OPTIONS,
   TREATMENTS,
-} from '@/features/locationDetails/config';
-import { createWizardInitialState, wizardReducer } from '@/features/locationDetails/reducer';
-import AnimatedButton from '@/features/locationDetails/components/AnimatedButton';
-import BackButton from '@/features/locationDetails/components/BackButton';
-import YesNoButtons from '@/features/locationDetails/components/YesNoButtons';
+} from '@/features/location-details/config';
+import { createWizardInitialState, wizardReducer } from '@/features/location-details/reducer';
+import AnimatedButton from '@/features/location-details/components/AnimatedButton';
+import BackButton from '@/features/location-details/components/BackButton';
+import YesNoButtons from '@/features/location-details/components/YesNoButtons';
 
 // Define the expected API response structure
 interface SubmissionResponse {

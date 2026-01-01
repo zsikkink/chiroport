@@ -3,7 +3,7 @@ import { getLocationInfo, findAirport, findConcourse, airportLocations } from '@
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import ScrollHeader from '@/components/layout/ScrollHeader';
-import LocationDetails from '@/components/LocationDetails';
+import LocationDetails from '@/features/location-details/LocationDetails';
 
 interface PageParams {
   location: string;
