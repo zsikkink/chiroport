@@ -50,11 +50,6 @@ const UNDECIDED_TREATMENT = TREATMENTS.find(
   (treatment) => treatment.title === 'Undecided'
 );
 
-const LAS_VEGAS_LOCATION_IDS = new Set<string>([
-  'kjAmNhyUygMlvVUje1gc', // LAS - Concourse B
-  'BKncaAgwFhUrywvRCgXT', // LAS - Concourse C
-]);
-
 // ============================================================================
 // ANIMATION
 // ============================================================================
@@ -518,12 +513,11 @@ export default function LocationDetails({
   const consentLabel = isBodyworkVisitor
   ? 'I consent to bodywork services from The Chiroport and release The Chiroport and its providers from liability for normal reactions except in cases of negligence. I agree to receive SMS updates about my visit. Msg & data rates may apply. Reply STOP to unsubscribe.'
   : 'I consent to receiving chiropractic care from The Chiroport. I understand that chiropractic adjustments are generally safe and effective, and I release The Chiroport and its providers from any liability for injuries or effects except those caused by gross negligence. I agree to receive SMS updates about my visit. Msg & data rates may apply. Reply STOP to unsubscribe.';
-  const isLasVegasLocation = LAS_VEGAS_LOCATION_IDS.has(locationInfo.waitwhileLocationId);
-  const massageCategoryLabel = isLasVegasLocation ? 'Massage Therapist' : 'Massage';
-  const massageOptionsTitle = isLasVegasLocation ? 'Body Work' : massageCategoryLabel;
-  const joinServiceSummary = isLasVegasLocation
-    ? 'Service includes stretching, muscle work, and vibration massager.'
-    : 'Service includes stretching, muscle work, and massage.';
+  const uiOverrides = locationInfo.uiOverrides;
+  const massageCategoryLabel = uiOverrides?.massageCategoryLabel ?? 'Massage';
+  const massageOptionsTitle = uiOverrides?.massageOptionsTitle ?? massageCategoryLabel;
+  const joinServiceSummary =
+    uiOverrides?.joinServiceSummary ?? 'Service includes stretching, muscle work, and massage.';
 
   const selectUndecidedTreatment = () => {
     if (!UNDECIDED_TREATMENT) {
