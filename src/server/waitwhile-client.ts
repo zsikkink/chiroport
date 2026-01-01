@@ -9,6 +9,7 @@ import 'server-only';
 
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 import { config, debugLog, logError } from '@/server';
+import { waitwhileServices } from '@/data/waitwhileData';
 import {
   WaitwhileApiError,
   WaitwhileVisit,
@@ -168,34 +169,12 @@ export class WaitwhileClient {
       phone = '+' + phone;
     }
 
-    // Determine service ID based on user's journey
-    let serviceId: string;
-
-    if (formData.selectedTreatment) {
-      // Non-member: Use the service ID for their selected treatment
-      const serviceMapping: Record<string, string> = {
-        'Body on the Go': 'IhqDpECD89j2e7pmHCEW',
-        'Total Wellness': '11AxkuHmsd0tClHLitZ7',
-        'Sciatica & Lower Back Targeted Therapy': 'QhSWYhwLpnoEFHJZkGQf',
-        'Neck & Upper Back Targeted Therapy': '59q5NJG9miDfAgdtn8nK',
-        'Trigger Point Muscle Therapy & Stretch': 'hD5KfCW1maA1Vx0za0fv',
-        'Chiro Massage': 'ts1phHc92ktj04d0Gpve',
-        'Chiro Massage Mini': 'J8qHXtrsRC2aNPA04YDc',
-        'Undecided': 'FtfCqXMwnkqdft5aL0ZX',
-        '15 Minutes': 'cyIjtFCpILcnJAD7c3Mo',
-        '20 Minutes': 'KCoFYD7S99YjNaCjzFxV',
-        '30 Minutes': 'ZBy2A2vgIAGUksm12RSQ',
-      };
-      
-      serviceId = serviceMapping[formData.selectedTreatment.title] || 'FtfCqXMwnkqdft5aL0ZX';
-    } else {
-      // Member: Use appropriate member service
-      if (formData.spinalAdjustment === true) {
-        serviceId = 'DoCvBDfuyv3HjlCra5Jc'; // Members with $29 spinal adjustment
-      } else {
-        serviceId = 'mZChb5bacT7AeVU7E3Rz'; // Members without spinal adjustment
-      }
-    }
+    const serviceId = formData.selectedTreatment
+      ? waitwhileServices.treatments[formData.selectedTreatment.title] ??
+        waitwhileServices.treatments['Undecided']
+      : formData.spinalAdjustment === true
+        ? waitwhileServices.memberWithSpinal
+        : waitwhileServices.memberWithoutSpinal;
 
     // Build dataFields array using location-specific field IDs
     const dataFields: Array<{ id: string; values: string[] }> = [];
