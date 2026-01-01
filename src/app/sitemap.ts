@@ -1,8 +1,9 @@
 import { MetadataRoute } from 'next';
+import { env } from '@/server';
 import { airportLocations } from '@/lib';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://chiroport.com';
+  const baseUrl = env.NEXT_PUBLIC_BASE_URL || 'https://chiroport.com';
   
   // Static routes
   const staticRoutes: MetadataRoute.Sitemap = [
