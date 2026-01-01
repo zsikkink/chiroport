@@ -290,9 +290,6 @@ export async function submitWaitwhileForm<T>(
   });
 }
 
-// Backwards-compatible alias
-export const submitFormSecurely = submitWaitwhileForm;
-
 export async function getVisitStatus<T>(visitId: string): Promise<ApiResponse<T>> {
   return apiClient.get<T>(`/api/waitwhile/visit/${visitId}`);
 }
