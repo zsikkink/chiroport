@@ -15,6 +15,7 @@ import {
   sanitizeFormData,
   validateCSRF,
 } from '@/server';
+import { env } from '@/server/env';
 import { FormSubmissionData } from '@/types/waitwhile';
 import { submissionSchema } from '@/schemas/intake';
 import { ZodError } from 'zod';
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     debugLog('Received form submission:', sanitizedBody);
 
     // Check if API key is available
-    if (!process.env.WAITWHILE_API_KEY) {
+    if (!env.WAITWHILE_API_KEY) {
       console.error('WAITWHILE_API_KEY environment variable is missing');
       return NextResponse.json({
         success: false,
