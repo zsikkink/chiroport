@@ -176,6 +176,10 @@ export class WaitwhileClient {
         ? waitwhileServices.memberWithSpinal
         : waitwhileServices.memberWithoutSpinal;
 
+    if (!serviceId) {
+      throw new Error('Service ID is missing for the selected treatment or membership option');
+    }
+
     // Build dataFields array using location-specific field IDs
     const dataFields: Array<{ id: string; values: string[] }> = [];
 
