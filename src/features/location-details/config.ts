@@ -1,4 +1,4 @@
-import type { IntakeCategory } from '@/constants/waitwhile';
+import type { IntakeCategory } from '@/data/waitwhileData';
 import type { Step, TreatmentOption, VisitCategory } from './types';
 
 export const TREATMENTS: readonly TreatmentOption[] = [

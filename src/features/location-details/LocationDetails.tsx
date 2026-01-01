@@ -15,7 +15,7 @@ import type {
   TreatmentOption,
   VisitCategory,
 } from '@/features/location-details/types';
-import type { IntakeCategory } from '@/constants/waitwhile';
+import type { IntakeCategory } from '@/data/waitwhileData';
 import {
   FLOW_CONFIG,
   FLOW_TRANSITIONS,
