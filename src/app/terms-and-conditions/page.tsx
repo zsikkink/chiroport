@@ -16,30 +16,30 @@ export default function TermsAndConditionsPage() {
           <section className="space-y-4">
             <StaticHeading>1. Acceptance of Terms</StaticHeading>
             <StaticBodyText size="lg">
-              By using The Chiroport website or services, including submitting information
-              through our website forms, you agree to these Terms &amp; Conditions.
+              By using the The Chiroport Worldwide LLC (&quot;The Chiroport&quot;) website or
+              services, including submitting information through our website forms, you agree
+              to these Terms &amp; Conditions.
             </StaticBodyText>
           </section>
 
           <section className="space-y-4">
             <StaticHeading>2. Services</StaticHeading>
             <StaticBodyText size="lg">
-              The Chiroport provides bodywork and wellness services. Information provided
-              on this website is for general informational purposes and does not replace
-              professional medical advice.
+              The Chiroport provides chiropractic, bodywork, and wellness services.
+              Information provided on this website is for general informational purposes and
+              does not replace professional medical advice.
             </StaticBodyText>
           </section>
 
           <section className="space-y-4">
             <StaticHeading>3. SMS Terms</StaticHeading>
             <StaticBodyText size="lg">
-              By providing your phone number and checking the consent box on our website,
-              you agree to receive SMS messages related to your visit.
+              By providing your phone number and checking the consent box on our website, you
+              agree to receive SMS messages related to your visit (such as visit status
+              updates, reminders, or service notifications).
             </StaticBodyText>
+
             <ul className="list-disc pl-6 space-y-2">
-              <StaticBodyText as="li" size="lg">
-                Messages may include visit status updates, reminders, or service notifications
-              </StaticBodyText>
               <StaticBodyText as="li" size="lg">
                 Message frequency varies
               </StaticBodyText>
@@ -53,6 +53,7 @@ export default function TermsAndConditionsPage() {
                 Reply HELP for assistance
               </StaticBodyText>
             </ul>
+
             <StaticBodyText size="lg">
               Consent to receive SMS messages is not required to receive services.
             </StaticBodyText>
@@ -94,13 +95,63 @@ export default function TermsAndConditionsPage() {
           <section className="space-y-4">
             <StaticHeading>8. Contact Information</StaticHeading>
             <StaticBodyText size="lg">
-              For questions regarding these Terms &amp; Conditions, please contact
+              For questions regarding these Terms &amp; Conditions, please contact us:
             </StaticBodyText>
-            <div className="space-y-2">
-              <StaticBodyText size="lg">Email: info@thechiroport.com</StaticBodyText>
-              <StaticBodyText size="lg">Phone: (612) 568-1224</StaticBodyText>
-              <StaticBodyText size="lg">The Chiroport</StaticBodyText>
-              <StaticBodyText size="lg">Website: https://www.thechiroport.com</StaticBodyText>
+
+            <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+              <div className="space-y-3">
+                <div>
+                  <StaticBodyText size="lg" className="text-white/70">
+                    Email
+                  </StaticBodyText>
+                  <a
+                    href="mailto:info@thechiroport.com"
+                    className="text-lg text-white underline underline-offset-4 hover:text-white/90"
+                  >
+                    info@thechiroport.com
+                  </a>
+                </div>
+
+                <div>
+                  <StaticBodyText size="lg" className="text-white/70">
+                    Phone
+                  </StaticBodyText>
+                  <a
+                    href="tel:+16125681224"
+                    className="text-lg text-white underline underline-offset-4 hover:text-white/90"
+                  >
+                    (612) 568-1224
+                  </a>
+                </div>
+
+                <div>
+                  <StaticBodyText size="lg" className="text-white/70">
+                    Website
+                  </StaticBodyText>
+                  <a
+                    href="https://www.thechiroport.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-lg text-white underline underline-offset-4 hover:text-white/90"
+                  >
+                    https://www.thechiroport.com
+                  </a>
+                </div>
+
+                <div className="pt-2">
+                  <StaticBodyText size="lg" className="text-white/70">
+                    Legal Business Name
+                  </StaticBodyText>
+                  <StaticBodyText size="lg">The Chiroport Worldwide LLC</StaticBodyText>
+                </div>
+
+                <div>
+                  <StaticBodyText size="lg" className="text-white/70">
+                    Brand Name
+                  </StaticBodyText>
+                  <StaticBodyText size="lg">The Chiroport</StaticBodyText>
+                </div>
+              </div>
             </div>
           </section>
         </div>

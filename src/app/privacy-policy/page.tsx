@@ -16,11 +16,16 @@ export default function PrivacyPolicyPage() {
           <section className="space-y-4">
             <StaticHeading>1. Introduction</StaticHeading>
             <StaticBodyText size="lg">
-              The Chiroport (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) respects your
-              privacy and is committed to protecting your personal information. This
-              Privacy Policy explains how we collect, use, and protect information when
-              you visit our website or use our services, including SMS communications
-              related to your visit.
+              The Chiroport Worldwide LLC (doing business as &quot;The Chiroport&quot;)
+              (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) respects your privacy and
+              is committed to protecting your personal information. This Privacy Policy
+              explains how we collect, use, and protect information when you visit our
+              website or use our services, including SMS communications related to your
+              visit.
+            </StaticBodyText>
+            <StaticBodyText size="lg">
+              This policy applies to information collected through our website forms and
+              visit-related communications.
             </StaticBodyText>
           </section>
 
@@ -59,14 +64,14 @@ export default function PrivacyPolicyPage() {
             </StaticBodyText>
             <ul className="list-disc pl-6 space-y-2">
               <StaticBodyText as="li" size="lg">
-                Provide bodywork services
+                Provide chiropractic and bodywork services
               </StaticBodyText>
               <StaticBodyText as="li" size="lg">
                 Manage visit check-in and queue updates
               </StaticBodyText>
               <StaticBodyText as="li" size="lg">
-                Send SMS notifications related to your visit (e.g., status updates,
-                reminders)
+                Send visit-related notifications (including SMS messages, where you have
+                provided consent)
               </StaticBodyText>
               <StaticBodyText as="li" size="lg">
                 Communicate important service-related information
@@ -76,7 +81,7 @@ export default function PrivacyPolicyPage() {
               </StaticBodyText>
             </ul>
             <StaticBodyText size="lg">
-              We do not use your information for unsolicited marketing messages.
+              We do not use your phone number for unsolicited marketing messages.
             </StaticBodyText>
           </section>
 
@@ -84,8 +89,10 @@ export default function PrivacyPolicyPage() {
             <StaticHeading>4. SMS Communications</StaticHeading>
             <StaticBodyText size="lg">
               If you provide your phone number and consent, you may receive SMS messages
-              related to your visit at The Chiroport.
+              related to your visit at The Chiroport (for example: status updates,
+              reminders, or service notifications).
             </StaticBodyText>
+
             <ul className="list-disc pl-6 space-y-2">
               <StaticBodyText as="li" size="lg">
                 Message frequency varies based on visit activity
@@ -100,6 +107,7 @@ export default function PrivacyPolicyPage() {
                 Reply HELP for assistance
               </StaticBodyText>
             </ul>
+
             <StaticBodyText size="lg">
               Consent to receive SMS messages is not a condition of purchase or service.
             </StaticBodyText>
@@ -112,9 +120,14 @@ export default function PrivacyPolicyPage() {
               numbers, to third parties.
             </StaticBodyText>
             <StaticBodyText size="lg">
+              We do not share your mobile number with third parties for their marketing
+              purposes.
+            </StaticBodyText>
+            <StaticBodyText size="lg">
               We may share information only with trusted service providers (such as SMS
               or website infrastructure providers) solely for the purpose of operating
-              our services and communications.
+              our services and communications, and only to the extent necessary to provide
+              those services.
             </StaticBodyText>
           </section>
 
@@ -128,9 +141,7 @@ export default function PrivacyPolicyPage() {
 
           <section className="space-y-4">
             <StaticHeading>7. Your Choices</StaticHeading>
-            <StaticBodyText size="lg">
-              You may:
-            </StaticBodyText>
+            <StaticBodyText size="lg">You may:</StaticBodyText>
             <ul className="list-disc pl-6 space-y-2">
               <StaticBodyText as="li" size="lg">
                 Opt out of SMS messages at any time by replying STOP
@@ -153,13 +164,63 @@ export default function PrivacyPolicyPage() {
           <section className="space-y-4">
             <StaticHeading>9. Contact Us</StaticHeading>
             <StaticBodyText size="lg">
-              If you have questions about this Privacy Policy, please contact us at
+              If you have questions about this Privacy Policy, please contact us:
             </StaticBodyText>
-            <div className="space-y-2">
-              <StaticBodyText size="lg">Email: info@thechiroport.com</StaticBodyText>
-              <StaticBodyText size="lg">Phone: (612) 568-1224</StaticBodyText>
-              <StaticBodyText size="lg">The Chiroport</StaticBodyText>
-              <StaticBodyText size="lg">Website: https://www.thechiroport.com</StaticBodyText>
+
+            <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+              <div className="space-y-3">
+                <div>
+                  <StaticBodyText size="lg" className="text-white/70">
+                    Email
+                  </StaticBodyText>
+                  <a
+                    href="mailto:info@thechiroport.com"
+                    className="text-lg text-white underline underline-offset-4 hover:text-white/90"
+                  >
+                    info@thechiroport.com
+                  </a>
+                </div>
+
+                <div>
+                  <StaticBodyText size="lg" className="text-white/70">
+                    Phone
+                  </StaticBodyText>
+                  <a
+                    href="tel:+16125681224"
+                    className="text-lg text-white underline underline-offset-4 hover:text-white/90"
+                  >
+                    (612) 568-1224
+                  </a>
+                </div>
+
+                <div>
+                  <StaticBodyText size="lg" className="text-white/70">
+                    Website
+                  </StaticBodyText>
+                  <a
+                    href="https://www.thechiroport.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-lg text-white underline underline-offset-4 hover:text-white/90"
+                  >
+                    https://www.thechiroport.com
+                  </a>
+                </div>
+
+                <div className="pt-2">
+                  <StaticBodyText size="lg" className="text-white/70">
+                    Legal Business Name
+                  </StaticBodyText>
+                  <StaticBodyText size="lg">The Chiroport Worldwide LLC</StaticBodyText>
+                </div>
+
+                <div>
+                  <StaticBodyText size="lg" className="text-white/70">
+                    Brand Name
+                  </StaticBodyText>
+                  <StaticBodyText size="lg">The Chiroport</StaticBodyText>
+                </div>
+              </div>
             </div>
           </section>
         </div>
