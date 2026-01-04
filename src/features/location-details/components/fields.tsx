@@ -1,6 +1,7 @@
 'use client';
 
 import { AsYouType } from 'libphonenumber-js';
+import type { ReactNode } from 'react';
 import type { WizardState } from '@/features/location-details/types';
 
 interface InputFieldProps {
@@ -121,7 +122,7 @@ interface ConsentFieldProps {
   onUpdateField: (field: keyof WizardState['details'], value: boolean) => void;
   submitAttempted: boolean;
   errors: { [key: string]: string[] };
-  label: string;
+  label: ReactNode;
 }
 
 export function ConsentField({

@@ -89,9 +89,37 @@ export default function LocationDetails({
     state.visitCategory === 'priority_pass';
   const showEmailField = true;
   const requireEmail = true;
-  const consentLabel = isBodyworkVisitor
-  ? 'I consent to bodywork services from The Chiroport and release The Chiroport and its providers from liability for normal reactions except in cases of negligence. I agree to receive SMS updates about my visit. Msg & data rates may apply. Reply STOP to unsubscribe.'
-  : 'I consent to receiving chiropractic care from The Chiroport. I understand that chiropractic adjustments are generally safe and effective, and I release The Chiroport and its providers from any liability for injuries or effects except those caused by gross negligence. I agree to receive SMS updates about my visit. Msg & data rates may apply. Reply STOP to unsubscribe.';
+  const consentSuffix = (
+    <>
+      {' '}I agree to the{' '}
+      <a className="underline text-white hover:text-white/80" href="/privacy-policy">
+        Privacy Policy
+      </a>{' '}
+      and{' '}
+      <a className="underline text-white hover:text-white/80" href="/terms-and-conditions">
+        Terms &amp; Conditions
+      </a>
+      .
+    </>
+  );
+  const consentLabel = isBodyworkVisitor ? (
+    <>
+      I consent to bodywork services from The Chiroport and release The Chiroport and its
+      providers from liability for normal reactions except in cases of negligence. I
+      agree to receive SMS updates about my visit. Msg & data rates may apply. Reply
+      STOP to unsubscribe.
+      {consentSuffix}
+    </>
+  ) : (
+    <>
+      I consent to receiving chiropractic care from The Chiroport. I understand that
+      chiropractic adjustments are generally safe and effective, and I release The
+      Chiroport and its providers from any liability for injuries or effects except
+      those caused by gross negligence. I agree to receive SMS updates about my visit.
+      Msg & data rates may apply. Reply STOP to unsubscribe.
+      {consentSuffix}
+    </>
+  );
   const uiOverrides = locationInfo.uiOverrides;
   const massageCategoryLabel = uiOverrides?.massageCategoryLabel ?? 'Massage';
   const massageOptionsTitle = uiOverrides?.massageOptionsTitle ?? massageCategoryLabel;

@@ -1,6 +1,7 @@
 'use client';
 
 import { BodyText } from '@/components/ui';
+import type { ReactNode } from 'react';
 import { detailsSchemaFactory } from '@/schemas/intake';
 import type { TreatmentOption, VisitCategory, WizardState } from '@/features/location-details/types';
 import { MASSAGE_OPTIONS } from '@/features/location-details/config';
@@ -169,7 +170,7 @@ export const DetailsStep = ({
   isSubmitting: boolean;
   submissionError: string | null;
   requireEmail: boolean;
-  consentLabel: string;
+  consentLabel: ReactNode;
   showEmailField: boolean;
 }) => {
   const validationPayload = {
