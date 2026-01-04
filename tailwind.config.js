@@ -10,6 +10,7 @@ module.exports = {
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",     // Pages directory
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}", // Components directory
+    "./src/features/**/*.{js,ts,jsx,tsx,mdx}",   // Feature modules
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",        // App router directory
   ],
   theme: {
