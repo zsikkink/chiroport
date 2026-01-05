@@ -3,7 +3,7 @@ import 'server-only';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { env } from '@/server/env';
 import { requireEnv } from './helpers';
-import type { Database } from './types';
+import type { Database } from './database.types';
 
 export function createSupabaseServerClient(): SupabaseClient<Database> {
   const url = requireEnv(env.NEXT_PUBLIC_SUPABASE_URL, 'NEXT_PUBLIC_SUPABASE_URL');
@@ -20,7 +20,7 @@ export function createSupabaseServerClient(): SupabaseClient<Database> {
 
 export function createSupabaseServiceClient(): SupabaseClient<Database> {
   const url = requireEnv(env.NEXT_PUBLIC_SUPABASE_URL, 'NEXT_PUBLIC_SUPABASE_URL');
-  const serviceRoleKey = requireEnv(env.SUPABASE_SERVICE_ROLE_KEY, 'SUPABASE_SERVICE_ROLE_KEY');
+  const serviceRoleKey = requireEnv(env.SUPABASE_SECRET_KEY, 'SUPABASE_SECRET_KEY');
 
   return createClient<Database>(url, serviceRoleKey, {
     auth: {
