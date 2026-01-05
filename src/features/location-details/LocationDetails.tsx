@@ -107,7 +107,7 @@ export default function LocationDetails({
       I consent to bodywork services from The Chiroport and release The Chiroport and its
       providers from liability for normal reactions except in cases of negligence. I
       agree to receive SMS updates about my visit. Msg & data rates may apply. Reply
-      STOP to unsubscribe.
+      STOP to unsubscribe. Reply HELP for help.
       {consentSuffix}
     </>
   ) : (
@@ -116,7 +116,7 @@ export default function LocationDetails({
       chiropractic adjustments are generally safe and effective, and I release The
       Chiroport and its providers from any liability for injuries or effects except
       those caused by gross negligence. I agree to receive SMS updates about my visit.
-      Msg & data rates may apply. Reply STOP to unsubscribe.
+      Msg & data rates may apply. Reply STOP to unsubscribe. Reply HELP for help.
       {consentSuffix}
     </>
   );
