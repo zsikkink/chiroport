@@ -22,7 +22,12 @@ export const config = {
       url: env.WAITWHILE_API_URL || 'https://api.waitwhile.com/v2',
       apiKey: env.WAITWHILE_API_KEY,
       webhookSecret: env.WAITWHILE_WEBHOOK_SECRET,
-    }
+    },
+    supabase: {
+      url: env.NEXT_PUBLIC_SUPABASE_URL,
+      anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+    },
   },
 
   // Security Configuration
@@ -59,6 +64,18 @@ export const config = {
       level: env.LOG_LEVEL || 'info',
       enabled: true,
     }
+  },
+
+  // Messaging
+  messaging: {
+    twilio: {
+      accountSid: env.TWILIO_ACCOUNT_SID,
+      authToken: env.TWILIO_AUTH_TOKEN,
+      apiKeySid: env.TWILIO_API_KEY_SID,
+      apiKeySecret: env.TWILIO_API_KEY_SECRET,
+      messagingServiceSid: env.TWILIO_MESSAGING_SERVICE_SID,
+      fromNumber: env.TWILIO_FROM_NUMBER,
+    },
   },
 
   // Performance
