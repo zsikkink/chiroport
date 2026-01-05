@@ -1,0 +1,7 @@
+project_id = "chiroport"
+
+[db]
+port = 54322
+
+[studio]
+port = 54323
