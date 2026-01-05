@@ -1,4 +1,4 @@
 export * from './client';
 export * from './server';
-export * from './types';
+export * from './database.types';
 export * from './helpers';

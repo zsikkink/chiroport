@@ -23,7 +23,10 @@
     "reset": "pkill -f 'next dev' || true && npm run clean && npm run build",
     "cache:check": "node scripts/cache-monitor.js check",
     "cache:clean": "node scripts/cache-monitor.js clean",
-    "cache:monitor": "node scripts/cache-monitor.js monitor"
+    "cache:monitor": "node scripts/cache-monitor.js monitor",
+    "db:migrate": "supabase db push",
+    "db:reset": "supabase db reset",
+    "db:types": "supabase gen types typescript --local --schema public > src/lib/supabase/database.types.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
