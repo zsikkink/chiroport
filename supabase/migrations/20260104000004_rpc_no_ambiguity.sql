@@ -1,5 +1,11 @@
 begin;
 
+drop function if exists public.join_queue(
+  text, text, text, text, text, customer_type, uuid
+);
+
+drop function if exists public.cancel_visit(uuid);
+
 -- All table references must be aliased; OUT params use out_ prefix to avoid collisions.
 create or replace function public.join_queue(
   p_airport_code text,
