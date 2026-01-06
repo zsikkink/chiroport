@@ -4,14 +4,14 @@ with seed_locations as (
   select *
   from (
     values
-      ('ATL', 'Concourse A', 'ATL Concourse A', 'America/New_York', '07:00', '19:00'),
-      ('DFW', 'Concourse A', 'DFW Concourse A', 'America/Chicago', '07:00', '19:00'),
-      ('HOU', 'West Concourse', 'HOU West Concourse', 'America/Chicago', '08:00', '18:00'),
-      ('LAS', 'Concourse B', 'LAS Concourse B', 'America/Los_Angeles', '08:00', '18:00'),
-      ('LAS', 'Concourse C', 'LAS Concourse C', 'America/Los_Angeles', '08:00', '18:00'),
-      ('MSP', 'Concourse C', 'MSP Concourse C', 'America/Chicago', '07:00', '20:00'),
-      ('MSP', 'Concourse F', 'MSP Concourse F', 'America/Chicago', '07:00', '19:00'),
-      ('MSP', 'Concourse G', 'MSP Concourse G', 'America/Chicago', '07:00', '19:00')
+      ('ATL', 'concourse-a', 'ATL Concourse A', 'America/New_York', '07:00', '19:00'),
+      ('DFW', 'concourse-a', 'DFW Concourse A', 'America/Chicago', '07:00', '19:00'),
+      ('HOU', 'west-concourse', 'HOU West Concourse', 'America/Chicago', '08:00', '18:00'),
+      ('LAS', 'concourse-b', 'LAS Concourse B', 'America/Los_Angeles', '08:00', '18:00'),
+      ('LAS', 'concourse-c', 'LAS Concourse C', 'America/Los_Angeles', '08:00', '18:00'),
+      ('MSP', 'concourse-c', 'MSP Concourse C', 'America/Chicago', '07:00', '20:00'),
+      ('MSP', 'concourse-f', 'MSP Concourse F', 'America/Chicago', '07:00', '19:00'),
+      ('MSP', 'concourse-g', 'MSP Concourse G', 'America/Chicago', '07:00', '19:00')
   ) as seeded(airport_code, code, display_name, timezone, opens_at, closes_at)
 )
 insert into public.locations (airport_code, code, display_name, timezone)
@@ -35,14 +35,14 @@ with seed_locations as (
   select *
   from (
     values
-      ('ATL', 'Concourse A', 'ATL Concourse A', 'America/New_York', '07:00', '19:00'),
-      ('DFW', 'Concourse A', 'DFW Concourse A', 'America/Chicago', '07:00', '19:00'),
-      ('HOU', 'West Concourse', 'HOU West Concourse', 'America/Chicago', '08:00', '18:00'),
-      ('LAS', 'Concourse B', 'LAS Concourse B', 'America/Los_Angeles', '08:00', '18:00'),
-      ('LAS', 'Concourse C', 'LAS Concourse C', 'America/Los_Angeles', '08:00', '18:00'),
-      ('MSP', 'Concourse C', 'MSP Concourse C', 'America/Chicago', '07:00', '20:00'),
-      ('MSP', 'Concourse F', 'MSP Concourse F', 'America/Chicago', '07:00', '19:00'),
-      ('MSP', 'Concourse G', 'MSP Concourse G', 'America/Chicago', '07:00', '19:00')
+      ('ATL', 'concourse-a', 'ATL Concourse A', 'America/New_York', '07:00', '19:00'),
+      ('DFW', 'concourse-a', 'DFW Concourse A', 'America/Chicago', '07:00', '19:00'),
+      ('HOU', 'west-concourse', 'HOU West Concourse', 'America/Chicago', '08:00', '18:00'),
+      ('LAS', 'concourse-b', 'LAS Concourse B', 'America/Los_Angeles', '08:00', '18:00'),
+      ('LAS', 'concourse-c', 'LAS Concourse C', 'America/Los_Angeles', '08:00', '18:00'),
+      ('MSP', 'concourse-c', 'MSP Concourse C', 'America/Chicago', '07:00', '20:00'),
+      ('MSP', 'concourse-f', 'MSP Concourse F', 'America/Chicago', '07:00', '19:00'),
+      ('MSP', 'concourse-g', 'MSP Concourse G', 'America/Chicago', '07:00', '19:00')
   ) as seeded(airport_code, code, display_name, timezone, opens_at, closes_at)
 ),
 location_map as (
