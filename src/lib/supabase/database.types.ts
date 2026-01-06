@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      consent_versions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          key: string
+          privacy_policy_url: string | null
+          terms_url: string | null
+          text: string
+          version: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key: string
+          privacy_policy_url?: string | null
+          terms_url?: string | null
+          text: string
+          version: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key?: string
+          privacy_policy_url?: string | null
+          terms_url?: string | null
+          text?: string
+          version?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           created_at: string
@@ -154,6 +187,8 @@ export type Database = {
         Row: {
           cancelled_at: string | null
           completed_at: string | null
+          consent_accepted_at: string
+          consent_version_id: string
           created_at: string
           customer_id: string
           customer_type: Database["public"]["Enums"]["customer_type"]
@@ -168,6 +203,8 @@ export type Database = {
         Insert: {
           cancelled_at?: string | null
           completed_at?: string | null
+          consent_accepted_at?: string
+          consent_version_id: string
           created_at?: string
           customer_id: string
           customer_type: Database["public"]["Enums"]["customer_type"]
@@ -182,6 +219,8 @@ export type Database = {
         Update: {
           cancelled_at?: string | null
           completed_at?: string | null
+          consent_accepted_at?: string
+          consent_version_id?: string
           created_at?: string
           customer_id?: string
           customer_type?: Database["public"]["Enums"]["customer_type"]
@@ -194,6 +233,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "queue_entries_consent_version_id_fkey"
+            columns: ["consent_version_id"]
+            isOneToOne: false
+            referencedRelation: "consent_versions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "queue_entries_customer_id_fkey"
             columns: ["customer_id"]
@@ -218,6 +264,7 @@ export type Database = {
           id: string
           payload: Json | null
           queue_entry_id: string
+          updated_at: string
         }
         Insert: {
           actor_user_id?: string | null
@@ -226,6 +273,7 @@ export type Database = {
           id?: string
           payload?: Json | null
           queue_entry_id: string
+          updated_at?: string
         }
         Update: {
           actor_user_id?: string | null
@@ -234,6 +282,7 @@ export type Database = {
           id?: string
           payload?: Json | null
           queue_entry_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -325,6 +374,7 @@ export type Database = {
           sent_at: string | null
           status: string
           to_phone: string
+          updated_at: string
         }
         Insert: {
           body: string
@@ -337,6 +387,7 @@ export type Database = {
           sent_at?: string | null
           status?: string
           to_phone: string
+          updated_at?: string
         }
         Update: {
           body?: string
@@ -349,6 +400,7 @@ export type Database = {
           sent_at?: string | null
           status?: string
           to_phone?: string
+          updated_at?: string
         }
         Relationships: [
           {
