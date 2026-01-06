@@ -1,17 +1,73 @@
 begin;
 
+with seed_locations as (
+  select *
+  from (
+    values
+      ('ATL', 'Concourse A', 'ATL Concourse A', 'America/New_York', '07:00', '19:00'),
+      ('DFW', 'Concourse A', 'DFW Concourse A', 'America/Chicago', '07:00', '19:00'),
+      ('HOU', 'West Concourse', 'HOU West Concourse', 'America/Chicago', '08:00', '18:00'),
+      ('LAS', 'Concourse B', 'LAS Concourse B', 'America/Los_Angeles', '08:00', '18:00'),
+      ('LAS', 'Concourse C', 'LAS Concourse C', 'America/Los_Angeles', '08:00', '18:00'),
+      ('MSP', 'Concourse C', 'MSP Concourse C', 'America/Chicago', '07:00', '20:00'),
+      ('MSP', 'Concourse F', 'MSP Concourse F', 'America/Chicago', '07:00', '19:00'),
+      ('MSP', 'Concourse G', 'MSP Concourse G', 'America/Chicago', '07:00', '19:00')
+  ) as seeded(airport_code, code, display_name, timezone, opens_at, closes_at)
+)
 insert into public.locations (airport_code, code, display_name, timezone)
-select 'ATL', 'concourse-a', 'Concourse A', 'America/New_York'
-where not exists (select 1 from public.locations);
+select airport_code, code, display_name, timezone
+from seed_locations
+on conflict (airport_code, code)
+do update set
+  display_name = excluded.display_name,
+  timezone = excluded.timezone,
+  is_open = true;
 
 insert into public.queues (location_id, code, name)
 select locations.id, 'default', 'Main Queue'
 from public.locations
-where not exists (
-  select 1
-  from public.queues
-  where queues.location_id = locations.id
-    and queues.code = 'default'
-);
+on conflict (location_id, code)
+do update set
+  name = excluded.name,
+  is_open = true;
+
+with seed_locations as (
+  select *
+  from (
+    values
+      ('ATL', 'Concourse A', 'ATL Concourse A', 'America/New_York', '07:00', '19:00'),
+      ('DFW', 'Concourse A', 'DFW Concourse A', 'America/Chicago', '07:00', '19:00'),
+      ('HOU', 'West Concourse', 'HOU West Concourse', 'America/Chicago', '08:00', '18:00'),
+      ('LAS', 'Concourse B', 'LAS Concourse B', 'America/Los_Angeles', '08:00', '18:00'),
+      ('LAS', 'Concourse C', 'LAS Concourse C', 'America/Los_Angeles', '08:00', '18:00'),
+      ('MSP', 'Concourse C', 'MSP Concourse C', 'America/Chicago', '07:00', '20:00'),
+      ('MSP', 'Concourse F', 'MSP Concourse F', 'America/Chicago', '07:00', '19:00'),
+      ('MSP', 'Concourse G', 'MSP Concourse G', 'America/Chicago', '07:00', '19:00')
+  ) as seeded(airport_code, code, display_name, timezone, opens_at, closes_at)
+),
+location_map as (
+  select
+    locations.id as location_id,
+    seed.opens_at::time as opens_at,
+    seed.closes_at::time as closes_at
+  from seed_locations seed
+  join public.locations
+    on locations.airport_code = seed.airport_code
+   and locations.code = seed.code
+)
+insert into public.location_hours (location_id, day_of_week, opens_at, closes_at, is_closed)
+select
+  location_map.location_id,
+  series.day_of_week,
+  location_map.opens_at,
+  location_map.closes_at,
+  false
+from location_map
+cross join generate_series(0, 6) as series(day_of_week)
+on conflict (location_id, day_of_week)
+do update set
+  opens_at = excluded.opens_at,
+  closes_at = excluded.closes_at,
+  is_closed = false;
 
 commit;
