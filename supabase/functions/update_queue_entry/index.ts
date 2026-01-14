@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { withCorsHeaders, corsHeaders } from '../_shared/cors.ts';
-import { createAuthedClient, createServiceRoleClient } from '../_shared/supabaseClient.ts';
+import { requireEmployee } from '../_shared/employeeAuth.ts';
 import { normalizePhoneToE164 } from '../_shared/phone.ts';
 
 type Payload = {
@@ -83,33 +83,19 @@ serve(async (req) => {
     });
   }
 
-  const authed = createAuthedClient(authHeader);
-  const service = createServiceRoleClient();
-
-  const { data: userData, error: userError } = await authed.auth.getUser();
-  if (userError || !userData?.user) {
+  let auth;
+  try {
+    auth = await requireEmployee(authHeader);
+  } catch (error) {
     const headers = new Headers();
     withCorsHeaders(headers);
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers,
-    });
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unauthorized' }),
+      { status: 403, headers }
+    );
   }
 
-  const { data: profile, error: profileError } = await service
-    .from('employee_profiles')
-    .select('role,is_open')
-    .eq('user_id', userData.user.id)
-    .maybeSingle();
-
-  if (profileError || !profile?.is_open || !['employee', 'admin'].includes(profile.role)) {
-    const headers = new Headers();
-    withCorsHeaders(headers);
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 403,
-      headers,
-    });
-  }
+  const { service, userId } = auth;
 
   const { data: entry, error: entryError } = await service
     .from('queue_entries')
@@ -224,7 +210,7 @@ serve(async (req) => {
 
   await service.from('queue_events').insert({
     queue_entry_id: entry.id,
-    actor_user_id: userData.user.id,
+    actor_user_id: userId,
     event_type: 'edited_by_staff',
     payload: {
       service_label: serviceLabel,

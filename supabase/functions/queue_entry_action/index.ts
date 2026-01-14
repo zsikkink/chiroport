@@ -1,9 +1,6 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { withCorsHeaders, corsHeaders } from '../_shared/cors.ts';
-import {
-  createAuthedClient,
-  createServiceRoleClient,
-} from '../_shared/supabaseClient.ts';
+import { requireEmployee } from '../_shared/employeeAuth.ts';
 import { enqueueAndSendOutboxMessage } from '../_shared/outbox.ts';
 import { MESSAGE_TYPES, buildServingNotification } from '../_shared/messages.ts';
 
@@ -71,33 +68,19 @@ serve(async (req) => {
     });
   }
 
-  const authed = createAuthedClient(authHeader);
-  const service = createServiceRoleClient();
-
-  const { data: userData, error: userError } = await authed.auth.getUser();
-  if (userError || !userData?.user) {
+  let auth;
+  try {
+    auth = await requireEmployee(authHeader);
+  } catch (error) {
     const headers = new Headers();
     withCorsHeaders(headers);
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers,
-    });
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unauthorized' }),
+      { status: 403, headers }
+    );
   }
 
-  const { data: profile, error: profileError } = await service
-    .from('employee_profiles')
-    .select('role,is_open')
-    .eq('user_id', userData.user.id)
-    .maybeSingle();
-
-  if (profileError || !profile?.is_open || !['employee', 'admin'].includes(profile.role)) {
-    const headers = new Headers();
-    withCorsHeaders(headers);
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 403,
-      headers,
-    });
-  }
+  const { service, userId } = auth;
 
   const { data: entry, error: entryError } = await service
     .from('queue_entries')
@@ -125,7 +108,7 @@ serve(async (req) => {
           .eq('id', entry.id);
         await service.from('queue_events').insert({
           queue_entry_id: entry.id,
-          actor_user_id: userData.user.id,
+          actor_user_id: userId,
           event_type: 'completed_by_staff',
           payload: { source: 'queue_entry_action' },
         });
@@ -137,7 +120,7 @@ serve(async (req) => {
           .eq('id', entry.id);
         await service.from('queue_events').insert({
           queue_entry_id: entry.id,
-          actor_user_id: userData.user.id,
+          actor_user_id: userId,
           event_type: 'cancelled_by_staff',
           payload: { source: 'queue_entry_action' },
         });
@@ -155,7 +138,7 @@ serve(async (req) => {
           .eq('id', entry.id);
         await service.from('queue_events').insert({
           queue_entry_id: entry.id,
-          actor_user_id: userData.user.id,
+          actor_user_id: userId,
           event_type: 'returned_to_queue',
           payload: { source: 'queue_entry_action' },
         });
@@ -173,7 +156,7 @@ serve(async (req) => {
           .eq('id', entry.id);
         await service.from('queue_events').insert({
           queue_entry_id: entry.id,
-          actor_user_id: userData.user.id,
+          actor_user_id: userId,
           event_type: 'serving_by_staff',
           payload: { source: 'queue_entry_action' },
         });
@@ -260,7 +243,7 @@ serve(async (req) => {
 
         await service.from('queue_events').insert({
           queue_entry_id: entry.id,
-          actor_user_id: userData.user.id,
+          actor_user_id: userId,
           event_type: 'moved_by_staff',
           payload: {
             from_location_id: currentLocation.location_id,
@@ -273,7 +256,7 @@ serve(async (req) => {
         await service.from('queue_entries').delete().eq('id', entry.id);
         await service.from('queue_events').insert({
           queue_entry_id: entry.id,
-          actor_user_id: userData.user.id,
+          actor_user_id: userId,
           event_type: 'deleted_by_staff',
           payload: { source: 'queue_entry_action' },
         });

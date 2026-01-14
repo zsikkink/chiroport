@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { withCorsHeaders, corsHeaders } from '../_shared/cors.ts';
-import { createAuthedClient, createServiceRoleClient } from '../_shared/supabaseClient.ts';
+import { requireEmployee } from '../_shared/employeeAuth.ts';
 import { MESSAGE_TYPES } from '../_shared/messages.ts';
 import { sendOutboxForEntry } from '../_shared/outbox.ts';
 
@@ -44,8 +44,19 @@ serve(async (req) => {
     });
   }
 
-  const authed = createAuthedClient(authHeader);
-  const service = createServiceRoleClient();
+  let auth;
+  try {
+    auth = await requireEmployee(authHeader);
+  } catch (error) {
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unauthorized' }),
+      { status: 403, headers }
+    );
+  }
+
+  const { authed, service } = auth;
 
   const { data, error } = await authed.rpc('advance_queue', {
     p_queue_id: payload.queueId,
