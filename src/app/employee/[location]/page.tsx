@@ -1641,20 +1641,12 @@ export default function EmployeeDashboardPage() {
       await runAction(
         `serving:${entryId}`,
         async () => {
-          const headers = await getFunctionHeaders();
-          const { data, error } = await supabase.functions.invoke('set_serving', {
-            body: { queueEntryId: entryId },
-            headers,
-          });
-          if (error) throw error;
-          if (data?.error) {
-            throw new Error(data.error);
-          }
+          await callQueueEntryAction('serving', entryId);
         },
         { entryId }
       );
     },
-    [getFunctionHeaders, runAction]
+    [callQueueEntryAction, runAction]
   );
 
   const handleComplete = useCallback(
