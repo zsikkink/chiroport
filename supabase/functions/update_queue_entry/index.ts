@@ -161,20 +161,17 @@ serve(async (req) => {
   };
 
   if (entry.status === 'waiting' && payload.customerType !== entry.customer_type) {
-    const { data: sortRow, error: sortError } = await service
-      .from('queue_entries')
-      .select('sort_key')
-      .eq('queue_id', entry.queue_id)
-      .eq('customer_type', payload.customerType)
-      .eq('status', 'waiting')
-      .order('sort_key', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data: sortKeyData, error: sortKeyError } = await service.rpc(
+      'next_sort_key',
+      {
+        p_queue_id: entry.queue_id,
+        p_customer_type: payload.customerType,
+      }
+    );
 
-    if (sortError) {
+    if (sortKeyError) {
       console.error('update_queue_entry sort_key lookup failed', {
-        error: sortError,
+        error: sortKeyError,
         queueEntryId: entry.id,
       });
       const headers = new Headers();
@@ -185,7 +182,7 @@ serve(async (req) => {
       );
     }
 
-    updates.sort_key = Number(sortRow?.sort_key ?? 0) + 1;
+    updates.sort_key = Number(sortKeyData ?? 0);
   }
 
   const { data: updated, error: updateError } = await service

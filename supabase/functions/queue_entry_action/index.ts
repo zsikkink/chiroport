@@ -216,17 +216,19 @@ serve(async (req) => {
         if (!queueRow?.id) {
           throw new Error('Target queue is unavailable');
         }
-        const { data: sortRow } = await service
-          .from('queue_entries')
-          .select('sort_key')
-          .eq('queue_id', queueRow.id)
-          .eq('customer_type', entry.customer_type)
-          .eq('status', 'waiting')
-          .order('sort_key', { ascending: false })
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const nextSortKey = Number(sortRow?.sort_key ?? 0) + 1;
+        const { data: sortKeyData, error: sortKeyError } = await service.rpc(
+          'next_sort_key',
+          {
+            p_queue_id: queueRow.id,
+            p_customer_type: entry.customer_type,
+          }
+        );
+
+        if (sortKeyError) {
+          throw new Error('Unable to assign queue order');
+        }
+
+        const nextSortKey = Number(sortKeyData ?? 0);
 
         await service
           .from('queue_entries')
