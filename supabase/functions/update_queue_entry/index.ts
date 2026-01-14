@@ -99,7 +99,7 @@ serve(async (req) => {
 
   const { data: entry, error: entryError } = await service
     .from('queue_entries')
-    .select('id, customer_id, queue_id, customer_type, status')
+    .select('id, customer_id, queue_id, customer_type, status, service_label, customer:customers(full_name,email,phone_e164)')
     .eq('id', payload.queueEntryId)
     .maybeSingle();
 
@@ -127,6 +127,33 @@ serve(async (req) => {
 
   const fullName = payload.fullName?.trim() || null;
   const email = payload.email?.trim().toLowerCase() || null;
+
+  const existingCustomer =
+    typeof entry?.customer === 'object' && entry?.customer
+      ? (entry.customer as {
+          full_name?: string | null;
+          email?: string | null;
+          phone_e164?: string | null;
+        })
+      : null;
+
+  const noCustomerChanges =
+    (existingCustomer?.full_name ?? null) === fullName &&
+    (existingCustomer?.email ?? null) === email &&
+    (existingCustomer?.phone_e164 ?? null) === phoneE164;
+
+  const noQueueChanges =
+    (entry.service_label ?? null) === serviceLabel &&
+    entry.customer_type === payload.customerType;
+
+  if (noCustomerChanges && noQueueChanges) {
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return new Response(
+      JSON.stringify({ error: 'No changes to apply' }),
+      { status: 409, headers }
+    );
+  }
 
   const { error: customerError } = await service
     .from('customers')
@@ -200,8 +227,8 @@ serve(async (req) => {
     const headers = new Headers();
     withCorsHeaders(headers);
     return new Response(
-      JSON.stringify({ error: updateError?.message || 'Failed to update queue entry' }),
-      { status: 500, headers }
+      JSON.stringify({ error: updateError?.message || 'No changes applied' }),
+      { status: updateError ? 500 : 409, headers }
     );
   }
 

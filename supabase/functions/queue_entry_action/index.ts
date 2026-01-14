@@ -101,11 +101,18 @@ serve(async (req) => {
 
   try {
     switch (payload.action) {
-      case 'complete':
-        await service
+      case 'complete': {
+        const { data: updated, error: updateError } = await service
           .from('queue_entries')
           .update({ status: 'completed', completed_at: nowIso })
-          .eq('id', entry.id);
+          .eq('id', entry.id)
+          .eq('status', 'serving')
+          .select('id')
+          .maybeSingle();
+        if (updateError) throw updateError;
+        if (!updated) {
+          throw new Error('Queue entry is not in serving status');
+        }
         await service.from('queue_events').insert({
           queue_entry_id: entry.id,
           actor_user_id: userId,
@@ -113,11 +120,19 @@ serve(async (req) => {
           payload: { source: 'queue_entry_action' },
         });
         break;
-      case 'cancel':
-        await service
+      }
+      case 'cancel': {
+        const { data: updated, error: updateError } = await service
           .from('queue_entries')
           .update({ status: 'cancelled', cancelled_at: nowIso })
-          .eq('id', entry.id);
+          .eq('id', entry.id)
+          .in('status', ['waiting', 'serving'])
+          .select('id')
+          .maybeSingle();
+        if (updateError) throw updateError;
+        if (!updated) {
+          throw new Error('Queue entry is not cancellable');
+        }
         await service.from('queue_events').insert({
           queue_entry_id: entry.id,
           actor_user_id: userId,
@@ -125,8 +140,9 @@ serve(async (req) => {
           payload: { source: 'queue_entry_action' },
         });
         break;
-      case 'return':
-        await service
+      }
+      case 'return': {
+        const { data: updated, error: updateError } = await service
           .from('queue_entries')
           .update({
             status: 'waiting',
@@ -135,7 +151,14 @@ serve(async (req) => {
             cancelled_at: null,
             no_show_at: null,
           })
-          .eq('id', entry.id);
+          .eq('id', entry.id)
+          .in('status', ['serving', 'completed', 'cancelled', 'no_show'])
+          .select('id')
+          .maybeSingle();
+        if (updateError) throw updateError;
+        if (!updated) {
+          throw new Error('Queue entry is already waiting');
+        }
         await service.from('queue_events').insert({
           queue_entry_id: entry.id,
           actor_user_id: userId,
@@ -143,8 +166,9 @@ serve(async (req) => {
           payload: { source: 'queue_entry_action' },
         });
         break;
-      case 'serving':
-        await service
+      }
+      case 'serving': {
+        const { data: updated, error: updateError } = await service
           .from('queue_entries')
           .update({
             status: 'serving',
@@ -153,7 +177,14 @@ serve(async (req) => {
             cancelled_at: null,
             no_show_at: null,
           })
-          .eq('id', entry.id);
+          .eq('id', entry.id)
+          .eq('status', 'waiting')
+          .select('id')
+          .maybeSingle();
+        if (updateError) throw updateError;
+        if (!updated) {
+          throw new Error('Queue entry is not in waiting status');
+        }
         await service.from('queue_events').insert({
           queue_entry_id: entry.id,
           actor_user_id: userId,
@@ -178,6 +209,7 @@ serve(async (req) => {
           }
         }
         break;
+      }
       case 'move': {
         if (!payload.targetLocationId) {
           throw new Error('Target location is required');
@@ -216,6 +248,9 @@ serve(async (req) => {
         if (!queueRow?.id) {
           throw new Error('Target queue is unavailable');
         }
+        if (queueRow.id === entry.queue_id) {
+          throw new Error('Target queue must be different');
+        }
         const { data: sortKeyData, error: sortKeyError } = await service.rpc(
           'next_sort_key',
           {
@@ -230,7 +265,7 @@ serve(async (req) => {
 
         const nextSortKey = Number(sortKeyData ?? 0);
 
-        await service
+        const { data: updated, error: updateError } = await service
           .from('queue_entries')
           .update({
             queue_id: queueRow.id,
@@ -241,7 +276,13 @@ serve(async (req) => {
             cancelled_at: null,
             no_show_at: null,
           })
-          .eq('id', entry.id);
+          .eq('id', entry.id)
+          .select('id')
+          .maybeSingle();
+        if (updateError) throw updateError;
+        if (!updated) {
+          throw new Error('Queue entry could not be moved');
+        }
 
         await service.from('queue_events').insert({
           queue_entry_id: entry.id,
@@ -254,8 +295,17 @@ serve(async (req) => {
         });
         break;
       }
-      case 'delete':
-        await service.from('queue_entries').delete().eq('id', entry.id);
+      case 'delete': {
+        const { data: deleted, error: deleteError } = await service
+          .from('queue_entries')
+          .delete()
+          .eq('id', entry.id)
+          .select('id')
+          .maybeSingle();
+        if (deleteError) throw deleteError;
+        if (!deleted) {
+          throw new Error('Queue entry not found');
+        }
         await service.from('queue_events').insert({
           queue_entry_id: entry.id,
           actor_user_id: userId,
@@ -263,6 +313,7 @@ serve(async (req) => {
           payload: { source: 'queue_entry_action' },
         });
         break;
+      }
       default:
         break;
     }
