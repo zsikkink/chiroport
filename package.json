@@ -18,6 +18,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install --with-deps",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf .next node_modules/.cache && npm cache clean --force",
     "clean:full": "npm run clean && rm -rf node_modules && npm install",
@@ -44,6 +46,7 @@
     "zod": "^3.25.32"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/container-queries": "^0.1.1",
     "@testing-library/jest-dom": "^6.4.0",
