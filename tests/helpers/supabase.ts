@@ -20,6 +20,7 @@ function loadEnvLocal() {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) return;
     const [key, ...rest] = trimmed.split('=');
+    if (!key) return;
     const value = rest.join('=').replace(/^['"]|['"]$/g, '');
     if (!process.env[key]) {
       process.env[key] = value;
@@ -32,11 +33,11 @@ export function getTestEnv(): TestEnv | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) return null;
-  return {
-    url,
-    anonKey,
-    serviceKey: process.env.SUPABASE_SECRET_KEY,
-  };
+  const env: TestEnv = { url, anonKey };
+  if (process.env.SUPABASE_SECRET_KEY) {
+    env.serviceKey = process.env.SUPABASE_SECRET_KEY;
+  }
+  return env;
 }
 
 export function createAnonClient(env: TestEnv) {
