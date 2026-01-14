@@ -717,14 +717,6 @@ export default function EmployeeDashboardPage() {
       null
     );
   }, [locationOptions, selectedLocationId]);
-  const historyDecisionEntry = useMemo(() => {
-    if (!historyDecisionEntryId) return null;
-    return (
-      waitingEntries.find((entry) => entry.queue_entry_id === historyDecisionEntryId) ??
-      servingEntries.find((entry) => entry.queue_entry_id === historyDecisionEntryId) ??
-      null
-    );
-  }, [historyDecisionEntryId, servingEntries, waitingEntries]);
   const moveLocationOptions = useMemo(() => {
     if (!moveEntry?.location_id) return [];
     const currentLocation = locationOptions.find(
@@ -1142,21 +1134,21 @@ export default function EmployeeDashboardPage() {
         const index = prev.findIndex((row) => row.queue_entry_id === entryId);
         if (index === -1) return prev;
         const updated = prev.slice();
-        updated[index] = { ...updated[index], ...updates };
+        updated[index] = { ...updated[index], ...updates } as (typeof updated)[number];
         return sortWaitingEntries(updated);
       });
       setServingEntries((prev) => {
         const index = prev.findIndex((row) => row.queue_entry_id === entryId);
         if (index === -1) return prev;
         const updated = prev.slice();
-        updated[index] = { ...updated[index], ...updates };
+        updated[index] = { ...updated[index], ...updates } as (typeof updated)[number];
         return sortServingEntries(updated);
       });
       setHistoryEntries((prev) => {
         const index = prev.findIndex((row) => row.queue_entry_id === entryId);
         if (index === -1) return prev;
         const updated = prev.slice();
-        updated[index] = { ...updated[index], ...updates };
+        updated[index] = { ...updated[index], ...updates } as (typeof updated)[number];
         return sortHistoryEntries(updated);
       });
     },
@@ -1205,10 +1197,12 @@ export default function EmployeeDashboardPage() {
   const handleQueueEntryChange = useCallback(
     async (payload: {
       eventType: string;
-      new?: Database['public']['Tables']['queue_entries']['Row'];
-      old?: Database['public']['Tables']['queue_entries']['Row'];
+      new?: Record<string, unknown>;
+      old?: Record<string, unknown>;
     }) => {
-      const record = payload.eventType === 'DELETE' ? payload.old : payload.new;
+      const record = (payload.eventType === 'DELETE'
+        ? payload.old
+        : payload.new) as Database['public']['Tables']['queue_entries']['Row'] | undefined;
       if (!record) return;
       const entryId = record.id;
       if (debugEnabled) {
@@ -1507,8 +1501,12 @@ export default function EmployeeDashboardPage() {
                 );
               }
               const updated = prev.slice();
+              const existingMessage = updated[existingIndex];
+              if (!existingMessage) {
+                return prev;
+              }
               updated[existingIndex] = {
-                ...updated[existingIndex],
+                ...existingMessage,
                 status: row.status ?? null,
               };
               return updated;

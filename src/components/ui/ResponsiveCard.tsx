@@ -1,6 +1,6 @@
 'use client'; // Mark as client component
 
-import { ReactNode } from 'react';
+import type { ReactNode, MouseEventHandler } from 'react';
 import { Heading } from './Typography';
 
 /**
@@ -10,7 +10,7 @@ interface ResponsiveCardProps {
   title?: string;         // Card heading text (optional)
   children: ReactNode;    // Card content
   className?: string;     // Optional additional CSS classes
-  onClick?: () => void;   // Optional click handler for clickable cards
+  onClick?: MouseEventHandler<HTMLDivElement>;   // Optional click handler for clickable cards
 }
 
 /**
