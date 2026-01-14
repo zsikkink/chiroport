@@ -82,240 +82,18 @@ serve(async (req) => {
 
   const { service, userId } = auth;
 
-  const { data: entry, error: entryError } = await service
-    .from('queue_entries')
-    .select('id, queue_id, customer_id, customer_type, status')
-    .eq('id', payload.queueEntryId)
-    .maybeSingle();
-
-  if (entryError || !entry?.id || !entry.queue_id || !entry.customer_id) {
-    const headers = new Headers();
-    withCorsHeaders(headers);
-    return new Response(JSON.stringify({ error: 'Queue entry not found' }), {
-      status: 404,
-      headers,
-    });
-  }
-
-  const nowIso = new Date().toISOString();
-
+  let result;
   try {
-    switch (payload.action) {
-      case 'complete': {
-        const { data: updated, error: updateError } = await service
-          .from('queue_entries')
-          .update({ status: 'completed', completed_at: nowIso })
-          .eq('id', entry.id)
-          .eq('status', 'serving')
-          .select('id')
-          .maybeSingle();
-        if (updateError) throw updateError;
-        if (!updated) {
-          throw new Error('Queue entry is not in serving status');
-        }
-        await service.from('queue_events').insert({
-          queue_entry_id: entry.id,
-          actor_user_id: userId,
-          event_type: 'completed_by_staff',
-          payload: { source: 'queue_entry_action' },
-        });
-        break;
-      }
-      case 'cancel': {
-        const { data: updated, error: updateError } = await service
-          .from('queue_entries')
-          .update({ status: 'cancelled', cancelled_at: nowIso })
-          .eq('id', entry.id)
-          .in('status', ['waiting', 'serving'])
-          .select('id')
-          .maybeSingle();
-        if (updateError) throw updateError;
-        if (!updated) {
-          throw new Error('Queue entry is not cancellable');
-        }
-        await service.from('queue_events').insert({
-          queue_entry_id: entry.id,
-          actor_user_id: userId,
-          event_type: 'cancelled_by_staff',
-          payload: { source: 'queue_entry_action' },
-        });
-        break;
-      }
-      case 'return': {
-        const { data: updated, error: updateError } = await service
-          .from('queue_entries')
-          .update({
-            status: 'waiting',
-            served_at: null,
-            completed_at: null,
-            cancelled_at: null,
-            no_show_at: null,
-          })
-          .eq('id', entry.id)
-          .in('status', ['serving', 'completed', 'cancelled', 'no_show'])
-          .select('id')
-          .maybeSingle();
-        if (updateError) throw updateError;
-        if (!updated) {
-          throw new Error('Queue entry is already waiting');
-        }
-        await service.from('queue_events').insert({
-          queue_entry_id: entry.id,
-          actor_user_id: userId,
-          event_type: 'returned_to_queue',
-          payload: { source: 'queue_entry_action' },
-        });
-        break;
-      }
-      case 'serving': {
-        const { data: updated, error: updateError } = await service
-          .from('queue_entries')
-          .update({
-            status: 'serving',
-            served_at: nowIso,
-            completed_at: null,
-            cancelled_at: null,
-            no_show_at: null,
-          })
-          .eq('id', entry.id)
-          .eq('status', 'waiting')
-          .select('id')
-          .maybeSingle();
-        if (updateError) throw updateError;
-        if (!updated) {
-          throw new Error('Queue entry is not in waiting status');
-        }
-        await service.from('queue_events').insert({
-          queue_entry_id: entry.id,
-          actor_user_id: userId,
-          event_type: 'serving_by_staff',
-          payload: { source: 'queue_entry_action' },
-        });
-        if (entry.customer_type === 'paying') {
-          const { data: customerRow } = await service
-            .from('customers')
-            .select('phone_e164, full_name')
-            .eq('id', entry.customer_id)
-            .maybeSingle();
-          if (customerRow?.phone_e164) {
-            await enqueueAndSendOutboxMessage(service, {
-              queue_entry_id: entry.id,
-              message_type: MESSAGE_TYPES.SERVING,
-              to_phone: customerRow.phone_e164,
-              body: buildServingNotification(),
-              status: 'queued',
-              idempotency_key: `serving:${entry.id}`,
-            });
-          }
-        }
-        break;
-      }
-      case 'move': {
-        if (!payload.targetLocationId) {
-          throw new Error('Target location is required');
-        }
-        const { data: currentLocation } = await service
-          .from('queues')
-          .select('location_id')
-          .eq('id', entry.queue_id)
-          .maybeSingle();
-        if (!currentLocation?.location_id) {
-          throw new Error('Current location not found');
-        }
-        const { data: currentLocationRow } = await service
-          .from('locations')
-          .select('airport_code')
-          .eq('id', currentLocation.location_id)
-          .maybeSingle();
-        const { data: targetLocationRow } = await service
-          .from('locations')
-          .select('id, airport_code')
-          .eq('id', payload.targetLocationId)
-          .maybeSingle();
-        if (!targetLocationRow?.id || !currentLocationRow?.airport_code) {
-          throw new Error('Target location is invalid');
-        }
-        if (currentLocationRow.airport_code !== targetLocationRow.airport_code) {
-          throw new Error('Can only move within the same airport');
-        }
-        const { data: queueRow } = await service
-          .from('queues')
-          .select('id')
-          .eq('location_id', targetLocationRow.id)
-          .eq('code', 'default')
-          .eq('is_open', true)
-          .maybeSingle();
-        if (!queueRow?.id) {
-          throw new Error('Target queue is unavailable');
-        }
-        if (queueRow.id === entry.queue_id) {
-          throw new Error('Target queue must be different');
-        }
-        const { data: sortKeyData, error: sortKeyError } = await service.rpc(
-          'next_sort_key',
-          {
-            p_queue_id: queueRow.id,
-            p_customer_type: entry.customer_type,
-          }
-        );
-
-        if (sortKeyError) {
-          throw new Error('Unable to assign queue order');
-        }
-
-        const nextSortKey = Number(sortKeyData ?? 0);
-
-        const { data: updated, error: updateError } = await service
-          .from('queue_entries')
-          .update({
-            queue_id: queueRow.id,
-            status: 'waiting',
-            sort_key: nextSortKey,
-            served_at: null,
-            completed_at: null,
-            cancelled_at: null,
-            no_show_at: null,
-          })
-          .eq('id', entry.id)
-          .select('id')
-          .maybeSingle();
-        if (updateError) throw updateError;
-        if (!updated) {
-          throw new Error('Queue entry could not be moved');
-        }
-
-        await service.from('queue_events').insert({
-          queue_entry_id: entry.id,
-          actor_user_id: userId,
-          event_type: 'moved_by_staff',
-          payload: {
-            from_location_id: currentLocation.location_id,
-            to_location_id: targetLocationRow.id,
-          },
-        });
-        break;
-      }
-      case 'delete': {
-        const { data: deleted, error: deleteError } = await service
-          .from('queue_entries')
-          .delete()
-          .eq('id', entry.id)
-          .select('id')
-          .maybeSingle();
-        if (deleteError) throw deleteError;
-        if (!deleted) {
-          throw new Error('Queue entry not found');
-        }
-        await service.from('queue_events').insert({
-          queue_entry_id: entry.id,
-          actor_user_id: userId,
-          event_type: 'deleted_by_staff',
-          payload: { source: 'queue_entry_action' },
-        });
-        break;
-      }
-      default:
-        break;
+    const { data, error } = await service.rpc('staff_queue_entry_action', {
+      p_entry_id: payload.queueEntryId,
+      p_action: payload.action,
+      p_target_location_id: payload.targetLocationId ?? null,
+      p_actor_user_id: userId,
+    });
+    if (error) throw error;
+    result = data?.[0];
+    if (!result?.out_queue_entry_id) {
+      throw new Error('Queue entry action failed');
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Action failed';
@@ -325,6 +103,28 @@ serve(async (req) => {
       status: 400,
       headers,
     });
+  }
+
+  if (payload.action === 'serving' && result?.out_customer_type === 'paying') {
+    try {
+      const { data: customerRow } = await service
+        .from('customers')
+        .select('phone_e164, full_name')
+        .eq('id', result.out_customer_id)
+        .maybeSingle();
+      if (customerRow?.phone_e164) {
+        await enqueueAndSendOutboxMessage(service, {
+          queue_entry_id: result.out_queue_entry_id,
+          message_type: MESSAGE_TYPES.SERVING,
+          to_phone: customerRow.phone_e164,
+          body: buildServingNotification(),
+          status: 'queued',
+          idempotency_key: `serving:${result.out_queue_entry_id}`,
+        });
+      }
+    } catch (error) {
+      console.error('queue_entry_action immediate send failed', error);
+    }
   }
 
   const headers = new Headers();
