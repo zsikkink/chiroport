@@ -13,5 +13,13 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
       - run: npm ci
+      - name: Validate Supabase migrations
+        run: |
+          supabase start
+          supabase db reset
+          supabase stop
       - run: npm run check
