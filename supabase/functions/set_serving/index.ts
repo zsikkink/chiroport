@@ -56,10 +56,10 @@ serve(async (req) => {
     );
   }
 
-  const { service, authed } = auth;
+  const { service } = auth;
   const nowIso = new Date().toISOString();
 
-  const { data, error } = await authed
+  const { data, error } = await service
     .from('queue_entries')
     .update({ status: 'serving', served_at: nowIso })
     .eq('id', payload.queueEntryId)
