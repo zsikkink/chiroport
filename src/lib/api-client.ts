@@ -271,27 +271,5 @@ export class SimpleRateLimiter implements RateLimiter {
 }
 
 export const apiClient = new ApiClient();
-export const formSubmissionLimiter = new SimpleRateLimiter(2);
-
-interface SubmitFormOptions {
-  client?: ApiClient;
-  limiter?: RateLimiter;
-}
-
-export async function submitWaitwhileForm<T>(
-  data: unknown,
-  options: SubmitFormOptions = {}
-): Promise<ApiResponse<T>> {
-  const client = options.client ?? apiClient;
-  const limiter = options.limiter ?? formSubmissionLimiter;
-
-  return client.post<T>('/api/waitwhile/submit', data, {
-    throttle: limiter,
-  });
-}
-
-export async function getVisitStatus<T>(visitId: string): Promise<ApiResponse<T>> {
-  return apiClient.get<T>(`/api/waitwhile/visit/${visitId}`);
-}
 
 export { ApiClient };

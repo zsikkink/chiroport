@@ -13,7 +13,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "check": "npm run type-check && npm run lint",
+    "check": "npm run check:env && npm run type-check && npm run lint",
+    "check:env": "node scripts/check-env.cjs",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -24,6 +25,7 @@
     "cache:check": "node scripts/cache-monitor.js check",
     "cache:clean": "node scripts/cache-monitor.js clean",
     "cache:monitor": "node scripts/cache-monitor.js monitor",
+    "queue:clear": "node scripts/clear-queues.cjs",
     "db:migrate": "supabase db push",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local --schema public > src/lib/supabase/database.types.ts"

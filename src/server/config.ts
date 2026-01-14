@@ -18,11 +18,6 @@ export const config = {
   // API Configuration
   api: {
     baseUrl: env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
-    waitwhile: {
-      url: env.WAITWHILE_API_URL || 'https://api.waitwhile.com/v2',
-      apiKey: env.WAITWHILE_API_KEY,
-      webhookSecret: env.WAITWHILE_WEBHOOK_SECRET,
-    },
     supabase: {
       url: env.NEXT_PUBLIC_SUPABASE_URL,
       anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -70,6 +65,7 @@ export const config = {
   messaging: {
     twilio: {
       accountSid: env.TWILIO_ACCOUNT_SID,
+      authToken: env.TWILIO_AUTH_TOKEN,
       apiKeySid: env.TWILIO_API_KEY_SID,
       apiKeySecret: env.TWILIO_API_KEY_SECRET,
       messagingServiceSid: env.TWILIO_MESSAGING_SERVICE_SID,
@@ -93,17 +89,9 @@ export function validateConfig(): { valid: boolean; errors: string[] } {
     if (!config.security.csrf.secret) {
       errors.push('CSRF_SECRET is required in production');
     }
-    if (!config.api.waitwhile.apiKey) {
-      errors.push('WAITWHILE_API_KEY is required');
-    }
     if (!config.monitoring.healthCheck.secret) {
       errors.push('HEALTH_CHECK_SECRET is recommended in production');
     }
-  }
-
-  // Always required
-  if (!config.api.waitwhile.apiKey) {
-    errors.push('WAITWHILE_API_KEY is required for API functionality');
   }
 
   return {
@@ -129,11 +117,11 @@ export function getSecurityHeaders(): Record<string, string> {
   // Content Security Policy
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://api.waitwhile.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https: blob:",
-    "connect-src 'self' https://api.waitwhile.com https://vitals.vercel-insights.com",
+    "connect-src 'self' https://vitals.vercel-insights.com",
     "frame-src 'none'",
     "object-src 'none'",
     "base-uri 'self'",

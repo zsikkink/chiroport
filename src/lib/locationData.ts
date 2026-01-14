@@ -1,25 +1,20 @@
 /**
  * Location Data - Simplified Structure
  *
- * Provides typed helpers on top of the JSON-based Waitwhile data source.
+ * Provides typed helpers on top of the JSON-based location data source.
  */
 
 import {
   airportLocations as airportData,
-  waitwhileServices as waitwhileServicesConfig,
   type AirportData,
   type ConcourseData,
   type LocationInfoData,
-  type ServiceConfig,
-} from '@/data/waitwhileData';
+} from '@/data/locationData';
 
 // Simplified type definitions (aliases for the shared data types)
 export type LocationInfo = LocationInfoData;
 export type ConcourseInfo = ConcourseData;
 export type AirportLocation = AirportData;
-
-// Global service configuration (same across all locations)
-export const waitwhileServices: ServiceConfig = waitwhileServicesConfig;
 
 /**
  * Deep copy the airport data so downstream mutations don't affect the shared source.
@@ -32,7 +27,6 @@ export const airportLocations: AirportLocation[] = airportData.map((airport) => 
     locationInfo: {
       ...concourse.locationInfo,
       intakeCategory: concourse.locationInfo.intakeCategory ?? 'standard',
-      dataFieldIds: { ...concourse.locationInfo.dataFieldIds },
     },
   })),
 }));
@@ -65,17 +59,3 @@ export function getLocationInfo(airportSlug: string, concourseSlug: string): Loc
 export function getLocationRoute(airportSlug: string, concourseSlug: string): string {
   return `/locations/${airportSlug}/${concourseSlug}`;
 }
-
-/**
- * Find location data by Waitwhile location ID
- */
-export function getLocationDataByWaitwhileId(waitwhileLocationId: string): LocationInfo | null {
-  for (const airport of airportLocations) {
-    for (const concourse of airport.concourses) {
-      if (concourse.locationInfo.waitwhileLocationId === waitwhileLocationId) {
-        return concourse.locationInfo;
-      }
-    }
-  }
-  return null;
-} 

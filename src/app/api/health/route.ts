@@ -31,7 +31,9 @@ export async function GET(request: NextRequest) {
     // Check environment configuration
     const envChecks = {
       csrfSecret: !!config.security.csrf.secret,
-      waitwhileApiKey: !!config.api.waitwhile.apiKey,
+      supabaseUrl: !!config.api.supabase.url,
+      supabaseAnonKey: !!config.api.supabase.anonKey,
+      twilioAccountSid: !!config.messaging.twilio.accountSid,
       rateLimit: {
         api: config.security.rateLimit.api,
         submit: config.security.rateLimit.submit
@@ -51,13 +53,15 @@ export async function GET(request: NextRequest) {
       security: {
         csrfEnabled: envChecks.csrfSecret,
         rateLimitingEnabled: true,
-        apiProtected: envChecks.waitwhileApiKey,
+        apiProtected: envChecks.supabaseUrl && envChecks.supabaseAnonKey,
         rateLimit: envChecks.rateLimit
       },
       services: {
-        waitwhile: {
-          configured: envChecks.waitwhileApiKey,
-          url: config.api.waitwhile.url
+        supabase: {
+          configured: envChecks.supabaseUrl && envChecks.supabaseAnonKey
+        },
+        twilio: {
+          configured: envChecks.twilioAccountSid
         }
       }
     };

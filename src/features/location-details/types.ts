@@ -24,10 +24,10 @@ export interface WizardDetails {
 }
 
 export interface SubmissionMeta {
-  customerId: string;
-  visitId: string;
+  queueEntryId: string;
+  publicToken: string;
   queuePosition?: number;
-  estimatedWaitTime?: number;
+  alreadyInQueue?: boolean;
 }
 
 export interface WizardState {
@@ -62,6 +62,8 @@ export type WizardAction =
 
 export interface LocationDetailsProps {
   locationInfo: LocationInfo;
+  airportCode: string;
+  locationCode: string;
   className?: string;
 }
 

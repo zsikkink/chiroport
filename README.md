@@ -5,7 +5,7 @@ A modern, responsive web application for managing chiropractic services across m
 ## 🚀 Features
 
 - **Multi-Airport Support**: Services across Atlanta, Dallas, Houston, Las Vegas, and Minneapolis airports
-- **Queue Management**: Integrated Waitwhile system for appointment scheduling
+- **Queue Management**: Supabase-backed walk-in queue with realtime updates
 - **Responsive Design**: Mobile-first approach with accessibility features
 - **Real-time Updates**: Dynamic location information and availability
 - **Optimized Performance**: Image optimization, lazy loading, and efficient animations
@@ -17,7 +17,8 @@ A modern, responsive web application for managing chiropractic services across m
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS with custom CSS variables
 - **Fonts**: Google Fonts (Lato + Libre Baskerville)
-- **Queue System**: Waitwhile embedded widgets
+- **Queue System**: Supabase Postgres + Realtime
+- **Messaging**: Twilio SMS
 - **Images**: Optimized WebP with JPEG fallbacks
 
 ### Project Structure
@@ -68,9 +69,6 @@ npm run dev
 ### Environment Variables
 Create a `.env.local` file:
 ```env
-# Optional: Custom Waitwhile script URL
-NEXT_PUBLIC_WAITWHILE_SCRIPT_URL=https://cdn.jsdelivr.net/npm/@waitwhile/waitwhile-embed/dist/waitwhile-embed.min.js
-
 # Optional: Feature flags
 NEXT_PUBLIC_ENABLE_ANALYTICS=false
 NEXT_PUBLIC_ENABLE_ERROR_REPORTING=true
@@ -93,52 +91,41 @@ npm run type-check   # Run TypeScript compiler
 ## 📍 Adding New Locations
 
 ### 1. Update Location Data
-Edit `src/utils/locationData.ts`:
+Edit `data/locationData.json`:
 
-```typescript
-// Add to airportMap
-export const airportMap = {
-  // ... existing airports
-  'new-airport': 'NEW',
-};
-
-// Add to locationDataMap
-const locationDataMap: Record<string, LocationInfo> = {
-  // ... existing locations
-  'new-airport-concourse-a': {
-    gate: 'A12',
-    landmark: 'Starbucks',
-    airportCode: 'NEW',
-    imageUrl: getImagePath('new', 'a'),
-    customLocation: 'Near Gate A12, next to Starbucks',
-    customHours: '8am - 6pm ET',
-    waitwhileId: 'your-waitwhile-location-id'
-  },
-};
-
-// Add to airportLocations
-export const airportLocations = [
-  // ... existing airports
-  {
-    name: 'New Airport',
-    code: 'NEW',
-    concourses: [
-      { name: 'concourse-a', route: 'new-airport/concourse-a', displayName: 'Concourse A' }
-    ]
-  }
-];
+```json
+{
+  "airports": [
+    {
+      "name": "New Airport",
+      "code": "NEW",
+      "slug": "new-airport",
+      "concourses": [
+        {
+          "name": "concourse-a",
+          "slug": "concourse-a",
+          "displayName": "Concourse A",
+          "locationInfo": {
+            "gate": "A12",
+            "landmark": "Starbucks",
+            "airportCode": "NEW",
+            "imageUrl": "/images/stores/new-a.webp",
+            "customLocation": "Near Gate A12, next to Starbucks.",
+            "customHours": "8am - 6pm ET",
+            "displayName": "Concourse A",
+            "intakeCategory": "standard"
+          }
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### 2. Add Location Images
 Place images in `public/images/stores/`:
 - `new-a.webp` (preferred format)
 - `new-a.jpeg` (fallback format)
-
-### 3. Get Waitwhile Location ID
-1. Log into your Waitwhile dashboard
-2. Navigate to the specific location
-3. Copy the location ID from the URL or settings
-4. Update the `waitwhileId` in the location data
 
 ## 🎨 Design System
 
@@ -158,16 +145,6 @@ Place images in `public/images/stores/`:
 - **Buttons**: 4 variants (primary, secondary, location, back)
 - **Typography**: Semantic components (Title, Heading, BodyText)
 - **Layout**: Responsive containers with overflow protection
-
-## 🔧 Configuration
-
-### Waitwhile Integration
-The app integrates with Waitwhile for queue management:
-
-1. **Script Loading**: Loaded in `layout.tsx` with `beforeInteractive` strategy
-2. **Error Handling**: Graceful fallbacks if Waitwhile fails to load
-3. **Loading States**: User feedback during initialization
-4. **Retry Logic**: Users can retry failed connections
 
 ### Image Optimization
 - **Formats**: WebP primary, JPEG fallback
@@ -199,12 +176,6 @@ Catches React errors and displays user-friendly fallbacks:
 </ErrorBoundary>
 ```
 
-### Waitwhile Errors
-- Connection timeouts (10 seconds)
-- Service unavailable fallbacks
-- Retry mechanisms
-- User-friendly error messages
-
 ### Loading States
 - Page-level loading for route changes
 - Component-level loading for async operations
@@ -234,10 +205,9 @@ debugLog(message, data) // Conditional logging
 ```
 
 ### Common Issues
-1. **Waitwhile not loading**: Check network connectivity and script URL
-2. **Images not displaying**: Verify file paths and formats
-3. **Text cutoff**: Use `.text-safe` utility class
-4. **Layout issues**: Check responsive breakpoints
+1. **Images not displaying**: Verify file paths and formats
+2. **Text cutoff**: Use `.text-safe` utility class
+3. **Layout issues**: Check responsive breakpoints
 
 ## 🚀 Deployment
 
@@ -368,7 +338,7 @@ npm run dev:robust
 - **Animations**: Framer Motion
 - **Validation**: Zod
 - **Testing**: Jest + React Testing Library
-- **API Integration**: Waitwhile API
+- **API Integration**: Supabase Edge Functions + Twilio
 
 ## 🧭 Project Structure
 

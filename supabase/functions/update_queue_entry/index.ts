@@ -1,0 +1,241 @@
+import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { withCorsHeaders, corsHeaders } from '../_shared/cors.ts';
+import { createAuthedClient, createServiceRoleClient } from '../_shared/supabaseClient.ts';
+import { normalizePhoneToE164 } from '../_shared/phone.ts';
+
+type Payload = {
+  queueEntryId?: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  serviceLabel?: string;
+  customerType?: 'paying' | 'priority_pass';
+};
+
+const ALLOWED_CUSTOMER_TYPES = new Set(['paying', 'priority_pass']);
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  if (req.method !== 'POST') {
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers,
+    });
+  }
+
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader) {
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers,
+    });
+  }
+
+  let payload: Payload = {};
+  try {
+    payload = (await req.json()) as Payload;
+  } catch {
+    payload = {};
+  }
+
+  if (!payload.queueEntryId) {
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return new Response(JSON.stringify({ error: 'Queue entry id is required' }), {
+      status: 400,
+      headers,
+    });
+  }
+
+  const serviceLabel = payload.serviceLabel?.trim();
+  if (!serviceLabel) {
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return new Response(JSON.stringify({ error: 'Service label is required' }), {
+      status: 400,
+      headers,
+    });
+  }
+
+  if (!payload.customerType || !ALLOWED_CUSTOMER_TYPES.has(payload.customerType)) {
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return new Response(JSON.stringify({ error: 'Customer type is invalid' }), {
+      status: 400,
+      headers,
+    });
+  }
+
+  const phoneE164 = normalizePhoneToE164(payload.phone ?? '');
+  if (!phoneE164) {
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return new Response(JSON.stringify({ error: 'Valid phone number is required' }), {
+      status: 400,
+      headers,
+    });
+  }
+
+  const authed = createAuthedClient(authHeader);
+  const service = createServiceRoleClient();
+
+  const { data: userData, error: userError } = await authed.auth.getUser();
+  if (userError || !userData?.user) {
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers,
+    });
+  }
+
+  const { data: profile, error: profileError } = await service
+    .from('employee_profiles')
+    .select('role,is_open')
+    .eq('user_id', userData.user.id)
+    .maybeSingle();
+
+  if (profileError || !profile?.is_open || !['employee', 'admin'].includes(profile.role)) {
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 403,
+      headers,
+    });
+  }
+
+  const { data: entry, error: entryError } = await service
+    .from('queue_entries')
+    .select('id, customer_id, queue_id, customer_type, status')
+    .eq('id', payload.queueEntryId)
+    .maybeSingle();
+
+  if (entryError) {
+    console.error('update_queue_entry lookup failed', {
+      error: entryError,
+      queueEntryId: payload.queueEntryId,
+    });
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return new Response(
+      JSON.stringify({ error: entryError.message || 'Failed to load queue entry' }),
+      { status: 500, headers }
+    );
+  }
+
+  if (!entry?.id || !entry.customer_id || !entry.queue_id) {
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return new Response(
+      JSON.stringify({ error: 'Queue entry not found' }),
+      { status: 404, headers }
+    );
+  }
+
+  const fullName = payload.fullName?.trim() || null;
+  const email = payload.email?.trim().toLowerCase() || null;
+
+  const { error: customerError } = await service
+    .from('customers')
+    .update({
+      full_name: fullName,
+      email,
+      phone_e164: phoneE164,
+    })
+    .eq('id', entry.customer_id);
+
+  if (customerError) {
+    console.error('update_queue_entry customer update failed', {
+      error: customerError,
+      customerId: entry.customer_id,
+    });
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return new Response(
+      JSON.stringify({
+        error:
+          customerError.code === '23505'
+            ? 'Phone number already in use.'
+            : customerError.message || 'Failed to update customer',
+      }),
+      { status: 400, headers }
+    );
+  }
+
+  const updates: Record<string, unknown> = {
+    service_label: serviceLabel,
+    customer_type: payload.customerType,
+  };
+
+  if (entry.status === 'waiting' && payload.customerType !== entry.customer_type) {
+    const { data: sortRow, error: sortError } = await service
+      .from('queue_entries')
+      .select('sort_key')
+      .eq('queue_id', entry.queue_id)
+      .eq('customer_type', payload.customerType)
+      .eq('status', 'waiting')
+      .order('sort_key', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (sortError) {
+      console.error('update_queue_entry sort_key lookup failed', {
+        error: sortError,
+        queueEntryId: entry.id,
+      });
+      const headers = new Headers();
+      withCorsHeaders(headers);
+      return new Response(
+        JSON.stringify({ error: 'Unable to reorder queue entry' }),
+        { status: 500, headers }
+      );
+    }
+
+    updates.sort_key = Number(sortRow?.sort_key ?? 0) + 1;
+  }
+
+  const { data: updated, error: updateError } = await service
+    .from('queue_entries')
+    .update(updates)
+    .eq('id', entry.id)
+    .select('id')
+    .maybeSingle();
+
+  if (updateError || !updated) {
+    console.error('update_queue_entry queue update failed', {
+      error: updateError,
+      queueEntryId: entry.id,
+    });
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return new Response(
+      JSON.stringify({ error: updateError?.message || 'Failed to update queue entry' }),
+      { status: 500, headers }
+    );
+  }
+
+  await service.from('queue_events').insert({
+    queue_entry_id: entry.id,
+    actor_user_id: userData.user.id,
+    event_type: 'edited_by_staff',
+    payload: {
+      service_label: serviceLabel,
+      customer_type: payload.customerType,
+    },
+  });
+
+  const headers = new Headers();
+  withCorsHeaders(headers);
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers,
+  });
+});

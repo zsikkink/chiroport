@@ -4,11 +4,10 @@ import { useReducer, useEffect } from 'react';
 import { motion, AnimatePresence, cubicBezier } from 'framer-motion';
 import 'react-phone-number-input/style.css';
 import { BodyText, ResponsiveCard } from '@/components/ui';
-import { FormSubmissionData } from '@/types/waitwhile';
-import { submitWaitwhileForm } from '@/lib';
+import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { detailsSchemaFactory } from '@/schemas/intake';
 import type { LocationDetailsProps, Step } from '@/features/location-details/types';
-import type { IntakeCategory } from '@/data/waitwhileData';
+import type { IntakeCategory } from '@/data/locationData';
 import { FLOW_CONFIG, FLOW_TRANSITIONS, TREATMENTS } from '@/features/location-details/config';
 import { createWizardInitialState, wizardReducer } from '@/features/location-details/reducer';
 import {
@@ -23,9 +22,13 @@ import {
 
 // Define the expected API response structure
 interface SubmissionResponse {
-  visitId: string;
+  queueEntryId: string;
+  publicToken: string;
+  queueId: string;
+  status: string;
+  createdAt: string;
   queuePosition?: number;
-  estimatedWaitTime?: number;
+  alreadyInQueue?: boolean;
 }
 
 // ============================================================================
@@ -68,8 +71,11 @@ const fadeVariants = {
 
 export default function LocationDetails({
   locationInfo,
+  airportCode,
+  locationCode,
   className = '',
 }: LocationDetailsProps) {
+  const supabase = getSupabaseBrowserClient();
   const intakeCategory: IntakeCategory = locationInfo.intakeCategory ?? 'standard';
   const flowConfig = FLOW_CONFIG[intakeCategory];
   const flowTransitions = FLOW_TRANSITIONS[intakeCategory];
@@ -145,7 +151,7 @@ export default function LocationDetails({
 
   useEffect(() => {
     dispatch({ type: 'RESET', step: flowConfig.initialStep });
-  }, [locationInfo.waitwhileLocationId, flowConfig.initialStep]);
+  }, [airportCode, locationCode, flowConfig.initialStep]);
 
   const goTo = (step: Step) => {
     if (!flowConfig.steps.includes(step)) {
@@ -179,51 +185,105 @@ export default function LocationDetails({
     dispatch({ type: 'SUBMIT_START' });
 
     try {
-      // Prepare form data for API (no serviceId needed anymore)
-      const formData: FormSubmissionData = {
-        name: validationPayload.name,
-        phone: validationPayload.phone,
-        email: validationPayload.email,
-        consent: validationPayload.consent,
-        selectedTreatment: state.selectedTreatment,
-        spinalAdjustment: state.spinalAdjustment,
-        locationId: locationInfo.waitwhileLocationId
-      };
+      const isPriorityPass =
+        state.visitCategory === 'priority_pass' || state.isMember === true;
+      const wantsAdjustments = isPriorityPass && state.spinalAdjustment === true;
+      const effectiveCustomerType = wantsAdjustments
+        ? 'paying'
+        : isPriorityPass
+          ? 'priority_pass'
+          : 'paying';
+      const massageSelection = state.selectedTreatment?.title?.trim();
+      const massageLabel = massageSelection
+        ? `Massage: ${massageSelection.toLowerCase()}`
+        : 'Massage';
+      const serviceLabel = wantsAdjustments
+        ? 'Priority Pass + Adjustments'
+        : isPriorityPass
+          ? 'Priority Pass'
+          : intakeCategory === 'offers_massage'
+            ? state.visitCategory === 'chiropractor'
+              ? 'Chiropractor'
+              : state.visitCategory === 'massage'
+                ? massageLabel
+                : 'Paying'
+            : 'Paying';
+      const consentKey = isBodyworkVisitor
+        ? 'queue_join_consent_bodywork'
+        : 'queue_join_consent_chiropractic';
 
-      // Submit using secure API client with automatic CSRF handling
-      const result = await submitWaitwhileForm<SubmissionResponse>(formData);
-
-      if (!result.success) {
-        throw new Error(result.error || result.message || 'Submission failed');
-      }
-
-      // Success - updated to match new API response structure
-      const responseData = result.data as SubmissionResponse;
-      const payload: { customerId: string; visitId: string; queuePosition?: number; estimatedWaitTime?: number } = {
-        customerId: '', // Not needed with new API structure
-        visitId: responseData.visitId,
-      };
-      
-      if (responseData.queuePosition !== undefined) {
-        payload.queuePosition = responseData.queuePosition;
-      }
-      
-      if (responseData.estimatedWaitTime !== undefined) {
-        payload.estimatedWaitTime = responseData.estimatedWaitTime;
-      }
-      
-      dispatch({
-        type: 'SUBMIT_SUCCESS',
-        payload
+      const { data, error } = await supabase.functions.invoke('queue_join', {
+        body: {
+          airportCode,
+          locationCode,
+          name: validationPayload.name,
+          phone: validationPayload.phone,
+          email: validationPayload.email,
+          consent: validationPayload.consent,
+          customerType: effectiveCustomerType,
+          serviceLabel,
+          consentKey,
+        },
       });
 
-      // Navigate to success step
-      goTo('success');
+      if (error) {
+        let message = error.message || 'Submission failed';
+        const context = (error as { context?: Response }).context;
+        if (context) {
+          try {
+            const raw = await context.text();
+            if (raw) {
+              try {
+                const parsedError = JSON.parse(raw);
+                message = parsedError?.error || message;
+              } catch {
+                message = raw;
+              }
+            }
+          } catch {
+            // Ignore response parsing failures.
+          }
+        }
+        throw new Error(message);
+      }
 
+      if (!data || data.error) {
+        throw new Error(data?.error || 'Submission failed');
+      }
+
+      let responseData: SubmissionResponse;
+      if (typeof data === 'string') {
+        try {
+          responseData = JSON.parse(data) as SubmissionResponse;
+        } catch {
+          throw new Error('Invalid response from queue service. Please try again.');
+        }
+      } else {
+        responseData = data as SubmissionResponse;
+      }
+      const { data: visitData, error: visitError } = await supabase.rpc('get_visit', {
+        p_public_token: responseData.publicToken,
+      });
+
+      if (visitError || !visitData?.length) {
+        throw new Error('Unable to confirm your place in line. Please try again.');
+      }
+
+      const payload = {
+        queueEntryId: responseData.queueEntryId,
+        publicToken: responseData.publicToken,
+        ...(effectiveCustomerType === 'paying'
+          ? { queuePosition: responseData.queuePosition }
+          : {}),
+        alreadyInQueue: responseData.alreadyInQueue ?? false,
+      };
+
+      dispatch({ type: 'SUBMIT_SUCCESS', payload });
+      goTo('success');
     } catch (error) {
       dispatch({
         type: 'SUBMIT_ERROR',
-        error: error instanceof Error ? error.message : 'An unexpected error occurred'
+        error: error instanceof Error ? error.message : 'An unexpected error occurred',
       });
     }
   };
@@ -327,7 +387,7 @@ export default function LocationDetails({
             animate="animate"
             exit="exit"
           >
-            <SuccessStep />
+            <SuccessStep submissionSuccess={state.submissionSuccess} />
           </motion.div>
         );
 

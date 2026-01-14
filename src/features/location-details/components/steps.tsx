@@ -255,21 +255,40 @@ export const DetailsStep = ({
   );
 };
 
-export const SuccessStep = () => (
-  <div className="space-y-6 py-4 text-center">
-    <div className="mb-6">
-      <BodyText size="3xl" className="font-bold text-white mb-4">
-        🎉 You&apos;re in the queue! 🎉
-      </BodyText>
-    </div>
+export const SuccessStep = ({
+  submissionSuccess,
+}: {
+  submissionSuccess: WizardState['submissionSuccess'];
+}) => {
+  const queuePosition = submissionSuccess?.queuePosition ?? null;
+  const alreadyInQueue = submissionSuccess?.alreadyInQueue ?? false;
 
-    <div className="space-y-4">
-      <BodyText size="xl" className="text-white">
-        We&apos;ll text you when you&apos;re up next.
-      </BodyText>
-      <BodyText size="xl" className="text-white break-keep">
-        If you enjoy your experience, a gratuity is greatly appreciated!
-      </BodyText>
+  return (
+    <div className="space-y-6 py-4 text-center">
+      <div className="mb-6">
+        <BodyText size="3xl" className="font-bold text-white mb-4">
+          🎉 You&apos;re in the queue! 🎉
+        </BodyText>
+        {alreadyInQueue ? (
+          <BodyText size="lg" className="text-white/80">
+            You were already in line, so we kept your place.
+          </BodyText>
+        ) : null}
+      </div>
+
+      <div className="space-y-4">
+        {queuePosition !== null ? (
+          <BodyText size="xl" className="text-white">
+            Your current position: {queuePosition}
+          </BodyText>
+        ) : null}
+        <BodyText size="xl" className="text-white">
+          We&apos;ll text you when you&apos;re up next.
+        </BodyText>
+        <BodyText size="xl" className="text-white break-keep">
+          If you enjoy your experience, a gratuity is greatly appreciated!
+        </BodyText>
+      </div>
     </div>
-  </div>
-);
+  );
+};

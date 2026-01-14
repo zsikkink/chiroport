@@ -197,6 +197,8 @@ export type Database = {
           public_token: string
           queue_id: string
           served_at: string | null
+          service_label: string
+          sort_key: number
           status: Database["public"]["Enums"]["queue_status"]
           updated_at: string
         }
@@ -213,6 +215,8 @@ export type Database = {
           public_token?: string
           queue_id: string
           served_at?: string | null
+          service_label?: string
+          sort_key?: number
           status?: Database["public"]["Enums"]["queue_status"]
           updated_at?: string
         }
@@ -229,6 +233,8 @@ export type Database = {
           public_token?: string
           queue_id?: string
           served_at?: string | null
+          service_label?: string
+          sort_key?: number
           status?: Database["public"]["Enums"]["queue_status"]
           updated_at?: string
         }
@@ -285,6 +291,27 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "queue_events_queue_entry_id_fkey"
+            columns: ["queue_entry_id"]
+            isOneToOne: false
+            referencedRelation: "employee_queue_history_view"
+            referencedColumns: ["queue_entry_id"]
+          },
+          {
+            foreignKeyName: "queue_events_queue_entry_id_fkey"
+            columns: ["queue_entry_id"]
+            isOneToOne: false
+            referencedRelation: "employee_queue_serving_view"
+            referencedColumns: ["queue_entry_id"]
+          },
+          {
+            foreignKeyName: "queue_events_queue_entry_id_fkey"
+            columns: ["queue_entry_id"]
+            isOneToOne: false
+            referencedRelation: "employee_queue_waiting_view"
+            referencedColumns: ["queue_entry_id"]
+          },
           {
             foreignKeyName: "queue_events_queue_entry_id_fkey"
             columns: ["queue_entry_id"]
@@ -364,11 +391,15 @@ export type Database = {
       }
       sms_outbox: {
         Row: {
+          attempt_count: number
           body: string
           created_at: string
           id: string
           idempotency_key: string
+          last_error: string | null
+          locked_at: string | null
           message_type: string
+          next_attempt_at: string
           provider_message_id: string | null
           queue_entry_id: string
           sent_at: string | null
@@ -377,11 +408,15 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attempt_count?: number
           body: string
           created_at?: string
           id?: string
           idempotency_key: string
+          last_error?: string | null
+          locked_at?: string | null
           message_type: string
+          next_attempt_at?: string
           provider_message_id?: string | null
           queue_entry_id: string
           sent_at?: string | null
@@ -390,11 +425,15 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attempt_count?: number
           body?: string
           created_at?: string
           id?: string
           idempotency_key?: string
+          last_error?: string | null
+          locked_at?: string | null
           message_type?: string
+          next_attempt_at?: string
           provider_message_id?: string | null
           queue_entry_id?: string
           sent_at?: string | null
@@ -407,6 +446,27 @@ export type Database = {
             foreignKeyName: "sms_outbox_queue_entry_id_fkey"
             columns: ["queue_entry_id"]
             isOneToOne: false
+            referencedRelation: "employee_queue_history_view"
+            referencedColumns: ["queue_entry_id"]
+          },
+          {
+            foreignKeyName: "sms_outbox_queue_entry_id_fkey"
+            columns: ["queue_entry_id"]
+            isOneToOne: false
+            referencedRelation: "employee_queue_serving_view"
+            referencedColumns: ["queue_entry_id"]
+          },
+          {
+            foreignKeyName: "sms_outbox_queue_entry_id_fkey"
+            columns: ["queue_entry_id"]
+            isOneToOne: false
+            referencedRelation: "employee_queue_waiting_view"
+            referencedColumns: ["queue_entry_id"]
+          },
+          {
+            foreignKeyName: "sms_outbox_queue_entry_id_fkey"
+            columns: ["queue_entry_id"]
+            isOneToOne: false
             referencedRelation: "queue_entries"
             referencedColumns: ["id"]
           },
@@ -414,10 +474,266 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      employee_queue_history_view: {
+        Row: {
+          confirm_sms_status: string | null
+          created_at: string | null
+          customer_id: string | null
+          customer_type: Database["public"]["Enums"]["customer_type"] | null
+          email: string | null
+          end_ts: string | null
+          full_name: string | null
+          last_inbound_at: string | null
+          last_inbound_body: string | null
+          location_display_name: string | null
+          location_id: string | null
+          location_timezone: string | null
+          next_sms_status: string | null
+          phone_e164: string | null
+          queue_entry_id: string | null
+          queue_id: string | null
+          service_label: string | null
+          serving_sms_status: string | null
+          sort_key: number | null
+          status: Database["public"]["Enums"]["queue_status"] | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queue_entries_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queue_entries_queue_id_fkey"
+            columns: ["queue_id"]
+            isOneToOne: false
+            referencedRelation: "queues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queues_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_queue_serving_view: {
+        Row: {
+          confirm_sms_status: string | null
+          created_at: string | null
+          customer_id: string | null
+          customer_type: Database["public"]["Enums"]["customer_type"] | null
+          email: string | null
+          full_name: string | null
+          last_inbound_at: string | null
+          last_inbound_body: string | null
+          location_display_name: string | null
+          location_id: string | null
+          location_timezone: string | null
+          next_sms_status: string | null
+          phone_e164: string | null
+          queue_entry_id: string | null
+          queue_id: string | null
+          service_label: string | null
+          served_at: string | null
+          serving_sms_status: string | null
+          sort_key: number | null
+          status: Database["public"]["Enums"]["queue_status"] | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queue_entries_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queue_entries_queue_id_fkey"
+            columns: ["queue_id"]
+            isOneToOne: false
+            referencedRelation: "queues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queues_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_queue_waiting_view: {
+        Row: {
+          confirm_sms_status: string | null
+          created_at: string | null
+          customer_id: string | null
+          customer_type: Database["public"]["Enums"]["customer_type"] | null
+          email: string | null
+          full_name: string | null
+          last_inbound_at: string | null
+          last_inbound_body: string | null
+          location_display_name: string | null
+          location_id: string | null
+          location_timezone: string | null
+          next_sms_status: string | null
+          phone_e164: string | null
+          queue_entry_id: string | null
+          queue_id: string | null
+          queue_position: number | null
+          service_label: string | null
+          serving_sms_status: string | null
+          sort_key: number | null
+          status: Database["public"]["Enums"]["queue_status"] | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queue_entries_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queue_entries_queue_id_fkey"
+            columns: ["queue_id"]
+            isOneToOne: false
+            referencedRelation: "queues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queues_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      advance_queue: {
+        Args: { p_queue_id: string }
+        Returns: {
+          out_new_status: Database["public"]["Enums"]["queue_status"]
+          out_queue_entry_id: string
+          out_served_at: string
+        }[]
+      }
+      cancel_visit: {
+        Args: { p_public_token: string }
+        Returns: {
+          out_cancelled_at: string
+          out_queue_entry_id: string
+          out_status: Database["public"]["Enums"]["queue_status"]
+        }[]
+      }
+      claim_sms_outbox: {
+        Args: {
+          p_limit?: number
+          p_lock_minutes?: number
+          p_message_id?: string
+        }
+        Returns: {
+          attempt_count: number
+          body: string
+          created_at: string
+          id: string
+          idempotency_key: string
+          last_error: string | null
+          locked_at: string | null
+          message_type: string
+          next_attempt_at: string
+          provider_message_id: string | null
+          queue_entry_id: string
+          sent_at: string | null
+          status: string
+          to_phone: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "sms_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_visit: {
+        Args: { p_public_token: string }
+        Returns: {
+          cancelled_at: string
+          completed_at: string
+          created_at: string
+          location_display_name: string
+          location_timezone: string
+          no_show_at: string
+          queue_entry_id: string
+          queue_position: number
+          served_at: string
+          status: Database["public"]["Enums"]["queue_status"]
+        }[]
+      }
+      is_admin: { Args: never; Returns: boolean }
+      is_employee: { Args: never; Returns: boolean }
+      join_queue:
+        | {
+            Args: {
+              p_airport_code: string
+              p_consent_version_id: string
+              p_customer_type: Database["public"]["Enums"]["customer_type"]
+              p_email: string
+              p_full_name: string
+              p_location_code: string
+              p_phone_e164: string
+            }
+            Returns: {
+              out_created_at: string
+              out_public_token: string
+              out_queue_entry_id: string
+              out_queue_id: string
+              out_queue_position: number
+              out_status: Database["public"]["Enums"]["queue_status"]
+            }[]
+          }
+        | {
+            Args: {
+              p_airport_code: string
+              p_consent_version_id: string
+              p_customer_type: Database["public"]["Enums"]["customer_type"]
+              p_email: string
+              p_full_name: string
+              p_location_code: string
+              p_phone_e164: string
+              p_service_label: string
+            }
+            Returns: {
+              out_created_at: string
+              out_public_token: string
+              out_queue_entry_id: string
+              out_queue_id: string
+              out_queue_position: number
+              out_status: Database["public"]["Enums"]["queue_status"]
+            }[]
+          }
+      reorder_entry: {
+        Args: {
+          p_after_entry_id?: string
+          p_before_entry_id?: string
+          p_queue_entry_id: string
+        }
+        Returns: {
+          out_queue_entry_id: string
+          out_sort_key: number
+        }[]
+      }
     }
     Enums: {
       customer_type: "paying" | "priority_pass"

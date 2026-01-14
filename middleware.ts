@@ -85,13 +85,35 @@ export async function middleware(request: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   
   // Add Content Security Policy
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  let supabaseOrigin: string | null = null;
+  let supabaseWs: string | null = null;
+
+  if (supabaseUrl) {
+    try {
+      supabaseOrigin = new URL(supabaseUrl).origin;
+      supabaseWs = supabaseOrigin.replace('https://', 'wss://').replace('http://', 'ws://');
+    } catch {
+      supabaseOrigin = null;
+      supabaseWs = null;
+    }
+  }
+
+  const connectSrc = ["'self'"];
+  if (supabaseOrigin) {
+    connectSrc.push(supabaseOrigin);
+  }
+  if (supabaseWs) {
+    connectSrc.push(supabaseWs);
+  }
+
   const csp = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https: blob:",
-    "connect-src 'self' https://api.waitwhile.com",
+    `connect-src ${connectSrc.join(' ')}`,
   ].join('; ');
   
   response.headers.set('Content-Security-Policy', csp);

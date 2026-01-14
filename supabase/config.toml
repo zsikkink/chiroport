@@ -5,3 +5,27 @@ port = 54322
 
 [studio]
 port = 54323
+
+[functions.queue_join]
+verify_jwt = false
+
+[functions.send_sms]
+verify_jwt = false
+
+[functions.twilio_webhook]
+verify_jwt = false
+
+[functions.advance_queue]
+verify_jwt = false
+
+[functions.set_serving]
+verify_jwt = false
+
+[functions.send_employee_message]
+verify_jwt = false
+
+[functions.update_queue_entry]
+verify_jwt = false
+
+[functions.queue_entry_action]
+verify_jwt = false

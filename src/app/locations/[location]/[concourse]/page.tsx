@@ -109,7 +109,11 @@ export default async function ConcoursePage({ params }: PageProps) {
       <StaticLayout>
         {/* Location Details Section - Client component */}
         <div className="w-full sm:max-w-3xl mx-auto px-4 sm:px-0 mt-20">
-          <LocationDetails locationInfo={locationInfo} />
+          <LocationDetails
+            locationInfo={locationInfo}
+            airportCode={airport.code}
+            locationCode={concourseInfo.slug}
+          />
         </div>
       </StaticLayout>
     </>
