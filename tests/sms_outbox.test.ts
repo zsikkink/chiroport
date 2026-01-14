@@ -54,17 +54,23 @@ describe('sms_outbox claim guard', () => {
       .select('id')
       .maybeSingle();
 
-    const { data: nextRow } = await service
-      .from('sms_outbox')
-      .insert({
+    await service.from('sms_outbox').upsert(
+      {
         queue_entry_id: entryId,
         message_type: 'next',
         to_phone: phone,
         body: 'next test',
         status: 'queued',
         idempotency_key: `next:${entryId}`,
-      })
+      },
+      { onConflict: 'queue_entry_id,message_type', ignoreDuplicates: true }
+    );
+
+    const { data: nextRow } = await service
+      .from('sms_outbox')
       .select('id')
+      .eq('queue_entry_id', entryId)
+      .eq('message_type', 'next')
       .maybeSingle();
 
     expect(confirmRow?.id).toBeTruthy();
