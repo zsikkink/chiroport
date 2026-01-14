@@ -19,6 +19,11 @@ function loadEnvFile(filePath) {
 
 loadEnvFile(path.join(process.cwd(), '.env.local'));
 
+if (process.env.CI && process.env.SKIP_ENV_CHECK !== '0') {
+  console.log('Skipping env check in CI.');
+  process.exit(0);
+}
+
 const required = [
   'NEXT_PUBLIC_SUPABASE_URL',
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
