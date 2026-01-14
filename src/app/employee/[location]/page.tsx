@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import type { Session } from '@supabase/supabase-js';
 import { ResponsiveCard, Button, LoadingSpinner } from '@/components/ui';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { requireEnv } from '@/lib/supabase/helpers';
 import type { Database } from '@/lib/supabase/database.types';
 import { toLocationSlug } from '@/lib/locationSlug';
 
@@ -1037,14 +1038,11 @@ export default function EmployeeDashboardPage() {
   const handleSendMessage = async () => {
     if (!chatEntry) return;
     if (!chatDraft.trim()) return;
-    if (!session?.access_token) {
-      setChatError('You are not signed in.');
-      return;
-    }
 
     setChatSending(true);
     setChatError('');
     try {
+      const headers = await getFunctionHeaders();
       const { data, error } = await supabase.functions.invoke(
         'send_employee_message',
         {
@@ -1052,7 +1050,7 @@ export default function EmployeeDashboardPage() {
             queueEntryId: chatEntry.queue_entry_id,
             body: chatDraft.trim(),
           },
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          headers,
         }
       );
 
@@ -1088,6 +1086,12 @@ export default function EmployeeDashboardPage() {
       data.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (session?.access_token) {
+      supabase.functions.setAuth(session.access_token);
+    }
+  }, [session?.access_token]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -1581,20 +1585,46 @@ export default function EmployeeDashboardPage() {
     [currentUser?.id, queueId, selectedLocationId]
   );
 
+  const getFunctionHeaders = useCallback(async () => {
+    const anonKey = requireEnv(
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY'
+    );
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session?.access_token) {
+      throw new Error('You are not signed in.');
+    }
+    let activeSession = data.session;
+    const expiresAt = activeSession.expires_at
+      ? activeSession.expires_at * 1000
+      : 0;
+    if (expiresAt && expiresAt - Date.now() < 30_000) {
+      const { data: refreshed, error: refreshError } =
+        await supabase.auth.refreshSession();
+      if (refreshError || !refreshed.session?.access_token) {
+        throw new Error('Session expired. Please sign in again.');
+      }
+      activeSession = refreshed.session;
+    }
+    supabase.functions.setAuth(activeSession.access_token);
+    return {
+      Authorization: `Bearer ${activeSession.access_token}`,
+      apikey: anonKey,
+    };
+  }, []);
+
   const callQueueEntryAction = useCallback(
     async (
       action: string,
       entryId: string,
       extra?: Record<string, unknown>
     ) => {
-      if (!session?.access_token) {
-        throw new Error('You are not signed in.');
-      }
+      const headers = await getFunctionHeaders();
       const { data, error } = await supabase.functions.invoke(
         'queue_entry_action',
         {
           body: { action, queueEntryId: entryId, ...extra },
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          headers,
         }
       );
       if (error) throw error;
@@ -1602,7 +1632,7 @@ export default function EmployeeDashboardPage() {
         throw new Error(data.error);
       }
     },
-    [session?.access_token]
+    [getFunctionHeaders]
   );
 
 
@@ -1611,12 +1641,10 @@ export default function EmployeeDashboardPage() {
       await runAction(
         `serving:${entryId}`,
         async () => {
-          if (!session?.access_token) {
-            throw new Error('You are not signed in.');
-          }
+          const headers = await getFunctionHeaders();
           const { data, error } = await supabase.functions.invoke('set_serving', {
             body: { queueEntryId: entryId },
-            headers: { Authorization: `Bearer ${session.access_token}` },
+            headers,
           });
           if (error) throw error;
           if (data?.error) {
@@ -1626,7 +1654,7 @@ export default function EmployeeDashboardPage() {
         { entryId }
       );
     },
-    [runAction, session?.access_token]
+    [getFunctionHeaders, runAction]
   );
 
   const handleComplete = useCallback(
@@ -1843,9 +1871,7 @@ export default function EmployeeDashboardPage() {
     const success = await runAction(
       `edit:${editEntry.queue_entry_id}`,
       async () => {
-        if (!session?.access_token) {
-          throw new Error('You are not signed in.');
-        }
+        const headers = await getFunctionHeaders();
         const { data, error } = await supabase.functions.invoke(
           'update_queue_entry',
           {
@@ -1857,7 +1883,7 @@ export default function EmployeeDashboardPage() {
               serviceLabel: editForm.serviceLabel,
               customerType: editForm.customerType,
             },
-            headers: { Authorization: `Bearer ${session.access_token}` },
+            headers,
           }
         );
         if (error) throw error;
@@ -1881,7 +1907,7 @@ export default function EmployeeDashboardPage() {
     editForm,
     fetchHistoryEntry,
     runAction,
-    session?.access_token,
+    getFunctionHeaders,
   ]);
 
   const handleLocationSelect = useCallback(
