@@ -96,7 +96,10 @@ serve(async (req) => {
       throw new Error('Queue entry action failed');
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Action failed';
+    const err = error as { message?: string; details?: string; hint?: string };
+    const message = [err.message, err.details, err.hint].filter(Boolean).join(' | ') ||
+      'Action failed';
+    console.error('queue_entry_action failed', error);
     const headers = new Headers();
     withCorsHeaders(headers);
     return new Response(JSON.stringify({ error: message }), {
