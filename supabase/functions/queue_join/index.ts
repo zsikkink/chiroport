@@ -256,12 +256,33 @@ serve(async (req) => {
     const locationDisplayName =
       queueData?.location?.display_name ?? 'The Chiroport';
 
+    let payingQueuePosition = joinResult.out_queue_position;
+    if (parsed.data.customerType === 'paying') {
+      const { data: entryRow } = await supabase
+        .from('queue_entries')
+        .select('sort_key')
+        .eq('id', joinResult.out_queue_entry_id)
+        .maybeSingle();
+      if (entryRow?.sort_key != null) {
+        const { count: aheadCount } = await supabase
+          .from('queue_entries')
+          .select('id', { count: 'exact', head: true })
+          .eq('queue_id', joinResult.out_queue_id)
+          .eq('status', 'waiting')
+          .eq('customer_type', 'paying')
+          .lt('sort_key', entryRow.sort_key);
+        if (aheadCount != null) {
+          payingQueuePosition = Number(aheadCount) + 1;
+        }
+      }
+    }
+
     const messageBody =
       parsed.data.customerType === 'paying'
         ? buildPayingConfirmation({
             name: parsed.data.name,
             locationDisplayName,
-            queuePosition: joinResult.out_queue_position,
+            queuePosition: payingQueuePosition,
           })
         : buildPriorityPassConfirmation({
             name: parsed.data.name,
