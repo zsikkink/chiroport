@@ -75,6 +75,13 @@ type EditFormState = {
   customerType: 'paying' | 'priority_pass';
 };
 
+type EntrySnapshot = {
+  entryId: string;
+  waiting?: WithEntryId<WaitingRow>;
+  serving?: WithEntryId<ServingRow>;
+  history?: WithEntryId<HistoryRow>;
+};
+
 const CUSTOMER_TYPE_PRIORITY: Record<string, number> = {
   paying: 0,
   priority_pass: 1,
@@ -1171,6 +1178,130 @@ export default function EmployeeDashboardPage() {
     setHistoryEntries((prev) => removeEntry(prev, entryId));
   }, []);
 
+  const captureEntrySnapshot = useCallback((entryId: string): EntrySnapshot => {
+    const waiting = waitingRef.current.find((row) => row.queue_entry_id === entryId);
+    const serving = servingRef.current.find((row) => row.queue_entry_id === entryId);
+    const history = historyRef.current.find((row) => row.queue_entry_id === entryId);
+    const snapshot: EntrySnapshot = { entryId };
+    if (waiting) snapshot.waiting = { ...waiting };
+    if (serving) snapshot.serving = { ...serving };
+    if (history) snapshot.history = { ...history };
+    return snapshot;
+  }, []);
+
+  const restoreEntrySnapshot = useCallback((snapshot: EntrySnapshot | null) => {
+    if (!snapshot) return;
+    if (snapshot.waiting) {
+      setWaitingEntries((prev) =>
+        sortWaitingEntries(upsertEntry(prev, snapshot.waiting!))
+      );
+    } else {
+      setWaitingEntries((prev) => removeEntry(prev, snapshot.entryId));
+    }
+    if (snapshot.serving) {
+      setServingEntries((prev) =>
+        sortServingEntries(upsertEntry(prev, snapshot.serving!))
+      );
+    } else {
+      setServingEntries((prev) => removeEntry(prev, snapshot.entryId));
+    }
+    if (snapshot.history) {
+      setHistoryEntries((prev) =>
+        sortHistoryEntries(upsertEntry(prev, snapshot.history!))
+      );
+    } else {
+      setHistoryEntries((prev) => removeEntry(prev, snapshot.entryId));
+    }
+  }, []);
+
+  const applyOptimisticServing = useCallback(
+    (entryId: string) => {
+      const snapshot = captureEntrySnapshot(entryId);
+      const base =
+        snapshot.waiting ?? snapshot.serving ?? snapshot.history ?? null;
+      if (!base) return snapshot;
+      const nowIso = new Date().toISOString();
+      const servingEntry = {
+        ...(base as ServingRow),
+        status: 'serving',
+        served_at: nowIso,
+        updated_at: nowIso,
+      } as WithEntryId<ServingRow>;
+      setServingEntries((prev) =>
+        sortServingEntries(upsertEntry(prev, servingEntry))
+      );
+      setWaitingEntries((prev) => removeEntry(prev, entryId));
+      setHistoryEntries((prev) => removeEntry(prev, entryId));
+      return snapshot;
+    },
+    [captureEntrySnapshot]
+  );
+
+  const applyOptimisticHistory = useCallback(
+    (entryId: string, status: 'completed' | 'cancelled') => {
+      const snapshot = captureEntrySnapshot(entryId);
+      const base =
+        snapshot.waiting ?? snapshot.serving ?? snapshot.history ?? null;
+      if (!base) return snapshot;
+      const nowIso = new Date().toISOString();
+      const historyEntry = {
+        ...(base as HistoryRow),
+        status,
+        end_ts: nowIso,
+        updated_at: nowIso,
+      } as WithEntryId<HistoryRow>;
+      setHistoryEntries((prev) =>
+        sortHistoryEntries(upsertEntry(prev, historyEntry))
+      );
+      setWaitingEntries((prev) => removeEntry(prev, entryId));
+      setServingEntries((prev) => removeEntry(prev, entryId));
+      return snapshot;
+    },
+    [captureEntrySnapshot]
+  );
+
+  const applyOptimisticWaiting = useCallback(
+    (entryId: string) => {
+      const snapshot = captureEntrySnapshot(entryId);
+      const base =
+        snapshot.waiting ?? snapshot.serving ?? snapshot.history ?? null;
+      if (!base) return snapshot;
+      const nowIso = new Date().toISOString();
+      const waitingEntry = {
+        ...(base as WaitingRow),
+        status: 'waiting',
+        updated_at: nowIso,
+      } as WithEntryId<WaitingRow>;
+      setWaitingEntries((prev) =>
+        sortWaitingEntries(upsertEntry(prev, waitingEntry))
+      );
+      setServingEntries((prev) => removeEntry(prev, entryId));
+      setHistoryEntries((prev) => removeEntry(prev, entryId));
+      return snapshot;
+    },
+    [captureEntrySnapshot]
+  );
+
+  const applyOptimisticRemoval = useCallback(
+    (entryId: string) => {
+      const snapshot = captureEntrySnapshot(entryId);
+      setWaitingEntries((prev) => removeEntry(prev, entryId));
+      setServingEntries((prev) => removeEntry(prev, entryId));
+      setHistoryEntries((prev) => removeEntry(prev, entryId));
+      return snapshot;
+    },
+    [captureEntrySnapshot]
+  );
+
+  const applyOptimisticEdit = useCallback(
+    (entryId: string, updates: Partial<WaitingRow & ServingRow & HistoryRow>) => {
+      const snapshot = captureEntrySnapshot(entryId);
+      updateEntryInLists(entryId, updates);
+      return snapshot;
+    },
+    [captureEntrySnapshot, updateEntryInLists]
+  );
+
   const fetchWaitingEntry = useCallback(async (entryId: string) => {
     const { data } = await supabase
       .from('employee_queue_waiting_view')
@@ -1585,6 +1716,23 @@ export default function EmployeeDashboardPage() {
     [currentUser?.id, queueId, selectedLocationId]
   );
 
+  const runOptimisticAction = useCallback(
+    async (
+      key: string,
+      optimistic: () => EntrySnapshot | null,
+      action: () => Promise<void>,
+      context?: Record<string, unknown>
+    ) => {
+      const snapshot = optimistic();
+      const success = await runAction(key, action, context);
+      if (!success) {
+        restoreEntrySnapshot(snapshot);
+      }
+      return success;
+    },
+    [restoreEntrySnapshot, runAction]
+  );
+
   const getFunctionHeaders = useCallback(async () => {
     const anonKey = requireEnv(
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -1638,54 +1786,58 @@ export default function EmployeeDashboardPage() {
 
   const handleSetServing = useCallback(
     async (entryId: string) => {
-      await runAction(
+      await runOptimisticAction(
         `serving:${entryId}`,
+        () => applyOptimisticServing(entryId),
         async () => {
           await callQueueEntryAction('serving', entryId);
         },
         { entryId }
       );
     },
-    [callQueueEntryAction, runAction]
+    [applyOptimisticServing, callQueueEntryAction, runOptimisticAction]
   );
 
   const handleComplete = useCallback(
     async (entryId: string) => {
-      await runAction(
+      await runOptimisticAction(
         `complete:${entryId}`,
+        () => applyOptimisticHistory(entryId, 'completed'),
         async () => {
           await callQueueEntryAction('complete', entryId);
         },
         { entryId }
       );
     },
-    [callQueueEntryAction, runAction]
+    [applyOptimisticHistory, callQueueEntryAction, runOptimisticAction]
   );
 
   const handleCancel = useCallback(
     async (entryId: string) => {
-      await runAction(
+      await runOptimisticAction(
         `cancel:${entryId}`,
+        () => applyOptimisticHistory(entryId, 'cancelled'),
         async () => {
           await callQueueEntryAction('cancel', entryId);
         },
         { entryId }
       );
     },
-    [callQueueEntryAction, runAction]
+    [applyOptimisticHistory, callQueueEntryAction, runOptimisticAction]
   );
 
   const handleReturnToQueue = useCallback(
     async (entryId: string) => {
-      await runAction(
+      await runOptimisticAction(
         `return:${entryId}`,
+        () => applyOptimisticWaiting(entryId),
         async () => {
           await callQueueEntryAction('return', entryId);
         },
         { entryId }
       );
     },
-    [callQueueEntryAction, runAction]
+    [applyOptimisticWaiting, callQueueEntryAction, runOptimisticAction]
   );
 
   const handleDragStart = useCallback(
@@ -1730,8 +1882,9 @@ export default function EmployeeDashboardPage() {
             await handleSetServing(payload.entryId);
             return;
           }
-          await runAction(
+          await runOptimisticAction(
             `serving_move:${payload.entryId}`,
+            () => applyOptimisticServing(payload.entryId),
             async () => {
               await callQueueEntryAction('serving', payload.entryId);
             },
@@ -1747,7 +1900,13 @@ export default function EmployeeDashboardPage() {
           setHistoryDecisionEntryId(payload.entryId);
         }
       },
-    [callQueueEntryAction, handleReturnToQueue, handleSetServing, runAction]
+    [
+      applyOptimisticServing,
+      callQueueEntryAction,
+      handleReturnToQueue,
+      handleSetServing,
+      runOptimisticAction,
+    ]
   );
 
   const handleDelete = useCallback(
@@ -1757,8 +1916,9 @@ export default function EmployeeDashboardPage() {
       );
       if (!confirmed) return;
 
-      await runAction(
+      await runOptimisticAction(
         `delete:${entryId}`,
+        () => applyOptimisticRemoval(entryId),
         async () => {
           await callQueueEntryAction('delete', entryId);
           removeEntryFromLists(entryId);
@@ -1772,7 +1932,12 @@ export default function EmployeeDashboardPage() {
         { entryId }
       );
     },
-    [callQueueEntryAction, removeEntryFromLists, runAction]
+    [
+      applyOptimisticRemoval,
+      callQueueEntryAction,
+      removeEntryFromLists,
+      runOptimisticAction,
+    ]
   );
 
   const handleDeleteFromMenu = useCallback(
@@ -1835,8 +2000,9 @@ export default function EmployeeDashboardPage() {
       return;
     }
 
-    const success = await runAction(
+    const success = await runOptimisticAction(
       `move:${moveEntry.queue_entry_id}`,
+      () => applyOptimisticRemoval(moveEntry.queue_entry_id),
       async () => {
         await callQueueEntryAction('move', moveEntry.queue_entry_id, {
           targetLocationId: moveTargetLocationId,
@@ -1854,14 +2020,23 @@ export default function EmployeeDashboardPage() {
     callQueueEntryAction,
     moveEntry,
     moveTargetLocationId,
-    runAction,
+    runOptimisticAction,
     removeEntryFromLists,
+    applyOptimisticRemoval,
   ]);
 
   const handleEditSubmit = useCallback(async () => {
     if (!editEntry || !editForm) return;
-    const success = await runAction(
+    const optimisticUpdates = {
+      full_name: editForm.fullName.trim() || null,
+      email: editForm.email.trim().toLowerCase() || null,
+      phone_e164: editForm.phone.trim() || null,
+      service_label: editForm.serviceLabel,
+      customer_type: editForm.customerType,
+    };
+    const success = await runOptimisticAction(
       `edit:${editEntry.queue_entry_id}`,
+      () => applyOptimisticEdit(editEntry.queue_entry_id, optimisticUpdates),
       async () => {
         const headers = await getFunctionHeaders();
         const { data, error } = await supabase.functions.invoke(
@@ -1897,8 +2072,9 @@ export default function EmployeeDashboardPage() {
   }, [
     editEntry,
     editForm,
+    applyOptimisticEdit,
     fetchHistoryEntry,
-    runAction,
+    runOptimisticAction,
     getFunctionHeaders,
   ]);
 
