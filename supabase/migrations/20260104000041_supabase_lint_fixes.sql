@@ -253,31 +253,8 @@ create policy "Employee profiles read"
   for select
   to authenticated
   using (
-    (select auth.uid()) = user_id
-    or public.is_admin()
+    user_id = (select auth.uid())
   );
-
-drop policy if exists "Admins insert employee profiles" on public.employee_profiles;
-create policy "Admins insert employee profiles"
-  on public.employee_profiles
-  for insert
-  to authenticated
-  with check (public.is_admin());
-
-drop policy if exists "Admins update employee profiles" on public.employee_profiles;
-create policy "Admins update employee profiles"
-  on public.employee_profiles
-  for update
-  to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
-
-drop policy if exists "Admins delete employee profiles" on public.employee_profiles;
-create policy "Admins delete employee profiles"
-  on public.employee_profiles
-  for delete
-  to authenticated
-  using (public.is_admin());
 
 -- Admin-only stats read with auth initplan optimization.
 drop policy if exists "Admins read queue daily stats" on public.queue_daily_stats;
