@@ -49,5 +49,5 @@ export function buildCancelAck(params?: { name?: string | null }) {
 }
 
 export function buildServingNotification() {
-  return "It's your turn! Please come back to The Chiroport - we're all ready for you!";
+  return "It's your turn! Please come back to The Chiroport - we're ready for you!";
 }
