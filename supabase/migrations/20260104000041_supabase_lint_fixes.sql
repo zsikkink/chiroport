@@ -366,7 +366,7 @@ create policy "Staff read sms inbound"
 
 create policy "Admins manage sms inbound"
   on public.sms_inbound
-  for insert, update, delete
+  for all
   to authenticated
   using (
     exists (
@@ -408,7 +408,7 @@ create policy "Staff read sms outbox"
 
 create policy "Admins manage sms outbox"
   on public.sms_outbox
-  for insert, update, delete
+  for all
   to authenticated
   using (
     exists (
