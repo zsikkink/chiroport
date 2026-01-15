@@ -1881,48 +1881,61 @@ export default function EmployeeDashboardPage() {
 
   const invokeEmployeeFunction = useCallback(
     async (name: string, body: Record<string, unknown>) => {
-      const headers = await getFunctionHeaders();
       const supabaseUrl = requireEnv(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
         'NEXT_PUBLIC_SUPABASE_URL'
       );
-      const response = await fetch(`${supabaseUrl}/functions/v1/${name}`, {
-        method: 'POST',
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
 
-      if (!response.ok) {
+      const requestOnce = async () => {
+        const headers = await getFunctionHeaders();
+        const response = await fetch(`${supabaseUrl}/functions/v1/${name}`, {
+          method: 'POST',
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        });
         const raw = await response.text();
-        let message = `Edge Function error (${response.status})`;
+        let parsed: Record<string, unknown> = {};
         if (raw) {
           try {
-            const parsed = JSON.parse(raw) as { error?: string };
-            if (parsed?.error) {
-              message = parsed.error;
-            } else {
-              message = raw;
-            }
+            parsed = JSON.parse(raw) as Record<string, unknown>;
           } catch {
-            message = raw;
+            parsed = { raw };
           }
         }
-        throw new Error(message);
+        return { response, raw, parsed };
+      };
+
+      let result = await requestOnce();
+      if (
+        (result.response.status === 401 || result.response.status === 403) &&
+        (result.parsed as { error?: string })?.error === 'Unauthorized'
+      ) {
+        const { data: refreshed, error: refreshError } =
+          await supabase.auth.refreshSession();
+        if (refreshError || !refreshed.session?.access_token) {
+          throw new Error('Session expired. Please sign in again.');
+        }
+        result = await requestOnce();
       }
 
-      const data = await response
-        .json()
-        .catch(() => ({} as Record<string, unknown>));
-      if (data && typeof data === 'object' && 'error' in data) {
-        const errorValue = (data as { error?: string }).error;
+      if (!result.response.ok) {
+        const errorValue = (result.parsed as { error?: string })?.error;
+        if (errorValue) {
+          throw new Error(errorValue);
+        }
+        throw new Error(result.raw || `Edge Function error (${result.response.status})`);
+      }
+
+      if (result.parsed && typeof result.parsed === 'object' && 'error' in result.parsed) {
+        const errorValue = (result.parsed as { error?: string }).error;
         if (errorValue) {
           throw new Error(errorValue);
         }
       }
-      return data;
+      return result.parsed;
     },
     [getFunctionHeaders]
   );
