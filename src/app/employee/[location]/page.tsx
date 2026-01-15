@@ -2445,10 +2445,10 @@ export default function EmployeeDashboardPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-libre-baskerville">
-                {selectedLocation?.display_name
-                  ? `${selectedLocation.display_name} · `
-                  : ''}
                 Employee Dashboard
+                {selectedLocation?.display_name
+                  ? ` · ${selectedLocation.display_name}`
+                  : ''}
               </h1>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
