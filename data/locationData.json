@@ -50,8 +50,8 @@
       "slug": "houston",
       "concourses": [
         {
-          "name": "concourse-a",
-          "slug": "concourse-a",
+          "name": "west-concourse",
+          "slug": "west-concourse",
           "displayName": "West Concourse",
           "locationInfo": {
             "gate": "A-9",

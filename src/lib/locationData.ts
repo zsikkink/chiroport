@@ -46,8 +46,18 @@ export function findAirport(slug: string): AirportLocation | null {
 export function findConcourse(airportSlug: string, concourseSlug: string): ConcourseInfo | null {
   const airport = findAirport(airportSlug);
   if (!airport) return null;
-  
-  return airport.concourses.find(concourse => concourse.slug === concourseSlug) || null;
+
+  const directMatch = airport.concourses.find(concourse => concourse.slug === concourseSlug);
+  if (directMatch) return directMatch;
+
+  if (airportSlug === 'houston' && concourseSlug === 'concourse-a') {
+    return (
+      airport.concourses.find(concourse => concourse.slug === 'west-concourse') ||
+      null
+    );
+  }
+
+  return null;
 }
 
 export function getLocationInfo(airportSlug: string, concourseSlug: string): LocationInfo | null {
