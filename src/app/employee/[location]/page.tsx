@@ -12,7 +12,7 @@ import {
 } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Session } from '@supabase/supabase-js';
-import { ResponsiveCard, Button, LoadingSpinner } from '@/components/ui';
+import { ResponsiveCard, Button, LoadingSpinner, Heading } from '@/components/ui';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { requireEnv } from '@/lib/supabase/helpers';
 import type { Database } from '@/lib/supabase/database.types';
@@ -83,6 +83,15 @@ type EditFormState = {
   phone: string;
   serviceLabel: string;
   customerType: 'paying' | 'priority_pass';
+};
+
+type CreateFormState = {
+  fullName: string;
+  email: string;
+  phone: string;
+  serviceLabel: string;
+  customerType: 'paying' | 'priority_pass';
+  consent: boolean;
 };
 
 type EntrySnapshot = {
@@ -791,6 +800,8 @@ export default function EmployeeDashboardPage() {
   const [moveTargetLocationId, setMoveTargetLocationId] = useState('');
   const [editEntry, setEditEntry] = useState<MenuEntry | null>(null);
   const [editForm, setEditForm] = useState<EditFormState | null>(null);
+  const [createEntryOpen, setCreateEntryOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateFormState | null>(null);
   const [historyDecisionEntryId, setHistoryDecisionEntryId] = useState<string | null>(null);
   const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false);
   const router = useRouter();
@@ -2073,6 +2084,27 @@ export default function EmployeeDashboardPage() {
     setEditForm(null);
   }, []);
 
+  const handleOpenCreateEntry = useCallback(() => {
+    const option = TREATMENT_OPTIONS[0] ?? {
+      label: 'Paying',
+      customerType: 'paying' as const,
+    };
+    setCreateForm({
+      fullName: '',
+      email: '',
+      phone: '',
+      serviceLabel: option.label,
+      customerType: option.customerType,
+      consent: false,
+    });
+    setCreateEntryOpen(true);
+  }, []);
+
+  const handleCloseCreateEntry = useCallback(() => {
+    setCreateEntryOpen(false);
+    setCreateForm(null);
+  }, []);
+
   const handleEntryContextMenu = useCallback(
     (entryId: string) => (event: MouseEvent<HTMLDivElement>) => {
       event.preventDefault();
@@ -2128,6 +2160,83 @@ export default function EmployeeDashboardPage() {
     runOptimisticAction,
     removeEntryFromLists,
     applyOptimisticRemoval,
+  ]);
+
+  const handleCreateSubmit = useCallback(async () => {
+    if (!createForm) return;
+    if (!selectedLocation) {
+      setActionError('Select a location.');
+      return;
+    }
+    if (
+      !createForm.fullName.trim() ||
+      !createForm.email.trim() ||
+      !createForm.phone.trim()
+    ) {
+      setActionError('Name, email, and phone are required.');
+      return;
+    }
+    if (!createForm.consent) {
+      setActionError('Consent is required.');
+      return;
+    }
+
+    const consentKey =
+      createForm.serviceLabel === 'Chiropractor'
+        ? 'queue_join_consent_chiropractic'
+        : 'queue_join_consent_bodywork';
+
+    const success = await runAction(
+      'create-entry',
+      async () => {
+        const headers = await getFunctionHeaders();
+        const { data, error } = await supabase.functions.invoke('queue_join', {
+          body: {
+            airportCode: selectedLocation.airport_code,
+            locationCode: selectedLocation.code,
+            name: createForm.fullName.trim(),
+            phone: createForm.phone.trim(),
+            email: createForm.email.trim(),
+            consent: true,
+            customerType: createForm.customerType,
+            serviceLabel: createForm.serviceLabel,
+            consentKey,
+          },
+          headers,
+        });
+
+        if (error) throw error;
+        const parsed =
+          typeof data === 'string' ? (JSON.parse(data) as Record<string, unknown>) : data;
+        if (!parsed || (parsed as { error?: string }).error) {
+          throw new Error((parsed as { error?: string })?.error || 'Failed to create entry');
+        }
+        const entryId = (parsed as { queueEntryId?: string }).queueEntryId;
+        if (!entryId) {
+          throw new Error('Queue entry was not created.');
+        }
+
+        const row = await fetchWaitingEntry(entryId);
+        if (row) {
+          setWaitingEntries((prev) => sortWaitingEntries(upsertEntry(prev, row)));
+        } else {
+          await refreshQueueData({ showLoading: false, reason: 'create-entry' });
+        }
+      },
+      { locationId: selectedLocation.id }
+    );
+
+    if (success) {
+      handleCloseCreateEntry();
+    }
+  }, [
+    createForm,
+    fetchWaitingEntry,
+    getFunctionHeaders,
+    handleCloseCreateEntry,
+    refreshQueueData,
+    runAction,
+    selectedLocation,
   ]);
 
   const handleEditSubmit = useCallback(async () => {
@@ -2330,7 +2439,31 @@ export default function EmployeeDashboardPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
             <div onDragOver={handleDragOver} onDrop={handleDrop('waiting')}>
-              <ResponsiveCard title="Waiting" className="h-full min-h-[calc(100vh-260px)]">
+              <ResponsiveCard className="h-full min-h-[calc(100vh-260px)]">
+                <div className="mb-3 flex items-center justify-between">
+                  <Heading className="text-white">Waiting</Heading>
+                  <button
+                    type="button"
+                    className="rounded-full bg-white/20 p-1 text-white transition hover:bg-white/30"
+                    onClick={handleOpenCreateEntry}
+                    aria-label="Add customer to queue"
+                    title="Add customer"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4"
+                    >
+                      <path d="M12 5v14" />
+                      <path d="M5 12h14" />
+                    </svg>
+                  </button>
+                </div>
                 {waitingEntries.length === 0 ? (
                   <p className="text-sm text-white/70">No waiting customers.</p>
                 ) : (
@@ -2639,6 +2772,123 @@ export default function EmployeeDashboardPage() {
                 {busyAction === `edit:${editEntry.queue_entry_id}`
                   ? 'Saving...'
                   : 'Save'}
+              </Button>
+            </div>
+          </ResponsiveCard>
+        </div>
+      ) : null}
+      {createEntryOpen && createForm ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          onClick={handleCloseCreateEntry}
+        >
+          <ResponsiveCard
+            className="w-full max-w-lg space-y-4"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Add customer</h2>
+                <p className="text-sm text-white/70">
+                  Create a new queue entry for this location.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="rounded bg-white/10 px-3 py-1 text-sm"
+                onClick={handleCloseCreateEntry}
+              >
+                Close
+              </button>
+            </div>
+            <div className="grid gap-3">
+              <label className="block text-sm">
+                Name
+                <input
+                  className="mt-1 w-full rounded-md bg-white text-black px-3 py-2"
+                  value={createForm.fullName}
+                  onChange={(event) =>
+                    setCreateForm((prev) =>
+                      prev ? { ...prev, fullName: event.target.value } : prev
+                    )
+                  }
+                />
+              </label>
+              <label className="block text-sm">
+                Email
+                <input
+                  type="email"
+                  className="mt-1 w-full rounded-md bg-white text-black px-3 py-2"
+                  value={createForm.email}
+                  onChange={(event) =>
+                    setCreateForm((prev) =>
+                      prev ? { ...prev, email: event.target.value } : prev
+                    )
+                  }
+                />
+              </label>
+              <label className="block text-sm">
+                Phone
+                <input
+                  className="mt-1 w-full rounded-md bg-white text-black px-3 py-2"
+                  value={createForm.phone}
+                  onChange={(event) =>
+                    setCreateForm((prev) =>
+                      prev ? { ...prev, phone: event.target.value } : prev
+                    )
+                  }
+                />
+              </label>
+              <label className="block text-sm">
+                Treatment
+                <select
+                  className="mt-1 w-full rounded-md bg-white text-black px-3 py-2"
+                  value={createForm.serviceLabel}
+                  onChange={(event) => {
+                    const selectedLabel = event.target.value;
+                    const option = TREATMENT_OPTIONS.find(
+                      (item) => item.label === selectedLabel
+                    );
+                    setCreateForm((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            serviceLabel: selectedLabel,
+                            customerType: option?.customerType ?? prev.customerType,
+                          }
+                        : prev
+                    );
+                  }}
+                >
+                  {TREATMENT_OPTIONS.map((option) => (
+                    <option key={option.label} value={option.label}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={createForm.consent}
+                  onChange={(event) =>
+                    setCreateForm((prev) =>
+                      prev ? { ...prev, consent: event.target.checked } : prev
+                    )
+                  }
+                />
+                Consent confirmed by customer
+              </label>
+            </div>
+            <div className="mt-6 flex justify-center gap-3">
+              <Button variant="secondary" onClick={handleCloseCreateEntry}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateSubmit}
+                disabled={busyAction === 'create-entry'}
+              >
+                {busyAction === 'create-entry' ? 'Adding...' : 'Add'}
               </Button>
             </div>
           </ResponsiveCard>
