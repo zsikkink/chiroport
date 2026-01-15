@@ -16,16 +16,16 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.advance_queue]
-verify_jwt = true
+verify_jwt = false
 
 [functions.set_serving]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send_employee_message]
-verify_jwt = true
+verify_jwt = false
 
 [functions.update_queue_entry]
-verify_jwt = true
+verify_jwt = false
 
 [functions.queue_entry_action]
-verify_jwt = true
+verify_jwt = false
