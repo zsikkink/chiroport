@@ -242,6 +242,7 @@ create policy "Deny sms opt outs access"
 
 -- Employee profile policies: single SELECT policy + admin-only writes.
 drop policy if exists "Employees read own profile" on public.employee_profiles;
+drop policy if exists "Employees read employee profiles" on public.employee_profiles;
 drop policy if exists "Admins manage employee profiles" on public.employee_profiles;
 drop policy if exists "Admins insert employee profiles" on public.employee_profiles;
 drop policy if exists "Admins update employee profiles" on public.employee_profiles;
