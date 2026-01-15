@@ -254,65 +254,30 @@ create policy "Employee profiles read"
   to authenticated
   using (
     (select auth.uid()) = user_id
-    or exists (
-      select 1
-      from public.employee_profiles ep
-      where ep.user_id = (select auth.uid())
-        and ep.is_open = true
-        and ep.role = 'admin'
-    )
+    or public.is_admin()
   );
 
+drop policy if exists "Admins insert employee profiles" on public.employee_profiles;
 create policy "Admins insert employee profiles"
   on public.employee_profiles
   for insert
   to authenticated
-  with check (
-    exists (
-      select 1
-      from public.employee_profiles ep
-      where ep.user_id = (select auth.uid())
-        and ep.is_open = true
-        and ep.role = 'admin'
-    )
-  );
+  with check (public.is_admin());
 
+drop policy if exists "Admins update employee profiles" on public.employee_profiles;
 create policy "Admins update employee profiles"
   on public.employee_profiles
   for update
   to authenticated
-  using (
-    exists (
-      select 1
-      from public.employee_profiles ep
-      where ep.user_id = (select auth.uid())
-        and ep.is_open = true
-        and ep.role = 'admin'
-    )
-  )
-  with check (
-    exists (
-      select 1
-      from public.employee_profiles ep
-      where ep.user_id = (select auth.uid())
-        and ep.is_open = true
-        and ep.role = 'admin'
-    )
-  );
+  using (public.is_admin())
+  with check (public.is_admin());
 
+drop policy if exists "Admins delete employee profiles" on public.employee_profiles;
 create policy "Admins delete employee profiles"
   on public.employee_profiles
   for delete
   to authenticated
-  using (
-    exists (
-      select 1
-      from public.employee_profiles ep
-      where ep.user_id = (select auth.uid())
-        and ep.is_open = true
-        and ep.role = 'admin'
-    )
-  );
+  using (public.is_admin());
 
 -- Admin-only stats read with auth initplan optimization.
 drop policy if exists "Admins read queue daily stats" on public.queue_daily_stats;
@@ -320,113 +285,79 @@ create policy "Admins read queue daily stats"
   on public.queue_daily_stats
   for select
   to authenticated
-  using (
-    exists (
-      select 1
-      from public.employee_profiles ep
-      where ep.user_id = (select auth.uid())
-        and ep.is_open = true
-        and ep.role = 'admin'
-    )
-  );
+  using (public.is_admin());
 
 drop policy if exists "Admins read queue monthly stats" on public.queue_monthly_stats;
 create policy "Admins read queue monthly stats"
   on public.queue_monthly_stats
   for select
   to authenticated
-  using (
-    exists (
-      select 1
-      from public.employee_profiles ep
-      where ep.user_id = (select auth.uid())
-        and ep.is_open = true
-        and ep.role = 'admin'
-    )
-  );
+  using (public.is_admin());
 
 -- Consolidate sms_inbound policies (single SELECT policy).
 drop policy if exists "Employees read sms inbound" on public.sms_inbound;
 drop policy if exists "Staff read sms inbound" on public.sms_inbound;
 drop policy if exists "Admins manage sms inbound" on public.sms_inbound;
+drop policy if exists "Admins insert sms inbound" on public.sms_inbound;
+drop policy if exists "Admins update sms inbound" on public.sms_inbound;
+drop policy if exists "Admins delete sms inbound" on public.sms_inbound;
 
 create policy "Staff read sms inbound"
   on public.sms_inbound
   for select
   to authenticated
-  using (
-    exists (
-      select 1
-      from public.employee_profiles ep
-      where ep.user_id = (select auth.uid())
-        and ep.is_open = true
-        and ep.role in ('employee', 'admin')
-    )
-  );
+  using (public.is_employee());
 
-create policy "Admins manage sms inbound"
+create policy "Admins insert sms inbound"
   on public.sms_inbound
-  for all
+  for insert
   to authenticated
-  using (
-    exists (
-      select 1
-      from public.employee_profiles ep
-      where ep.user_id = (select auth.uid())
-        and ep.is_open = true
-        and ep.role = 'admin'
-    )
-  )
-  with check (
-    exists (
-      select 1
-      from public.employee_profiles ep
-      where ep.user_id = (select auth.uid())
-        and ep.is_open = true
-        and ep.role = 'admin'
-    )
-  );
+  with check (public.is_admin());
+
+create policy "Admins update sms inbound"
+  on public.sms_inbound
+  for update
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+create policy "Admins delete sms inbound"
+  on public.sms_inbound
+  for delete
+  to authenticated
+  using (public.is_admin());
 
 -- Consolidate sms_outbox policies (single SELECT policy).
 drop policy if exists "Employees read sms outbox" on public.sms_outbox;
 drop policy if exists "Staff read sms outbox" on public.sms_outbox;
 drop policy if exists "Admins manage sms outbox" on public.sms_outbox;
+drop policy if exists "Admins insert sms outbox" on public.sms_outbox;
+drop policy if exists "Admins update sms outbox" on public.sms_outbox;
+drop policy if exists "Admins delete sms outbox" on public.sms_outbox;
 
 create policy "Staff read sms outbox"
   on public.sms_outbox
   for select
   to authenticated
-  using (
-    exists (
-      select 1
-      from public.employee_profiles ep
-      where ep.user_id = (select auth.uid())
-        and ep.is_open = true
-        and ep.role in ('employee', 'admin')
-    )
-  );
+  using (public.is_employee());
 
-create policy "Admins manage sms outbox"
+create policy "Admins insert sms outbox"
   on public.sms_outbox
-  for all
+  for insert
   to authenticated
-  using (
-    exists (
-      select 1
-      from public.employee_profiles ep
-      where ep.user_id = (select auth.uid())
-        and ep.is_open = true
-        and ep.role = 'admin'
-    )
-  )
-  with check (
-    exists (
-      select 1
-      from public.employee_profiles ep
-      where ep.user_id = (select auth.uid())
-        and ep.is_open = true
-        and ep.role = 'admin'
-    )
-  );
+  with check (public.is_admin());
+
+create policy "Admins update sms outbox"
+  on public.sms_outbox
+  for update
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+create policy "Admins delete sms outbox"
+  on public.sms_outbox
+  for delete
+  to authenticated
+  using (public.is_admin());
 
 commit;
