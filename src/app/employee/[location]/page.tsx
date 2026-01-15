@@ -1857,28 +1857,6 @@ export default function EmployeeDashboardPage() {
     };
   }, []);
 
-  const callQueueEntryAction = useCallback(
-    async (
-      action: string,
-      entryId: string,
-      extra?: Record<string, unknown>
-    ) => {
-      const headers = await getFunctionHeaders();
-      const { data, error } = await supabase.functions.invoke(
-        'queue_entry_action',
-        {
-          body: { action, queueEntryId: entryId, ...extra },
-          headers,
-        }
-      );
-      if (error) throw error;
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-    },
-    [getFunctionHeaders]
-  );
-
   const invokeEmployeeFunction = useCallback(
     async (name: string, body: Record<string, unknown>) => {
       const supabaseUrl = requireEnv(
@@ -1938,6 +1916,21 @@ export default function EmployeeDashboardPage() {
       return result.parsed;
     },
     [getFunctionHeaders]
+  );
+
+  const callQueueEntryAction = useCallback(
+    async (
+      action: string,
+      entryId: string,
+      extra?: Record<string, unknown>
+    ) => {
+      await invokeEmployeeFunction('queue_entry_action', {
+        action,
+        queueEntryId: entryId,
+        ...extra,
+      });
+    },
+    [invokeEmployeeFunction]
   );
 
 
@@ -2301,25 +2294,14 @@ export default function EmployeeDashboardPage() {
       `edit:${editEntry.queue_entry_id}`,
       () => applyOptimisticEdit(editEntry.queue_entry_id, optimisticUpdates),
       async () => {
-        const headers = await getFunctionHeaders();
-        const { data, error } = await supabase.functions.invoke(
-          'update_queue_entry',
-          {
-            body: {
-              queueEntryId: editEntry.queue_entry_id,
-              fullName: editForm.fullName,
-              email: editForm.email,
-              phone: editForm.phone,
-              serviceLabel: editForm.serviceLabel,
-              customerType: editForm.customerType,
-            },
-            headers,
-          }
-        );
-        if (error) throw error;
-        if (data?.error) {
-          throw new Error(data.error);
-        }
+        await invokeEmployeeFunction('update_queue_entry', {
+          queueEntryId: editEntry.queue_entry_id,
+          fullName: editForm.fullName,
+          email: editForm.email,
+          phone: editForm.phone,
+          serviceLabel: editForm.serviceLabel,
+          customerType: editForm.customerType,
+        });
       },
       { entryId: editEntry.queue_entry_id }
     );
