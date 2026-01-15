@@ -1157,22 +1157,10 @@ export default function EmployeeDashboardPage() {
     setChatSending(true);
     setChatError('');
     try {
-      const headers = await getFunctionHeaders();
-      const { data, error } = await supabase.functions.invoke(
-        'send_employee_message',
-        {
-          body: {
-            queueEntryId: chatEntry.queue_entry_id,
-            body: chatDraft.trim(),
-          },
-          headers,
-        }
-      );
-
-      if (error) throw error;
-      if (data?.error) {
-        throw new Error(data.error);
-      }
+      await invokeEmployeeFunction('send_employee_message', {
+        queueEntryId: chatEntry.queue_entry_id,
+        body: chatDraft.trim(),
+      });
 
       setChatDraft('');
       await loadChatMessages(chatEntry);
@@ -1887,6 +1875,54 @@ export default function EmployeeDashboardPage() {
       if (data?.error) {
         throw new Error(data.error);
       }
+    },
+    [getFunctionHeaders]
+  );
+
+  const invokeEmployeeFunction = useCallback(
+    async (name: string, body: Record<string, unknown>) => {
+      const headers = await getFunctionHeaders();
+      const supabaseUrl = requireEnv(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        'NEXT_PUBLIC_SUPABASE_URL'
+      );
+      const response = await fetch(`${supabaseUrl}/functions/v1/${name}`, {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const raw = await response.text();
+        let message = `Edge Function error (${response.status})`;
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw) as { error?: string };
+            if (parsed?.error) {
+              message = parsed.error;
+            } else {
+              message = raw;
+            }
+          } catch {
+            message = raw;
+          }
+        }
+        throw new Error(message);
+      }
+
+      const data = await response
+        .json()
+        .catch(() => ({} as Record<string, unknown>));
+      if (data && typeof data === 'object' && 'error' in data) {
+        const errorValue = (data as { error?: string }).error;
+        if (errorValue) {
+          throw new Error(errorValue);
+        }
+      }
+      return data;
     },
     [getFunctionHeaders]
   );
