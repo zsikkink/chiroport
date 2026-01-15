@@ -3,7 +3,8 @@ import { verifyTwilioSignature } from '../_shared/twilio.ts';
 import { normalizePhoneToE164 } from '../_shared/phone.ts';
 import { MESSAGE_TYPES, buildCancelAck } from '../_shared/messages.ts';
 import { requireEnv } from '../_shared/env.ts';
-import { sendTwilioSms } from '../_shared/twilio.ts';
+import { createServiceRoleClient } from '../_shared/supabaseClient.ts';
+import { enqueueAndSendOutboxMessage } from '../_shared/outbox.ts';
 
 function getClientIp(req: Request) {
   const forwardedFor = req.headers.get('x-forwarded-for');
@@ -77,16 +78,6 @@ function parseFormPayload(body: string) {
     payload[key] = value;
   }
   return payload;
-}
-
-const MAX_ATTEMPTS = 8;
-const BASE_DELAY_SECONDS = 60;
-const MAX_DELAY_SECONDS = 60 * 60;
-
-function computeNextAttempt(attemptCount: number) {
-  const exponent = Math.max(attemptCount - 1, 0);
-  const delaySeconds = Math.min(BASE_DELAY_SECONDS * 2 ** exponent, MAX_DELAY_SECONDS);
-  return new Date(Date.now() + delaySeconds * 1000).toISOString();
 }
 
 function getRestConfig() {
@@ -317,82 +308,18 @@ serve(async (req) => {
     }
 
     const idempotencyKey = `cancel_ack:${entry.id}`;
-    const fullName = entry.customers?.full_name ?? null;
     try {
-      await restRequest('/sms_outbox?on_conflict=queue_entry_id,message_type', {
-        method: 'POST',
-        headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
-        body: {
-          queue_entry_id: entry.id,
-          message_type: MESSAGE_TYPES.CANCEL_ACK,
-          to_phone: fromE164,
-          body: buildCancelAck({ name: fullName }),
-          status: 'queued',
-          idempotency_key: idempotencyKey,
-        },
+      const service = createServiceRoleClient();
+      await enqueueAndSendOutboxMessage(service, {
+        queue_entry_id: entry.id,
+        message_type: MESSAGE_TYPES.CANCEL_ACK,
+        to_phone: fromE164,
+        body: buildCancelAck(),
+        status: 'queued',
+        idempotency_key: idempotencyKey,
       });
     } catch (error) {
-      console.error('twilio_webhook outbox insert failed', error);
-    }
-
-    try {
-      const rows = await restRequest<
-        Array<{ id: string; attempt_count: number; to_phone: string; body: string }>
-      >(
-        `/sms_outbox?select=id,attempt_count,to_phone,body&idempotency_key=eq.${encodeURIComponent(
-          idempotencyKey
-        )}&limit=1`,
-        { method: 'GET' }
-      );
-      const outboxRow = rows?.[0];
-      if (outboxRow) {
-        const claimed = await restRequest<
-          Array<{ id: string; attempt_count: number; to_phone: string; body: string }>
-        >('/rpc/claim_sms_outbox', {
-          method: 'POST',
-          body: { p_limit: 1, p_lock_minutes: 5, p_message_id: outboxRow.id },
-        });
-
-        const claim = claimed?.[0];
-        if (claim) {
-          const { response, payload } = await sendTwilioSms({
-            to: claim.to_phone,
-            body: claim.body,
-          });
-
-          if (!response.ok) {
-            const errorMessage = payload?.message ?? 'Twilio send failed';
-            const isDead = claim.attempt_count >= MAX_ATTEMPTS;
-            await restRequest(`/sms_outbox?id=eq.${claim.id}`, {
-              method: 'PATCH',
-              headers: { Prefer: 'return=representation' },
-              body: {
-                status: isDead ? 'dead' : 'failed',
-                last_error: errorMessage,
-                locked_at: null,
-                next_attempt_at: isDead
-                  ? new Date().toISOString()
-                  : computeNextAttempt(claim.attempt_count),
-              },
-            });
-          } else {
-            await restRequest(`/sms_outbox?id=eq.${claim.id}`, {
-              method: 'PATCH',
-              headers: { Prefer: 'return=representation' },
-              body: {
-                status: 'sent',
-                provider_message_id: payload?.sid ?? null,
-                sent_at: new Date().toISOString(),
-                locked_at: null,
-                last_error: null,
-                next_attempt_at: new Date().toISOString(),
-              },
-            });
-          }
-        }
-      }
-    } catch (error) {
-      console.error('twilio_webhook immediate send failed', error);
+      console.error('twilio_webhook cancel ack send failed', error);
     }
   }
 

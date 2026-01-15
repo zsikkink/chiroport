@@ -45,9 +45,7 @@ export function buildPriorityPassConfirmation(params: {
 }
 
 export function buildCancelAck(params?: { name?: string | null }) {
-  const rawName = params?.name?.trim();
-  const name = rawName ? `, ${rawName}` : '';
-  return `You've removed yourself from The Chiroport queue${name}. Thanks for letting us know.`;
+  return "You've removed yourself from The Chiroport queue. Thanks for letting us know.";
 }
 
 export function buildServingNotification() {
