@@ -1,6 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, memo, type DragEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  memo,
+  type DragEvent,
+  type MouseEvent,
+} from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Session } from '@supabase/supabase-js';
 import { ResponsiveCard, Button, LoadingSpinner } from '@/components/ui';
@@ -28,6 +37,7 @@ type ServingRow =
 type HistoryRow =
   Database['public']['Views']['employee_queue_history_view']['Row'];
 type WithEntryId<T> = T & { queue_entry_id: string };
+type MenuEntry = WithEntryId<WaitingRow | ServingRow | HistoryRow>;
 
 const supabase = getSupabaseBrowserClient();
 
@@ -151,8 +161,15 @@ type WaitingEntryCardProps = {
   isDeleteBusy: boolean;
   hasUnread: boolean;
   onDragStart: (event: DragEvent<HTMLDivElement>) => void;
+  onContextMenu: (event: MouseEvent<HTMLDivElement>) => void;
   onAdvance: (entryId: string) => void;
   onOpenChat: (entry: ChatEntry) => void;
+  menuOpen: boolean;
+  canMove: boolean;
+  onCloseMenu: () => void;
+  onMove: (entry: MenuEntry) => void;
+  onEdit: (entry: MenuEntry) => void;
+  onDelete: (entryId: string) => void;
 };
 
 const WaitingEntryCard = memo(function WaitingEntryCard({
@@ -162,8 +179,15 @@ const WaitingEntryCard = memo(function WaitingEntryCard({
   isDeleteBusy,
   hasUnread,
   onDragStart,
+  onContextMenu,
   onAdvance,
   onOpenChat,
+  menuOpen,
+  canMove,
+  onCloseMenu,
+  onMove,
+  onEdit,
+  onDelete,
 }: WaitingEntryCardProps) {
   const confirmStatus = formatConfirmSmsStatus(entry.confirm_sms_status);
   const nextStatus = formatSmsStatus(
@@ -176,12 +200,13 @@ const WaitingEntryCard = memo(function WaitingEntryCard({
       className="rounded-md border border-black/10 bg-white text-black p-3"
       draggable
       onDragStart={onDragStart}
+      onContextMenu={onContextMenu}
     >
       <div className="flex items-start justify-between gap-3">
         <p className="min-w-0 flex-1 truncate text-[1.05rem] font-semibold">
           {entry.full_name ?? 'Unknown'}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="relative flex items-center gap-2">
           <button
             type="button"
             className="relative rounded-full bg-black/10 p-1 text-black hover:bg-black/20"
@@ -226,6 +251,16 @@ const WaitingEntryCard = memo(function WaitingEntryCard({
               <path d="M20 6 9 17l-5-5" />
             </svg>
           </button>
+          <EntryActionMenu
+            entry={entry}
+            isDeleteBusy={isDeleteBusy}
+            menuOpen={menuOpen}
+            canMove={canMove}
+            onCloseMenu={onCloseMenu}
+            onMove={onMove}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
         </div>
       </div>
       <p className="text-sm text-black/70">
@@ -255,8 +290,15 @@ type ServingEntryCardProps = {
   isReturnBusy: boolean;
   hasUnread: boolean;
   onDragStart: (event: DragEvent<HTMLDivElement>) => void;
+  onContextMenu: (event: MouseEvent<HTMLDivElement>) => void;
   onAdvance: (entryId: string) => void;
   onOpenChat: (entry: ChatEntry) => void;
+  menuOpen: boolean;
+  canMove: boolean;
+  onCloseMenu: () => void;
+  onMove: (entry: MenuEntry) => void;
+  onEdit: (entry: MenuEntry) => void;
+  onDelete: (entryId: string) => void;
 };
 
 const ServingEntryCard = memo(function ServingEntryCard({
@@ -267,8 +309,15 @@ const ServingEntryCard = memo(function ServingEntryCard({
   isReturnBusy,
   hasUnread,
   onDragStart,
+  onContextMenu,
   onAdvance,
   onOpenChat,
+  menuOpen,
+  canMove,
+  onCloseMenu,
+  onMove,
+  onEdit,
+  onDelete,
 }: ServingEntryCardProps) {
   const confirmStatus = formatConfirmSmsStatus(entry.confirm_sms_status);
   const servingStatus = formatServingSmsStatus(entry.serving_sms_status);
@@ -280,12 +329,13 @@ const ServingEntryCard = memo(function ServingEntryCard({
       className="rounded-md border border-black/10 bg-white text-black p-3"
       draggable
       onDragStart={onDragStart}
+      onContextMenu={onContextMenu}
     >
       <div className="flex items-start justify-between gap-3">
         <p className="min-w-0 flex-1 truncate text-[1.05rem] font-semibold">
           {entry.full_name ?? 'Unknown'}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="relative flex items-center gap-2">
           <button
             type="button"
             className="relative rounded-full bg-black/10 p-1 text-black hover:bg-black/20"
@@ -330,6 +380,16 @@ const ServingEntryCard = memo(function ServingEntryCard({
               <path d="M20 6 9 17l-5-5" />
             </svg>
           </button>
+          <EntryActionMenu
+            entry={entry}
+            isDeleteBusy={isDeleteBusy}
+            menuOpen={menuOpen}
+            canMove={canMove}
+            onCloseMenu={onCloseMenu}
+            onMove={onMove}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
         </div>
       </div>
       <p className="text-sm text-black/70">
@@ -356,21 +416,131 @@ type HistoryEntryCardProps = {
   isDeleteBusy: boolean;
   hasUnread: boolean;
   onDragStart: (event: DragEvent<HTMLDivElement>) => void;
+  onContextMenu: (event: MouseEvent<HTMLDivElement>) => void;
   onDelete: (entryId: string) => void;
   onOpenChat: (entry: ChatEntry) => void;
   onToggleMenu: (entryId: string) => void;
   onCloseMenu: () => void;
   menuOpen: boolean;
   canMove: boolean;
-  onMove: (entry: WithEntryId<HistoryRow>) => void;
-  onEdit: (entry: WithEntryId<HistoryRow>) => void;
+  onMove: (entry: MenuEntry) => void;
+  onEdit: (entry: MenuEntry) => void;
 };
+
+type EntryActionMenuProps = {
+  entry: MenuEntry;
+  isDeleteBusy: boolean;
+  menuOpen: boolean;
+  canMove: boolean;
+  onCloseMenu: () => void;
+  onMove: (entry: MenuEntry) => void;
+  onEdit: (entry: MenuEntry) => void;
+  onDelete: (entryId: string) => void;
+};
+
+const EntryActionMenu = memo(function EntryActionMenu({
+  entry,
+  isDeleteBusy,
+  menuOpen,
+  canMove,
+  onCloseMenu,
+  onMove,
+  onEdit,
+  onDelete,
+}: EntryActionMenuProps) {
+  if (!menuOpen) return null;
+  return (
+    <>
+      <button
+        type="button"
+        className="fixed inset-0 z-20 cursor-default"
+        onClick={onCloseMenu}
+        aria-label="Close menu"
+      />
+      <div className="absolute right-0 top-7 z-30 w-36 rounded-lg bg-white text-black opacity-100 shadow-xl ring-1 ring-black/20">
+        {canMove ? (
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-black/5"
+            onClick={() => onMove(entry)}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
+              <path d="M12 4v16" />
+              <path d="M4 12h16" />
+              <path d="M12 4l-3 3" />
+              <path d="M12 4l3 3" />
+              <path d="M12 20l-3-3" />
+              <path d="M12 20l3-3" />
+              <path d="M4 12l3-3" />
+              <path d="M4 12l3 3" />
+              <path d="M20 12l-3-3" />
+              <path d="M20 12l-3 3" />
+            </svg>
+            <span>Move</span>
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-black/5"
+          onClick={() => onEdit(entry)}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+          >
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+          <span>Edit</span>
+        </button>
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+          disabled={isDeleteBusy}
+          onClick={() => onDelete(entry.queue_entry_id)}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+          >
+            <path d="M3 6h18" />
+            <path d="M8 6V4h8v2" />
+            <path d="M6 6l1 14h10l1-14" />
+          </svg>
+          <span>Delete</span>
+        </button>
+      </div>
+    </>
+  );
+});
 
 const HistoryEntryCard = memo(function HistoryEntryCard({
   entry,
   isDeleteBusy,
   hasUnread,
   onDragStart,
+  onContextMenu,
   onDelete,
   onOpenChat,
   onToggleMenu,
@@ -391,6 +561,7 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
       className="rounded-md border border-black/10 bg-white text-black p-3"
       draggable
       onDragStart={onDragStart}
+      onContextMenu={onContextMenu}
     >
       <div className="flex items-start justify-between gap-3">
         <p className="min-w-0 flex-1 truncate text-[1.05rem] font-semibold">
@@ -438,90 +609,16 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
               <circle cx="19" cy="12" r="1.5" />
             </svg>
           </button>
-          {menuOpen ? (
-            <>
-              <button
-                type="button"
-                className="fixed inset-0 z-20 cursor-default"
-                onClick={onCloseMenu}
-                aria-label="Close menu"
-              />
-              <div className="absolute right-0 top-7 z-30 w-36 rounded-lg bg-white text-black opacity-100 shadow-xl ring-1 ring-black/20">
-              {canMove ? (
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-black/5"
-                  onClick={() => onMove(entry)}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-4 w-4"
-                  >
-                    <path d="M12 4v16" />
-                    <path d="M4 12h16" />
-                    <path d="M12 4l-3 3" />
-                    <path d="M12 4l3 3" />
-                    <path d="M12 20l-3-3" />
-                    <path d="M12 20l3-3" />
-                    <path d="M4 12l3-3" />
-                    <path d="M4 12l3 3" />
-                    <path d="M20 12l-3-3" />
-                    <path d="M20 12l-3 3" />
-                  </svg>
-                  <span>Move</span>
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-black/5"
-                onClick={() => onEdit(entry)}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4"
-                >
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                </svg>
-                <span>Edit</span>
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                disabled={isDeleteBusy}
-                onClick={() => onDelete(entry.queue_entry_id)}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4"
-                >
-                  <path d="M3 6h18" />
-                  <path d="M8 6V4h8v2" />
-                  <path d="M6 6l1 14h10l1-14" />
-                </svg>
-                <span>Delete</span>
-              </button>
-            </div>
-            </>
-          ) : null}
+          <EntryActionMenu
+            entry={entry}
+            isDeleteBusy={isDeleteBusy}
+            menuOpen={menuOpen}
+            canMove={canMove}
+            onCloseMenu={onCloseMenu}
+            onMove={onMove}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
         </div>
       </div>
       <p className="text-sm text-black/70">
@@ -689,10 +786,10 @@ export default function EmployeeDashboardPage() {
   const [unreadEntryIds, setUnreadEntryIds] = useState<Record<string, boolean>>(
     {}
   );
-  const [historyMenuEntryId, setHistoryMenuEntryId] = useState<string | null>(null);
-  const [moveEntry, setMoveEntry] = useState<WithEntryId<HistoryRow> | null>(null);
+  const [menuEntryId, setMenuEntryId] = useState<string | null>(null);
+  const [moveEntry, setMoveEntry] = useState<MenuEntry | null>(null);
   const [moveTargetLocationId, setMoveTargetLocationId] = useState('');
-  const [editEntry, setEditEntry] = useState<WithEntryId<HistoryRow> | null>(null);
+  const [editEntry, setEditEntry] = useState<MenuEntry | null>(null);
   const [editForm, setEditForm] = useState<EditFormState | null>(null);
   const [historyDecisionEntryId, setHistoryDecisionEntryId] = useState<string | null>(null);
   const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false);
@@ -1942,27 +2039,27 @@ export default function EmployeeDashboardPage() {
 
   const handleDeleteFromMenu = useCallback(
     (entryId: string) => {
-      setHistoryMenuEntryId(null);
+      setMenuEntryId(null);
       void handleDelete(entryId);
     },
     [handleDelete]
   );
 
-  const handleToggleHistoryMenu = useCallback((entryId: string) => {
-    setHistoryMenuEntryId((prev) => (prev === entryId ? null : entryId));
+  const handleToggleMenu = useCallback((entryId: string) => {
+    setMenuEntryId((prev) => (prev === entryId ? null : entryId));
   }, []);
 
-  const closeHistoryMenu = useCallback(() => {
-    setHistoryMenuEntryId(null);
+  const closeMenu = useCallback(() => {
+    setMenuEntryId(null);
   }, []);
 
-  const handleOpenMove = useCallback((entry: WithEntryId<HistoryRow>) => {
-    setHistoryMenuEntryId(null);
+  const handleOpenMove = useCallback((entry: MenuEntry) => {
+    setMenuEntryId(null);
     setMoveEntry(entry);
   }, []);
 
-  const handleOpenEdit = useCallback((entry: WithEntryId<HistoryRow>) => {
-    setHistoryMenuEntryId(null);
+  const handleOpenEdit = useCallback((entry: MenuEntry) => {
+    setMenuEntryId(null);
     setEditEntry(entry);
   }, []);
 
@@ -1975,6 +2072,14 @@ export default function EmployeeDashboardPage() {
     setEditEntry(null);
     setEditForm(null);
   }, []);
+
+  const handleEntryContextMenu = useCallback(
+    (entryId: string) => (event: MouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      setMenuEntryId(entryId);
+    },
+    []
+  );
 
   const handleCloseHistoryDecision = useCallback(() => {
     setHistoryDecisionEntryId(null);
@@ -2239,8 +2344,15 @@ export default function EmployeeDashboardPage() {
                       isDeleteBusy={busyAction === `delete:${entry.queue_entry_id}`}
                       hasUnread={Boolean(unreadEntryIds[entry.queue_entry_id])}
                       onDragStart={handleDragStart(entry.queue_entry_id, entry.status)}
+                      onContextMenu={handleEntryContextMenu(entry.queue_entry_id)}
                       onAdvance={handleSetServing}
                       onOpenChat={openChat}
+                      menuOpen={menuEntryId === entry.queue_entry_id}
+                      canMove={canMoveEntry(entry)}
+                      onCloseMenu={closeMenu}
+                      onMove={handleOpenMove}
+                      onEdit={handleOpenEdit}
+                      onDelete={handleDeleteFromMenu}
                     />
                   ))}
               </div>
@@ -2264,8 +2376,15 @@ export default function EmployeeDashboardPage() {
                       isDeleteBusy={busyAction === `delete:${entry.queue_entry_id}`}
                       hasUnread={Boolean(unreadEntryIds[entry.queue_entry_id])}
                       onDragStart={handleDragStart(entry.queue_entry_id, entry.status)}
+                      onContextMenu={handleEntryContextMenu(entry.queue_entry_id)}
                       onAdvance={handleComplete}
                       onOpenChat={openChat}
+                      menuOpen={menuEntryId === entry.queue_entry_id}
+                      canMove={canMoveEntry(entry)}
+                      onCloseMenu={closeMenu}
+                      onMove={handleOpenMove}
+                      onEdit={handleOpenEdit}
+                      onDelete={handleDeleteFromMenu}
                     />
                   ))}
               </div>
@@ -2286,11 +2405,12 @@ export default function EmployeeDashboardPage() {
                       isDeleteBusy={busyAction === `delete:${entry.queue_entry_id}`}
                       hasUnread={Boolean(unreadEntryIds[entry.queue_entry_id])}
                       onDragStart={handleDragStart(entry.queue_entry_id, entry.status)}
+                      onContextMenu={handleEntryContextMenu(entry.queue_entry_id)}
                       onDelete={handleDeleteFromMenu}
                       onOpenChat={openChat}
-                      onToggleMenu={handleToggleHistoryMenu}
-                      onCloseMenu={closeHistoryMenu}
-                      menuOpen={historyMenuEntryId === entry.queue_entry_id}
+                      onToggleMenu={handleToggleMenu}
+                      onCloseMenu={closeMenu}
+                      menuOpen={menuEntryId === entry.queue_entry_id}
                       canMove={canMoveEntry(entry)}
                       onMove={handleOpenMove}
                       onEdit={handleOpenEdit}
