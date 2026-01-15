@@ -2444,14 +2444,15 @@ export default function EmployeeDashboardPage() {
         <header
           className={`flex flex-col gap-3 ${!isLocationMenuOpen ? 'pl-16' : ''}`}
         >
-          <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+            <div className="hidden sm:block" />
             <h1 className="text-center text-3xl font-libre-baskerville">
               Employee Dashboard
               {selectedLocation?.display_name
                 ? ` · ${selectedLocation.display_name}`
                 : ''}
             </h1>
-            <div className="flex justify-center">
+            <div className="flex justify-center sm:justify-end">
               <Button variant="secondary" onClick={handleSignOut}>
                 Sign Out
               </Button>
