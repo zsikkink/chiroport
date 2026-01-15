@@ -36,7 +36,7 @@ export function buildPriorityPassConfirmation(params: {
     '',
     "We'll text you when it's your turn to be served.",
     '',
-    'Please confirm that The Chiroport is included in your membership benefits.',
+    'We recommend that you confirm The Chiroport is an included benefit in your Priority Pass travel program.',
     '',
     'Change in plans? Reply here to reach our staff, or text CANCEL to exit the queue.',
     '',
