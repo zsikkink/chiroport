@@ -2676,7 +2676,7 @@ export default function EmployeeDashboardPage() {
           onClick={handleCloseEdit}
         >
           <ResponsiveCard
-            className="w-full max-w-lg space-y-4"
+            className="w-full max-w-lg space-y-4 bg-[#2f352f]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between">
