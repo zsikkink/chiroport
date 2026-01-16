@@ -498,6 +498,6 @@ begin
           excluded.service_service_count
         );
 end;
-$function$;
+$$;
 
 commit;
