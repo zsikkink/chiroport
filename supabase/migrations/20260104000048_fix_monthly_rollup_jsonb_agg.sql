@@ -1,10 +1,22 @@
 begin;
 
-create aggregate if not exists public.jsonb_sum_agg(jsonb) (
-  sfunc = public.jsonb_sum,
-  stype = jsonb,
-  initcond = '{}'
-);
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_aggregate a
+    join pg_proc p on p.oid = a.aggfnoid
+    join pg_namespace n on n.oid = p.pronamespace
+    where p.proname = 'jsonb_sum_agg'
+      and n.nspname = 'public'
+  ) then
+    execute 'create aggregate public.jsonb_sum_agg(jsonb) (
+      sfunc = public.jsonb_sum,
+      stype = jsonb,
+      initcond = ''{}''
+    )';
+  end if;
+end $$;
 
 create or replace function public.rollup_queue_monthly_stats()
 returns void
