@@ -3,7 +3,7 @@ begin;
 drop function if exists public.rollup_queue_monthly_stats();
 drop aggregate if exists public.jsonb_sum_agg(jsonb);
 
-create or replace function public.jsonb_sum_agg(values jsonb[])
+create or replace function public.jsonb_sum_agg(p_values jsonb[])
 returns jsonb
 language sql
 immutable
@@ -16,7 +16,7 @@ as $$
         select key, sum(value)::numeric as total
         from (
           select key, value::numeric
-          from unnest(coalesce(values, array[]::jsonb[])) as v(elem)
+          from unnest(coalesce(p_values, array[]::jsonb[])) as v(elem)
           cross join lateral jsonb_each_text(coalesce(elem, '{}'::jsonb))
         ) merged
         group by key
