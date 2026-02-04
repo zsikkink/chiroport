@@ -27,10 +27,6 @@ export const config = {
 
   // Security Configuration
   security: {
-    csrf: {
-      secret: env.CSRF_SECRET,
-      enabled: !!env.CSRF_SECRET,
-    },
     rateLimit: {
       api: parseInt(env.RATE_LIMIT_API || '30', 10),
       submit: parseInt(env.RATE_LIMIT_SUBMIT || '5', 10),
@@ -86,9 +82,6 @@ export function validateConfig(): { valid: boolean; errors: string[] } {
 
   // Required in production
   if (config.isProduction) {
-    if (!config.security.csrf.secret) {
-      errors.push('CSRF_SECRET is required in production');
-    }
     if (!config.monitoring.healthCheck.secret) {
       errors.push('HEALTH_CHECK_SECRET is recommended in production');
     }

@@ -1,7 +1,7 @@
 /**
  * Unified API client used across client and server environments.
- * Handles JSON parsing, CSRF protection, optional rate limiting,
- * and provides convenience helpers for common application flows.
+ * Handles JSON parsing, optional rate limiting, and provides
+ * convenience helpers for common application flows.
  */
 
 export interface ApiResponse<T = unknown> {
@@ -18,24 +18,17 @@ export interface RateLimiter {
 
 export interface ApiClientOptions {
   fetchImpl?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-  csrfEndpoint?: string;
   includeCredentials?: RequestCredentials;
   defaultHeaders?: Record<string, string>;
 }
 
 export interface RequestOptions {
-  csrf?: boolean;
   throttle?: RateLimiter;
   headers?: Record<string, string>;
 }
 
-const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-
 class ApiClient {
-  private csrfToken: string | null = null;
-  private csrfPromise: Promise<void> | null = null;
   private readonly fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-  private readonly csrfEndpoint: string;
   private readonly credentials: RequestCredentials;
   private readonly defaultHeaders: Record<string, string>;
 
@@ -46,47 +39,12 @@ class ApiClient {
     } else {
       this.fetchImpl = providedFetch;
     }
-    this.csrfEndpoint = options.csrfEndpoint ?? '/api/csrf-token';
     this.credentials = options.includeCredentials ?? 'include';
     this.defaultHeaders = {
       'Content-Type': 'application/json',
       'X-Requested-With': 'XMLHttpRequest',
       ...options.defaultHeaders,
     };
-  }
-
-  private async fetchCSRFToken(): Promise<void> {
-    try {
-      const response = await this.fetchImpl(this.csrfEndpoint, {
-        method: 'GET',
-        credentials: this.credentials,
-      });
-
-      if (!response.ok) {
-        console.warn('Failed to fetch CSRF token');
-        return;
-      }
-
-      const payload = await this.parseJson<{ token?: string }>(response);
-      if (payload?.token) {
-        this.csrfToken = payload.token;
-      }
-    } catch (error) {
-      console.error('Error fetching CSRF token:', error);
-    }
-  }
-
-  private async ensureCSRFToken(): Promise<void> {
-    if (this.csrfToken) {
-      return;
-    }
-
-    if (!this.csrfPromise) {
-      this.csrfPromise = this.fetchCSRFToken();
-    }
-
-    await this.csrfPromise;
-    this.csrfPromise = null;
   }
 
   private async parseJson<T>(response: Response): Promise<T | null> {
@@ -133,25 +91,14 @@ class ApiClient {
     init: RequestInit = {},
     options: RequestOptions = {}
   ): Promise<ApiResponse<T>> {
-    const method = (init.method ?? 'GET').toUpperCase();
-    const requiresCsrf = options.csrf ?? MUTATING_METHODS.has(method);
-
     try {
       if (options.throttle) {
         await options.throttle.throttle();
       }
 
-      if (requiresCsrf) {
-        await this.ensureCSRFToken();
-      }
-
       let headers = this.normalizeHeaders(this.defaultHeaders, init.headers);
       if (options.headers) {
         headers = { ...headers, ...options.headers };
-      }
-
-      if (requiresCsrf && this.csrfToken) {
-        headers['X-CSRF-Token'] = this.csrfToken;
       }
 
       const response = await this.fetchImpl(url, {
@@ -163,11 +110,6 @@ class ApiClient {
       const payload = await this.parseJson<ApiResponse<T>>(response);
 
       if (!response.ok) {
-        if (response.status === 403 && payload?.error?.includes('CSRF')) {
-          this.csrfToken = null;
-          console.warn('CSRF token expired, will refetch on next request');
-        }
-
         const errorResponse: ApiResponse<T> = {
           success: false,
           status: response.status,
@@ -210,7 +152,7 @@ class ApiClient {
   }
 
   async get<T>(url: string, options?: RequestOptions): Promise<ApiResponse<T>> {
-    return this.request<T>(url, { method: 'GET' }, { csrf: false, ...options });
+    return this.request<T>(url, { method: 'GET' }, options);
   }
 
   async post<T>(
@@ -242,10 +184,6 @@ class ApiClient {
     options?: RequestOptions
   ): Promise<ApiResponse<T>> {
     return this.request<T>(url, { method: 'DELETE' }, options);
-  }
-
-  clearCSRFToken(): void {
-    this.csrfToken = null;
   }
 }
 

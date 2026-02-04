@@ -6,7 +6,6 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).optional(),
   NEXT_PUBLIC_BASE_URL: z.string().optional(),
   VERCEL_URL: z.string().optional(),
-  CSRF_SECRET: z.string().optional(),
   RATE_LIMIT_API: z.string().optional(),
   RATE_LIMIT_SUBMIT: z.string().optional(),
   CONTENT_SECURITY_POLICY: z.string().optional(),

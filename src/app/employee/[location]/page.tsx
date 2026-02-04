@@ -871,7 +871,6 @@ export default function EmployeeDashboardPage() {
 
   renderCountRef.current += 1;
   if (debugEnabled) {
-    // eslint-disable-next-line no-console
     console.debug(`[employee] render #${renderCountRef.current}`);
   }
 
@@ -987,7 +986,6 @@ export default function EmployeeDashboardPage() {
       const showLoading = options?.showLoading ?? false;
       refreshCountRef.current += 1;
       if (debugEnabled) {
-        // eslint-disable-next-line no-console
         console.debug('[employee] refreshQueueData', {
           count: refreshCountRef.current,
           locationId: selectedLocationId,
@@ -1437,7 +1435,6 @@ export default function EmployeeDashboardPage() {
       if (!record) return;
       const entryId = record.id;
       if (debugEnabled) {
-        // eslint-disable-next-line no-console
         console.debug('[employee] queue_entries event', {
           eventType: payload.eventType,
           entryId,
@@ -1533,7 +1530,6 @@ export default function EmployeeDashboardPage() {
     if (!queueId) return;
     queueSubCountRef.current += 1;
     if (debugEnabled) {
-      // eslint-disable-next-line no-console
       console.debug('[employee] subscribe queue_entries', {
         count: queueSubCountRef.current,
         queueId,
@@ -1563,7 +1559,6 @@ export default function EmployeeDashboardPage() {
   useEffect(() => {
     smsSubCountRef.current += 1;
     if (debugEnabled) {
-      // eslint-disable-next-line no-console
       console.debug('[employee] subscribe sms channels', {
         count: smsSubCountRef.current,
       });
@@ -2319,8 +2314,8 @@ export default function EmployeeDashboardPage() {
     editForm,
     applyOptimisticEdit,
     fetchHistoryEntry,
+    invokeEmployeeFunction,
     runOptimisticAction,
-    getFunctionHeaders,
   ]);
 
   const handleLocationSelect = useCallback(

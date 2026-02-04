@@ -30,7 +30,6 @@ export async function GET(request: NextRequest) {
 
     // Check environment configuration
     const envChecks = {
-      csrfSecret: !!config.security.csrf.secret,
       supabaseUrl: !!config.api.supabase.url,
       supabaseAnonKey: !!config.api.supabase.anonKey,
       twilioAccountSid: !!config.messaging.twilio.accountSid,
@@ -51,7 +50,6 @@ export async function GET(request: NextRequest) {
         total: Math.round((process.memoryUsage().heapTotal / 1024 / 1024) * 100) / 100
       },
       security: {
-        csrfEnabled: envChecks.csrfSecret,
         rateLimitingEnabled: true,
         apiProtected: envChecks.supabaseUrl && envChecks.supabaseAnonKey,
         rateLimit: envChecks.rateLimit

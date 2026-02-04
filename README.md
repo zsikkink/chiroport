@@ -346,7 +346,7 @@ npm run dev:robust
 - `src/components`: Shared UI primitives and layout shells
 - `src/features`: Feature modules (home, locations, location-details)
 - `src/lib`: Client-safe helpers (API client, location data)
-- `src/server`: Server-only helpers (config, security, CSRF, API clients)
+- `src/server`: Server-only helpers (config, security, API clients)
 
 ## 🚨 Troubleshooting
 
