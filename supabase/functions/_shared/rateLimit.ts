@@ -12,7 +12,7 @@ type RateLimitRow = {
   allowed: boolean;
   remaining: number;
   reset_at: string;
-  limit: number;
+  limit_count: number;
   window_seconds: number;
 };
 
@@ -102,7 +102,7 @@ export async function checkRateLimit(
     retryAfterSeconds,
     buckets: blocked.map((row) => ({
       bucket: row.bucket,
-      limit: row.limit,
+      limit: row.limit_count,
       remaining: row.remaining,
       reset_at: row.reset_at,
     })),

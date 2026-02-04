@@ -6,7 +6,7 @@ returns table (
   allowed boolean,
   remaining integer,
   reset_at timestamptz,
-  limit integer,
+  limit_count integer,
   window_seconds integer
 )
 language plpgsql
@@ -70,7 +70,7 @@ begin
     end if;
 
     bucket := v_bucket;
-    limit := v_limit;
+    limit_count := v_limit;
     window_seconds := v_window;
     allowed := v_count <= v_limit;
     remaining := greatest(v_limit - v_count, 0);
