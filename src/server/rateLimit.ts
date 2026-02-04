@@ -8,7 +8,7 @@ export type RateLimitRule = {
 };
 
 type RateLimitRow = {
-  bucket: string;
+  bucket_key: string;
   allowed: boolean;
   remaining: number;
   reset_at: string;
@@ -81,7 +81,7 @@ export async function checkRateLimit(
     console.warn('[rate_limit] blocked', {
       retryAfterSeconds,
       buckets: blocked.map((row) => ({
-        bucket: row.bucket,
+        bucket: row.bucket_key,
         limit: row.limit_count,
         remaining: row.remaining,
         reset_at: row.reset_at,
