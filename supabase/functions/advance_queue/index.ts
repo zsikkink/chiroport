@@ -3,6 +3,12 @@ import { withCorsHeaders, corsHeaders } from '../_shared/cors.ts';
 import { requireEmployee } from '../_shared/employeeAuth.ts';
 import { MESSAGE_TYPES } from '../_shared/messages.ts';
 import { sendOutboxForEntry } from '../_shared/outbox.ts';
+import {
+  buildRateLimitResponse,
+  checkRateLimit,
+  getRateLimitConfig,
+} from '../_shared/rateLimit.ts';
+import { getLocationIdForQueue } from '../_shared/queue.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -56,7 +62,36 @@ serve(async (req) => {
     );
   }
 
-  const { authed, service } = auth;
+  const { authed, service, userId } = auth;
+
+  const locationId = await getLocationIdForQueue(service, payload.queueId);
+  if (locationId) {
+    const rateLimit = await checkRateLimit(
+      service,
+      [
+        {
+          bucket: `user:${userId}`,
+          limit: getRateLimitConfig('RATE_LIMIT_EMPLOYEE_USER_PER_MIN', 300),
+          windowSeconds: 60,
+        },
+        {
+          bucket: `location:${locationId}`,
+          limit: getRateLimitConfig('RATE_LIMIT_EMPLOYEE_LOCATION_PER_MIN', 1000),
+          windowSeconds: 60,
+        },
+      ],
+      { endpoint: 'advance_queue', logContext: { userId, locationId } }
+    );
+
+    if (!rateLimit.allowed) {
+      const headers = new Headers();
+      withCorsHeaders(headers);
+      return buildRateLimitResponse({
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+        headers,
+      });
+    }
+  }
 
   const { data, error } = await authed.rpc('advance_queue', {
     p_queue_id: payload.queueId,

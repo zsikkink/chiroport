@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Simple in-memory rate limiting (for demo - use Redis in production)
+// Short-burst in-memory limiter (authoritative limits are enforced in Supabase RPCs)
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
 
 function getClientIP(request: NextRequest): string {
@@ -45,13 +45,12 @@ export async function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
   
-  // Apply rate limiting to API routes
+  // Apply short-burst rate limiting to API routes
   if (pathname.startsWith('/api/')) {
     const ip = getClientIP(request);
-    const isSubmit = pathname.includes('/submit');
-    const limit = isSubmit ? 5 : 30;
-    const windowMs = isSubmit ? 5 * 60 * 1000 : 60 * 1000; // 5 min for submit, 1 min for others
-    
+    const limit = Number(process.env.RATE_LIMIT_API_BURST ?? 60);
+    const windowMs = Number(process.env.RATE_LIMIT_API_BURST_WINDOW_MS ?? 60_000);
+
     const rateLimit = isRateLimited(ip, limit, windowMs);
     
     // Add rate limit headers
@@ -60,19 +59,26 @@ export async function middleware(request: NextRequest) {
     response.headers.set('X-RateLimit-Reset', new Date(rateLimit.reset).toISOString());
     
     if (rateLimit.limited) {
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((rateLimit.reset - Date.now()) / 1000)
+      );
       return NextResponse.json(
-        { 
-          error: 'Rate limit exceeded',
-          message: 'Too many requests. Please try again later.',
-          retryAfter: new Date(rateLimit.reset).toISOString()
+        {
+          error: {
+            code: 'rate_limited',
+            message: 'Too many requests. Please try again later.',
+            retry_after: retryAfterSeconds,
+          },
         },
-        { 
+        {
           status: 429,
           headers: {
+            'Retry-After': retryAfterSeconds.toString(),
             'X-RateLimit-Limit': limit.toString(),
             'X-RateLimit-Remaining': '0',
-            'X-RateLimit-Reset': new Date(rateLimit.reset).toISOString()
-          }
+            'X-RateLimit-Reset': new Date(rateLimit.reset).toISOString(),
+          },
         }
       );
     }

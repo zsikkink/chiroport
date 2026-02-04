@@ -7,9 +7,25 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { config, env } from '@/server';
+import { checkRateLimit, getClientIp, rateLimitResponse } from '@/server/rateLimit';
 
 export async function GET(request: NextRequest) {
   try {
+    const ip = getClientIp(request.headers);
+    const rateLimit = await checkRateLimit(
+      [
+        {
+          bucket: `ip:${ip}:health`,
+          limit: Number(process.env.RATE_LIMIT_HEALTH_PER_MIN ?? 60),
+          windowSeconds: 60,
+        },
+      ],
+      { context: { ip, path: '/api/health' } }
+    );
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(rateLimit.retryAfterSeconds);
+    }
+
     const healthCheckSecret = env.HEALTH_CHECK_SECRET;
     const providedSecret =
       request.headers.get('x-health-secret') ||

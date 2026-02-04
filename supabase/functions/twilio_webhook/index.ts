@@ -5,6 +5,11 @@ import { MESSAGE_TYPES, buildCancelAck } from '../_shared/messages.ts';
 import { requireEnv } from '../_shared/env.ts';
 import { createServiceRoleClient } from '../_shared/supabaseClient.ts';
 import { enqueueAndSendOutboxMessage } from '../_shared/outbox.ts';
+import {
+  buildRateLimitResponse,
+  checkRateLimit,
+  getRateLimitConfig,
+} from '../_shared/rateLimit.ts';
 
 function getClientIp(req: Request) {
   const forwardedFor = req.headers.get('x-forwarded-for');
@@ -134,23 +139,23 @@ serve(async (req) => {
     return new Response('Method not allowed', { status: 405 });
   }
 
-  try {
-    const ip = getClientIp(req);
-    const limit = await restRequest<
-      Array<{ allowed: boolean; remaining: number; reset_at: string }>
-    >('/rpc/check_rate_limit', {
-      method: 'POST',
-      body: {
-        p_bucket: `twilio_webhook:${ip}`,
-        p_limit: 120,
-        p_window_seconds: 60,
+  const ip = getClientIp(req);
+  const rateLimit = await checkRateLimit(
+    createServiceRoleClient(),
+    [
+      {
+        bucket: `ip:${ip}`,
+        limit: getRateLimitConfig('RATE_LIMIT_TWILIO_IP_PER_MIN', 120),
+        windowSeconds: 60,
       },
+    ],
+    { endpoint: 'twilio_webhook', logContext: { ip } }
+  );
+
+  if (!rateLimit.allowed) {
+    return buildRateLimitResponse({
+      retryAfterSeconds: rateLimit.retryAfterSeconds,
     });
-    if (limit?.[0] && limit[0].allowed === false) {
-      return new Response('Too many requests', { status: 429 });
-    }
-  } catch (error) {
-    console.error('twilio_webhook rate limit check failed', error);
   }
 
   const contentType = req.headers.get('content-type') ?? '';

@@ -1,8 +1,11 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1?target=deno';
 import { sendTwilioSms } from './twilio.ts';
+import { checkRateLimit, getRateLimitConfig } from './rateLimit.ts';
+import { getLocationIdForQueueEntry } from './queue.ts';
 
 type OutboxRow = {
   id: string;
+  queue_entry_id: string;
   attempt_count: number;
   to_phone: string;
   body: string;
@@ -46,6 +49,23 @@ async function markOptedOut(supabase: SupabaseClient, message: OutboxRow) {
     .eq('id', message.id);
 }
 
+async function markRateLimited(
+  supabase: SupabaseClient,
+  message: OutboxRow,
+  retryAfterSeconds: number
+) {
+  const nextAttempt = new Date(Date.now() + retryAfterSeconds * 1000).toISOString();
+  await supabase
+    .from('sms_outbox')
+    .update({
+      status: 'queued',
+      last_error: 'rate_limited',
+      locked_at: null,
+      next_attempt_at: nextAttempt,
+    })
+    .eq('id', message.id);
+}
+
 async function isOptedOut(supabase: SupabaseClient, phone: string) {
   const { data, error } = await supabase
     .from('sms_opt_outs')
@@ -83,6 +103,36 @@ export async function sendClaimedMessage(
   if (await isOptedOut(supabase, message.to_phone)) {
     await markOptedOut(supabase, message);
     return { status: 'dead', error: 'opted_out' };
+  }
+
+  const rules = [
+    {
+      bucket: `sms:phone:${message.to_phone}:day`,
+      limit: getRateLimitConfig('RATE_LIMIT_SMS_PHONE_PER_DAY', 5),
+      windowSeconds: 60 * 60 * 24,
+    },
+  ];
+
+  const locationId = message.queue_entry_id
+    ? await getLocationIdForQueueEntry(supabase, message.queue_entry_id)
+    : null;
+
+  if (locationId) {
+    rules.push({
+      bucket: `sms:location:${locationId}:day`,
+      limit: getRateLimitConfig('RATE_LIMIT_SMS_LOCATION_PER_DAY', 200),
+      windowSeconds: 60 * 60 * 24,
+    });
+  }
+
+  const rateLimit = await checkRateLimit(supabase, rules, {
+    endpoint: 'send_sms',
+    logContext: { phone: message.to_phone, locationId },
+  });
+
+  if (!rateLimit.allowed) {
+    await markRateLimited(supabase, message, rateLimit.retryAfterSeconds);
+    return { status: 'rate_limited', error: 'rate_limited' };
   }
 
   try {
@@ -134,7 +184,7 @@ export async function enqueueAndSendOutboxMessage(
 
   const { data: row } = await supabase
     .from('sms_outbox')
-    .select('id, attempt_count, to_phone, body')
+    .select('id, queue_entry_id, attempt_count, to_phone, body')
     .eq('idempotency_key', payload.idempotency_key)
     .maybeSingle();
 
@@ -157,7 +207,7 @@ export async function sendOutboxForEntry(
 ) {
   const { data: row } = await supabase
     .from('sms_outbox')
-    .select('id, attempt_count, to_phone, body')
+    .select('id, queue_entry_id, attempt_count, to_phone, body')
     .eq('queue_entry_id', queueEntryId)
     .eq('message_type', messageType)
     .maybeSingle();

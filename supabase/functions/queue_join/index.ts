@@ -4,6 +4,11 @@ import { withCorsHeaders, corsHeaders } from '../_shared/cors.ts';
 import { createServiceRoleClient } from '../_shared/supabaseClient.ts';
 import { normalizePhoneToE164 } from '../_shared/phone.ts';
 import {
+  buildRateLimitResponse,
+  checkRateLimit,
+  getRateLimitConfig,
+} from '../_shared/rateLimit.ts';
+import {
   MESSAGE_TYPES,
   buildPayingConfirmation,
   buildPriorityPassConfirmation,
@@ -98,34 +103,39 @@ serve(async (req) => {
   }
 
   const supabase = createServiceRoleClient();
-  try {
-    const ip = getClientIp(req);
-    const { data: limitData, error: limitError } = await supabase.rpc(
-      'check_rate_limit',
+  const ip = getClientIp(req);
+  const rateLimit = await checkRateLimit(
+    supabase,
+    [
       {
-        p_bucket: `queue_join:${ip}`,
-        p_limit: 30,
-        p_window_seconds: 60,
-      }
-    );
-    if (limitError) {
-      throw limitError;
+        bucket: `ip:${ip}`,
+        limit: getRateLimitConfig('RATE_LIMIT_QUEUE_JOIN_IP_PER_MIN', 30),
+        windowSeconds: 60,
+      },
+      {
+        bucket: `phone:${phoneE164}:hour`,
+        limit: getRateLimitConfig('RATE_LIMIT_QUEUE_JOIN_PHONE_PER_HOUR', 5),
+        windowSeconds: 60 * 60,
+      },
+      {
+        bucket: `phone:${phoneE164}:day`,
+        limit: getRateLimitConfig('RATE_LIMIT_QUEUE_JOIN_PHONE_PER_DAY', 10),
+        windowSeconds: 60 * 60 * 24,
+      },
+    ],
+    {
+      endpoint: 'queue_join',
+      logContext: { ip, phone: phoneE164 },
     }
-    const limit = limitData?.[0];
-    if (limit && limit.allowed === false) {
-      const headers = new Headers();
-      withCorsHeaders(headers);
-      headers.set(
-        'Retry-After',
-        Math.ceil((new Date(limit.reset_at).getTime() - Date.now()) / 1000).toString()
-      );
-      return new Response(JSON.stringify({ error: 'Too many requests' }), {
-        status: 429,
-        headers,
-      });
-    }
-  } catch (error) {
-    console.error('queue_join rate limit check failed', error);
+  );
+
+  if (!rateLimit.allowed) {
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return buildRateLimitResponse({
+      retryAfterSeconds: rateLimit.retryAfterSeconds,
+      headers,
+    });
   }
 
   try {

@@ -2,6 +2,12 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { withCorsHeaders, corsHeaders } from '../_shared/cors.ts';
 import { requireEmployee } from '../_shared/employeeAuth.ts';
 import { enqueueAndSendOutboxMessage } from '../_shared/outbox.ts';
+import {
+  buildRateLimitResponse,
+  checkRateLimit,
+  getRateLimitConfig,
+} from '../_shared/rateLimit.ts';
+import { getLocationIdForQueueEntry } from '../_shared/queue.ts';
 
 type Payload = {
   queueEntryId?: string;
@@ -70,7 +76,38 @@ serve(async (req) => {
     );
   }
 
-  const { service } = auth;
+  const { service, userId } = auth;
+  const locationId = await getLocationIdForQueueEntry(
+    service,
+    payload.queueEntryId
+  );
+  if (locationId) {
+    const rateLimit = await checkRateLimit(
+      service,
+      [
+        {
+          bucket: `user:${userId}`,
+          limit: getRateLimitConfig('RATE_LIMIT_EMPLOYEE_USER_PER_MIN', 300),
+          windowSeconds: 60,
+        },
+        {
+          bucket: `location:${locationId}`,
+          limit: getRateLimitConfig('RATE_LIMIT_EMPLOYEE_LOCATION_PER_MIN', 1000),
+          windowSeconds: 60,
+        },
+      ],
+      { endpoint: 'send_employee_message', logContext: { userId, locationId } }
+    );
+
+    if (!rateLimit.allowed) {
+      const headers = new Headers();
+      withCorsHeaders(headers);
+      return buildRateLimitResponse({
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+        headers,
+      });
+    }
+  }
 
   const { data: entry, error: entryError } = await service
     .from('queue_entries')

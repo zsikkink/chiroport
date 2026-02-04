@@ -3,6 +3,12 @@ import { withCorsHeaders, corsHeaders } from '../_shared/cors.ts';
 import { requireEmployee } from '../_shared/employeeAuth.ts';
 import { MESSAGE_TYPES, buildServingNotification } from '../_shared/messages.ts';
 import { enqueueAndSendOutboxMessage } from '../_shared/outbox.ts';
+import {
+  buildRateLimitResponse,
+  checkRateLimit,
+  getRateLimitConfig,
+} from '../_shared/rateLimit.ts';
+import { getLocationIdForQueueEntry } from '../_shared/queue.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -56,7 +62,38 @@ serve(async (req) => {
     );
   }
 
-  const { service } = auth;
+  const { service, userId } = auth;
+  const locationId = await getLocationIdForQueueEntry(
+    service,
+    payload.queueEntryId
+  );
+  if (locationId) {
+    const rateLimit = await checkRateLimit(
+      service,
+      [
+        {
+          bucket: `user:${userId}`,
+          limit: getRateLimitConfig('RATE_LIMIT_EMPLOYEE_USER_PER_MIN', 300),
+          windowSeconds: 60,
+        },
+        {
+          bucket: `location:${locationId}`,
+          limit: getRateLimitConfig('RATE_LIMIT_EMPLOYEE_LOCATION_PER_MIN', 1000),
+          windowSeconds: 60,
+        },
+      ],
+      { endpoint: 'set_serving', logContext: { userId, locationId } }
+    );
+
+    if (!rateLimit.allowed) {
+      const headers = new Headers();
+      withCorsHeaders(headers);
+      return buildRateLimitResponse({
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+        headers,
+      });
+    }
+  }
   const nowIso = new Date().toISOString();
 
   const { data, error } = await service

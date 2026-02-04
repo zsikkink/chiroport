@@ -3,6 +3,24 @@ import { withCorsHeaders, corsHeaders } from '../_shared/cors.ts';
 import { createServiceRoleClient } from '../_shared/supabaseClient.ts';
 import { sendClaimedMessage } from '../_shared/outbox.ts';
 import { requireEnv } from '../_shared/env.ts';
+import {
+  buildRateLimitResponse,
+  checkRateLimit,
+  getRateLimitConfig,
+} from '../_shared/rateLimit.ts';
+
+function getClientIp(req: Request) {
+  const forwardedFor = req.headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    const [first] = forwardedFor.split(',');
+    if (first?.trim()) return first.trim();
+  }
+  const realIp = req.headers.get('x-real-ip');
+  if (realIp) return realIp.trim();
+  const cfIp = req.headers.get('cf-connecting-ip');
+  if (cfIp) return cfIp.trim();
+  return 'unknown';
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -40,11 +58,33 @@ serve(async (req) => {
     });
   }
 
+  const supabase = createServiceRoleClient();
+  const ip = getClientIp(req);
+  const rateLimit = await checkRateLimit(
+    supabase,
+    [
+      {
+        bucket: `ip:${ip}`,
+        limit: getRateLimitConfig('RATE_LIMIT_SEND_SMS_IP_PER_MIN', 10),
+        windowSeconds: 60,
+      },
+    ],
+    { endpoint: 'send_sms', logContext: { ip } }
+  );
+
+  if (!rateLimit.allowed) {
+    const headers = new Headers();
+    withCorsHeaders(headers);
+    return buildRateLimitResponse({
+      retryAfterSeconds: rateLimit.retryAfterSeconds,
+      headers,
+    });
+  }
+
   const url = new URL(req.url);
   const limitParam = url.searchParams.get('limit');
   const limit = Math.max(1, Math.min(Number(limitParam ?? 25), 100));
 
-  const supabase = createServiceRoleClient();
   const { data: queued, error } = await supabase.rpc('claim_sms_outbox', {
     p_limit: limit,
     p_lock_minutes: 5,
