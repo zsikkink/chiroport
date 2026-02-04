@@ -1,5 +1,7 @@
 begin;
 
+drop function if exists public.check_rate_limits(jsonb);
+
 create or replace function public.check_rate_limits(p_rules jsonb)
 returns table (
   bucket_key text,
