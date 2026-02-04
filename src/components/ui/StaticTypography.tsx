@@ -1,5 +1,4 @@
-import React from 'react';
-import { ReactNode, ElementType } from 'react';
+import type { CSSProperties, ElementType, ReactNode } from 'react';
 
 type TextSize = 'xs' | 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl';
 type FontWeight = 'normal' | 'medium' | 'semibold' | 'bold';
@@ -15,7 +14,7 @@ type StaticTypographyProps = {
   color?: string;
   className?: string;
   as?: ElementType;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 };
 
 type VariantConfig = {

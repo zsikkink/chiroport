@@ -1,27 +1,35 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
+import nextTypescript from 'eslint-config-next/typescript';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
-const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+export default [
   {
-    files: ["src/components/**/*.{ts,tsx}", "src/features/**/*.{ts,tsx}"],
+    ignores: [
+      'coverage/**',
+      'scripts/**',
+      'supabase/**',
+      '*.config.*',
+      'tailwind.config.js',
+      'postcss.config.mjs',
+      'jest.config.js',
+      'playwright.config.ts',
+    ],
+  },
+  ...nextCoreWebVitals,
+  ...nextTypescript,
+  {
     rules: {
-      "no-restricted-imports": [
-        "error",
+      'react-hooks/set-state-in-effect': 'off',
+    },
+  },
+  {
+    files: ['src/components/**/*.{ts,tsx}', 'src/features/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
         {
-          patterns: ["@/server", "@/server/*", "@/server/**"],
+          patterns: ['@/server', '@/server/*', '@/server/**'],
         },
       ],
     },
   },
 ];
-
-export default eslintConfig;
