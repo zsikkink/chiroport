@@ -28,6 +28,7 @@
     "cache:clean": "node scripts/cache-monitor.js clean",
     "cache:monitor": "node scripts/cache-monitor.js monitor",
     "queue:clear": "node scripts/clear-queues.cjs",
+    "rate-limit:smoke": "node scripts/rate-limit-smoke.cjs",
     "db:migrate": "supabase db push",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local --schema public > src/lib/supabase/database.types.ts"
