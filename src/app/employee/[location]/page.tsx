@@ -6,12 +6,11 @@ import {
   useMemo,
   useRef,
   useState,
-  memo,
   type DragEvent,
   type MouseEvent,
 } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ResponsiveCard, Button, LoadingSpinner, Heading } from '@/components/ui';
+import { ResponsiveCard, Button, LoadingSpinner } from '@/components/ui';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { requireEnv } from '@/lib/supabase/helpers';
 import { toLocationSlug } from '@/lib/locationSlug';
@@ -21,515 +20,23 @@ import { useEmployeePresence } from './hooks/useEmployeePresence';
 import { useEntryActions } from './hooks/useEntryActions';
 import { useQueueData } from './hooks/useQueueData';
 import { useRealtimeSubscriptions } from './hooks/useRealtimeSubscriptions';
+import { ChatPanel } from './components/ChatPanel';
+import { QueueColumn } from './components/QueueColumn';
+import { StatusBar } from './components/StatusBar';
+import {
+  HistoryEntryCard,
+  ServingEntryCard,
+  WaitingEntryCard,
+} from './components/QueueEntryCards';
 import type {
-  ChatEntry,
   CreateFormState,
   DragPayload,
   EditFormState,
-  HistoryRow,
   LocationOption,
   MenuEntry,
-  ServingRow,
-  WaitingRow,
-  WithEntryId,
 } from './types';
-import {
-  formatConfirmSmsStatus,
-  formatServingSmsStatus,
-  formatSmsStatus,
-  formatStatusLabel,
-  formatTime,
-  formatWaitedLabel,
-  toChatEntry,
-} from './utils';
 
 const supabase = getSupabaseBrowserClient();
-
-type WaitingEntryCardProps = {
-  entry: WithEntryId<WaitingRow>;
-  isServingBusy: boolean;
-  isCancelBusy: boolean;
-  isDeleteBusy: boolean;
-  hasUnread: boolean;
-  onDragStart: (event: DragEvent<HTMLDivElement>) => void;
-  onContextMenu: (event: MouseEvent<HTMLDivElement>) => void;
-  onAdvance: (entryId: string) => void;
-  onOpenChat: (entry: ChatEntry) => void;
-  menuOpen: boolean;
-  canMove: boolean;
-  onCloseMenu: () => void;
-  onMove: (entry: MenuEntry) => void;
-  onEdit: (entry: MenuEntry) => void;
-  onDelete: (entryId: string) => void;
-};
-
-const WaitingEntryCard = memo(function WaitingEntryCard({
-  entry,
-  isServingBusy,
-  isCancelBusy,
-  isDeleteBusy,
-  hasUnread,
-  onDragStart,
-  onContextMenu,
-  onAdvance,
-  onOpenChat,
-  menuOpen,
-  canMove,
-  onCloseMenu,
-  onMove,
-  onEdit,
-  onDelete,
-}: WaitingEntryCardProps) {
-  const confirmStatus = formatConfirmSmsStatus(entry.confirm_sms_status);
-  const nextStatus = formatSmsStatus(
-    entry.customer_type === 'paying' ? entry.next_sms_status : 'n/a'
-  );
-  const serviceLabel = entry.service_label ?? entry.customer_type ?? 'unknown';
-
-  return (
-    <div
-      className="rounded-md border border-black/10 bg-white text-black p-3"
-      draggable
-      onDragStart={onDragStart}
-      onContextMenu={onContextMenu}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <p className="min-w-0 flex-1 truncate text-[1.05rem] font-semibold">
-          {entry.full_name ?? 'Unknown'}
-        </p>
-        <div className="relative flex items-center gap-2">
-          <button
-            type="button"
-            className="relative rounded-full bg-black/10 p-1 text-black hover:bg-black/20"
-            onClick={() => onOpenChat(toChatEntry(entry))}
-            aria-label="Message customer"
-            title="Message customer"
-          >
-            {hasUnread ? (
-              <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500" />
-            ) : null}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
-            >
-              <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.2 0-2.4-.2-3.4-.6L3 21l1.6-6.1a8.5 8.5 0 1 1 16.4-3.4Z" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="rounded-md bg-emerald-500 p-1 text-white shadow-sm hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={() => onAdvance(entry.queue_entry_id)}
-            disabled={isServingBusy || isCancelBusy || isDeleteBusy}
-            aria-label="Move to serving"
-            title="Serve"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
-            >
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-          </button>
-          <EntryActionMenu
-            entry={entry}
-            isDeleteBusy={isDeleteBusy}
-            menuOpen={menuOpen}
-            canMove={canMove}
-            onCloseMenu={onCloseMenu}
-            onMove={onMove}
-            onEdit={onEdit}
-            onDelete={onDelete}
-          />
-        </div>
-      </div>
-      <p className="text-sm text-black/70">
-        {serviceLabel} · Joined at {formatTime(entry.created_at)}
-      </p>
-      <p className="mt-2 text-sm">
-        <span className={confirmStatus.className}>
-          Confirmation SMS: {confirmStatus.label}
-        </span>
-        {' · '}
-        <span className={nextStatus.className}>
-          Next SMS: {nextStatus.label}
-        </span>
-      </p>
-      <p className="text-sm text-black/70">
-        {entry.phone_e164 ?? '—'} · {entry.email ?? '—'}
-      </p>
-    </div>
-  );
-});
-
-type ServingEntryCardProps = {
-  entry: WithEntryId<ServingRow>;
-  isCompleteBusy: boolean;
-  isCancelBusy: boolean;
-  isDeleteBusy: boolean;
-  isReturnBusy: boolean;
-  hasUnread: boolean;
-  onDragStart: (event: DragEvent<HTMLDivElement>) => void;
-  onContextMenu: (event: MouseEvent<HTMLDivElement>) => void;
-  onAdvance: (entryId: string) => void;
-  onOpenChat: (entry: ChatEntry) => void;
-  menuOpen: boolean;
-  canMove: boolean;
-  onCloseMenu: () => void;
-  onMove: (entry: MenuEntry) => void;
-  onEdit: (entry: MenuEntry) => void;
-  onDelete: (entryId: string) => void;
-};
-
-const ServingEntryCard = memo(function ServingEntryCard({
-  entry,
-  isCompleteBusy,
-  isCancelBusy,
-  isDeleteBusy,
-  isReturnBusy,
-  hasUnread,
-  onDragStart,
-  onContextMenu,
-  onAdvance,
-  onOpenChat,
-  menuOpen,
-  canMove,
-  onCloseMenu,
-  onMove,
-  onEdit,
-  onDelete,
-}: ServingEntryCardProps) {
-  const confirmStatus = formatConfirmSmsStatus(entry.confirm_sms_status);
-  const servingStatus = formatServingSmsStatus(entry.serving_sms_status);
-  const serviceLabel = entry.service_label ?? entry.customer_type ?? 'unknown';
-  const waitedLabel = formatWaitedLabel(entry.served_at, entry.created_at);
-
-  return (
-    <div
-      className="rounded-md border border-black/10 bg-white text-black p-3"
-      draggable
-      onDragStart={onDragStart}
-      onContextMenu={onContextMenu}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <p className="min-w-0 flex-1 truncate text-[1.05rem] font-semibold">
-          {entry.full_name ?? 'Unknown'}
-        </p>
-        <div className="relative flex items-center gap-2">
-          <button
-            type="button"
-            className="relative rounded-full bg-black/10 p-1 text-black hover:bg-black/20"
-            onClick={() => onOpenChat(toChatEntry(entry))}
-            aria-label="Message customer"
-            title="Message customer"
-          >
-            {hasUnread ? (
-              <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500" />
-            ) : null}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
-            >
-              <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.2 0-2.4-.2-3.4-.6L3 21l1.6-6.1a8.5 8.5 0 1 1 16.4-3.4Z" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="rounded-md bg-emerald-500 p-1 text-white shadow-sm hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={() => onAdvance(entry.queue_entry_id)}
-            disabled={isCompleteBusy || isCancelBusy || isDeleteBusy || isReturnBusy}
-            aria-label="Mark completed"
-            title="Complete"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
-            >
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-          </button>
-          <EntryActionMenu
-            entry={entry}
-            isDeleteBusy={isDeleteBusy}
-            menuOpen={menuOpen}
-            canMove={canMove}
-            onCloseMenu={onCloseMenu}
-            onMove={onMove}
-            onEdit={onEdit}
-            onDelete={onDelete}
-          />
-        </div>
-      </div>
-      <p className="text-sm text-black/70">
-        {serviceLabel} · {waitedLabel ?? `Joined at ${formatTime(entry.created_at)}`}
-      </p>
-      <p className="mt-2 text-sm">
-        <span className={confirmStatus.className}>
-          Confirmation SMS: {confirmStatus.label}
-        </span>
-        {' · '}
-        <span className={servingStatus.className}>
-          Serving SMS: {servingStatus.label}
-        </span>
-      </p>
-      <p className="text-sm text-black/70">
-        {entry.phone_e164 ?? '—'} · {entry.email ?? '—'}
-      </p>
-    </div>
-  );
-});
-
-type HistoryEntryCardProps = {
-  entry: WithEntryId<HistoryRow>;
-  isDeleteBusy: boolean;
-  hasUnread: boolean;
-  onDragStart: (event: DragEvent<HTMLDivElement>) => void;
-  onContextMenu: (event: MouseEvent<HTMLDivElement>) => void;
-  onDelete: (entryId: string) => void;
-  onOpenChat: (entry: ChatEntry) => void;
-  onToggleMenu: (entryId: string) => void;
-  onCloseMenu: () => void;
-  menuOpen: boolean;
-  canMove: boolean;
-  onMove: (entry: MenuEntry) => void;
-  onEdit: (entry: MenuEntry) => void;
-};
-
-type EntryActionMenuProps = {
-  entry: MenuEntry;
-  isDeleteBusy: boolean;
-  menuOpen: boolean;
-  canMove: boolean;
-  onCloseMenu: () => void;
-  onMove: (entry: MenuEntry) => void;
-  onEdit: (entry: MenuEntry) => void;
-  onDelete: (entryId: string) => void;
-};
-
-const EntryActionMenu = memo(function EntryActionMenu({
-  entry,
-  isDeleteBusy,
-  menuOpen,
-  canMove,
-  onCloseMenu,
-  onMove,
-  onEdit,
-  onDelete,
-}: EntryActionMenuProps) {
-  if (!menuOpen) return null;
-  return (
-    <>
-      <button
-        type="button"
-        className="fixed inset-0 z-20 cursor-default"
-        onClick={onCloseMenu}
-        aria-label="Close menu"
-      />
-      <div className="absolute right-0 top-7 z-30 w-36 rounded-lg bg-white text-black opacity-100 shadow-xl ring-1 ring-black/20">
-        {canMove ? (
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-black/5"
-            onClick={() => onMove(entry)}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
-            >
-              <path d="M12 4v16" />
-              <path d="M4 12h16" />
-              <path d="M12 4l-3 3" />
-              <path d="M12 4l3 3" />
-              <path d="M12 20l-3-3" />
-              <path d="M12 20l3-3" />
-              <path d="M4 12l3-3" />
-              <path d="M4 12l3 3" />
-              <path d="M20 12l-3-3" />
-              <path d="M20 12l-3 3" />
-            </svg>
-            <span>Move</span>
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-black/5"
-          onClick={() => onEdit(entry)}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4"
-          >
-            <path d="M12 20h9" />
-            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-          </svg>
-          <span>Edit</span>
-        </button>
-        <button
-          type="button"
-          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-          disabled={isDeleteBusy}
-          onClick={() => onDelete(entry.queue_entry_id)}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4"
-          >
-            <path d="M3 6h18" />
-            <path d="M8 6V4h8v2" />
-            <path d="M6 6l1 14h10l1-14" />
-          </svg>
-          <span>Delete</span>
-        </button>
-      </div>
-    </>
-  );
-});
-
-const HistoryEntryCard = memo(function HistoryEntryCard({
-  entry,
-  isDeleteBusy,
-  hasUnread,
-  onDragStart,
-  onContextMenu,
-  onDelete,
-  onOpenChat,
-  onToggleMenu,
-  onCloseMenu,
-  menuOpen,
-  canMove,
-  onMove,
-  onEdit,
-}: HistoryEntryCardProps) {
-  const confirmStatus = formatConfirmSmsStatus(entry.confirm_sms_status);
-  const servingStatus = formatServingSmsStatus(entry.serving_sms_status);
-  const statusLabel = formatStatusLabel(entry.status);
-  const statusTimestamp = formatTime(entry.end_ts);
-  const statusLine = statusLabel ? `${statusLabel} at ${statusTimestamp}` : statusTimestamp;
-
-  return (
-    <div
-      className="rounded-md border border-black/10 bg-white text-black p-3"
-      draggable
-      onDragStart={onDragStart}
-      onContextMenu={onContextMenu}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <p className="min-w-0 flex-1 truncate text-[1.05rem] font-semibold">
-          {entry.full_name ?? 'Unknown'}
-        </p>
-        <div className="relative flex items-center gap-2">
-          <button
-            type="button"
-            className="relative rounded-full bg-black/10 p-1 text-black hover:bg-black/20"
-            onClick={() => onOpenChat(toChatEntry(entry))}
-            aria-label="Message customer"
-            title="Message customer"
-          >
-            {hasUnread ? (
-              <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500" />
-            ) : null}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
-            >
-              <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.2 0-2.4-.2-3.4-.6L3 21l1.6-6.1a8.5 8.5 0 1 1 16.4-3.4Z" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="rounded-full bg-black/10 p-1 text-black hover:bg-black/20"
-            onClick={() => onToggleMenu(entry.queue_entry_id)}
-            aria-label="More actions"
-            title="More actions"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="h-4 w-4"
-            >
-              <circle cx="5" cy="12" r="1.5" />
-              <circle cx="12" cy="12" r="1.5" />
-              <circle cx="19" cy="12" r="1.5" />
-            </svg>
-          </button>
-          <EntryActionMenu
-            entry={entry}
-            isDeleteBusy={isDeleteBusy}
-            menuOpen={menuOpen}
-            canMove={canMove}
-            onCloseMenu={onCloseMenu}
-            onMove={onMove}
-            onEdit={onEdit}
-            onDelete={onDelete}
-          />
-        </div>
-      </div>
-      <p className="text-sm text-black/70">
-        {entry.service_label ?? entry.customer_type ?? 'unknown'}, {statusLine}
-      </p>
-      <p className="text-sm text-black/70">
-        {entry.phone_e164 ?? '—'} · {entry.email ?? '—'}
-      </p>
-      <p className="mt-2 text-sm">
-        <span className={confirmStatus.className}>
-          Confirmation SMS: {confirmStatus.label}
-        </span>
-        {' · '}
-        <span className={servingStatus.className}>
-          Serving SMS: {servingStatus.label}
-        </span>
-      </p>
-    </div>
-  );
-});
 
 export default function EmployeeDashboardPage() {
   const [actionError, setActionError] = useState('');
@@ -1160,150 +667,130 @@ export default function EmployeeDashboardPage() {
         </div>
       ) : null}
       <div className="max-w-7xl mx-auto space-y-6">
-        <header
-          className={`flex flex-col gap-3 ${!isLocationMenuOpen ? 'pl-16' : ''}`}
-        >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-            <div className="hidden sm:block" />
-            <h1 className="text-center text-3xl font-libre-baskerville">
-              Employee Dashboard
-              {selectedLocation?.display_name
-                ? ` · ${selectedLocation.display_name}`
-                : ''}
-            </h1>
-            <div className="flex justify-center sm:justify-end">
-              <Button variant="secondary" onClick={handleSignOut}>
-                Sign Out
-              </Button>
-            </div>
-          </div>
-          <p className="text-center text-sm text-white/80">
-            Signed in as {currentUser.email} ({profile?.role})
-          </p>
-          {actionError ? (
-            <p className="text-sm text-red-200">{actionError}</p>
-          ) : null}
-        </header>
+        <StatusBar
+          locationName={selectedLocation?.display_name ?? null}
+          userEmail={currentUser.email ?? null}
+          role={profile?.role ?? null}
+          actionError={actionError}
+          onSignOut={handleSignOut}
+          offsetForMenu={!isLocationMenuOpen}
+        />
 
         {dataLoading ? (
           <LoadingSpinner text="Loading queue..." />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-            <div onDragOver={handleDragOver} onDrop={handleDrop('waiting')}>
-              <ResponsiveCard className="h-full min-h-[calc(100vh-260px)]">
-                <div className="mb-3 flex items-center justify-between">
-                  <Heading className="text-white">Waiting</Heading>
-                  <button
-                    type="button"
-                    className="rounded-full bg-white/20 p-1 text-white transition hover:bg-white/30"
-                    onClick={handleOpenCreateEntry}
-                    aria-label="Add customer to queue"
-                    title="Add customer"
+            <QueueColumn
+              title="Waiting"
+              emptyLabel="No waiting customers."
+              isEmpty={waitingEntries.length === 0}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop('waiting')}
+              headerAction={
+                <button
+                  type="button"
+                  className="rounded-full bg-white/20 p-1 text-white transition hover:bg-white/30"
+                  onClick={handleOpenCreateEntry}
+                  aria-label="Add customer to queue"
+                  title="Add customer"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-4 w-4"
-                    >
-                      <path d="M12 5v14" />
-                      <path d="M5 12h14" />
-                    </svg>
-                  </button>
-                </div>
-                {waitingEntries.length === 0 ? (
-                  <p className="text-sm text-white/70">No waiting customers.</p>
-                ) : (
-              <div className="space-y-4">
-                  {waitingEntries.map((entry) => (
-                    <WaitingEntryCard
-                      key={entry.queue_entry_id}
-                      entry={entry}
-                      isServingBusy={busyAction === `serving:${entry.queue_entry_id}`}
-                      isCancelBusy={busyAction === `cancel:${entry.queue_entry_id}`}
-                      isDeleteBusy={busyAction === `delete:${entry.queue_entry_id}`}
-                      hasUnread={Boolean(unreadEntryIds[entry.queue_entry_id])}
-                      onDragStart={handleDragStart(entry.queue_entry_id, entry.status)}
-                      onContextMenu={handleEntryContextMenu(entry.queue_entry_id)}
-                      onAdvance={handleSetServing}
-                      onOpenChat={openChat}
-                      menuOpen={menuEntryId === entry.queue_entry_id}
-                      canMove={canMoveEntry(entry)}
-                      onCloseMenu={closeMenu}
-                      onMove={handleOpenMove}
-                      onEdit={handleOpenEdit}
-                      onDelete={handleDeleteFromMenu}
-                    />
-                  ))}
-              </div>
-            )}
-          </ResponsiveCard>
-            </div>
+                    <path d="M12 5v14" />
+                    <path d="M5 12h14" />
+                  </svg>
+                </button>
+              }
+            >
+              {waitingEntries.map((entry) => (
+                <WaitingEntryCard
+                  key={entry.queue_entry_id}
+                  entry={entry}
+                  isServingBusy={busyAction === `serving:${entry.queue_entry_id}`}
+                  isCancelBusy={busyAction === `cancel:${entry.queue_entry_id}`}
+                  isDeleteBusy={busyAction === `delete:${entry.queue_entry_id}`}
+                  hasUnread={Boolean(unreadEntryIds[entry.queue_entry_id])}
+                  onDragStart={handleDragStart(entry.queue_entry_id, entry.status)}
+                  onContextMenu={handleEntryContextMenu(entry.queue_entry_id)}
+                  onAdvance={handleSetServing}
+                  onOpenChat={openChat}
+                  menuOpen={menuEntryId === entry.queue_entry_id}
+                  canMove={canMoveEntry(entry)}
+                  onCloseMenu={closeMenu}
+                  onMove={handleOpenMove}
+                  onEdit={handleOpenEdit}
+                  onDelete={handleDeleteFromMenu}
+                />
+              ))}
+            </QueueColumn>
 
-            <div onDragOver={handleDragOver} onDrop={handleDrop('serving')}>
-              <ResponsiveCard title="Serving" className="h-full min-h-[calc(100vh-260px)]">
-                {servingEntries.length === 0 ? (
-                  <p className="text-sm text-white/70">No active services.</p>
-                ) : (
-              <div className="space-y-4">
-                  {servingEntries.map((entry) => (
-                    <ServingEntryCard
-                      key={entry.queue_entry_id}
-                      entry={entry}
-                      isCompleteBusy={busyAction === `complete:${entry.queue_entry_id}`}
-                      isReturnBusy={busyAction === `return:${entry.queue_entry_id}`}
-                      isCancelBusy={busyAction === `cancel:${entry.queue_entry_id}`}
-                      isDeleteBusy={busyAction === `delete:${entry.queue_entry_id}`}
-                      hasUnread={Boolean(unreadEntryIds[entry.queue_entry_id])}
-                      onDragStart={handleDragStart(entry.queue_entry_id, entry.status)}
-                      onContextMenu={handleEntryContextMenu(entry.queue_entry_id)}
-                      onAdvance={handleComplete}
-                      onOpenChat={openChat}
-                      menuOpen={menuEntryId === entry.queue_entry_id}
-                      canMove={canMoveEntry(entry)}
-                      onCloseMenu={closeMenu}
-                      onMove={handleOpenMove}
-                      onEdit={handleOpenEdit}
-                      onDelete={handleDeleteFromMenu}
-                    />
-                  ))}
-              </div>
-            )}
-          </ResponsiveCard>
-            </div>
+            <QueueColumn
+              title="Serving"
+              emptyLabel="No active services."
+              isEmpty={servingEntries.length === 0}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop('serving')}
+              useCardTitle
+            >
+              {servingEntries.map((entry) => (
+                <ServingEntryCard
+                  key={entry.queue_entry_id}
+                  entry={entry}
+                  isCompleteBusy={busyAction === `complete:${entry.queue_entry_id}`}
+                  isReturnBusy={busyAction === `return:${entry.queue_entry_id}`}
+                  isCancelBusy={busyAction === `cancel:${entry.queue_entry_id}`}
+                  isDeleteBusy={busyAction === `delete:${entry.queue_entry_id}`}
+                  hasUnread={Boolean(unreadEntryIds[entry.queue_entry_id])}
+                  onDragStart={handleDragStart(entry.queue_entry_id, entry.status)}
+                  onContextMenu={handleEntryContextMenu(entry.queue_entry_id)}
+                  onAdvance={handleComplete}
+                  onOpenChat={openChat}
+                  menuOpen={menuEntryId === entry.queue_entry_id}
+                  canMove={canMoveEntry(entry)}
+                  onCloseMenu={closeMenu}
+                  onMove={handleOpenMove}
+                  onEdit={handleOpenEdit}
+                  onDelete={handleDeleteFromMenu}
+                />
+              ))}
+            </QueueColumn>
 
-            <div onDragOver={handleDragOver} onDrop={handleDrop('history')}>
-              <ResponsiveCard title="History" className="h-full min-h-[calc(100vh-260px)]">
-                {historyEntries.length === 0 ? (
-                  <p className="text-sm text-white/70">No recent history.</p>
-                ) : (
-              <div className="space-y-3">
-                  {historyEntries.map((entry) => (
-                    <HistoryEntryCard
-                      key={entry.queue_entry_id}
-                      entry={entry}
-                      isDeleteBusy={busyAction === `delete:${entry.queue_entry_id}`}
-                      hasUnread={Boolean(unreadEntryIds[entry.queue_entry_id])}
-                      onDragStart={handleDragStart(entry.queue_entry_id, entry.status)}
-                      onContextMenu={handleEntryContextMenu(entry.queue_entry_id)}
-                      onDelete={handleDeleteFromMenu}
-                      onOpenChat={openChat}
-                      onToggleMenu={handleToggleMenu}
-                      onCloseMenu={closeMenu}
-                      menuOpen={menuEntryId === entry.queue_entry_id}
-                      canMove={canMoveEntry(entry)}
-                      onMove={handleOpenMove}
-                      onEdit={handleOpenEdit}
-                    />
-                  ))}
-              </div>
-            )}
-          </ResponsiveCard>
-        </div>
+            <QueueColumn
+              title="History"
+              emptyLabel="No recent history."
+              isEmpty={historyEntries.length === 0}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop('history')}
+              useCardTitle
+              itemsClassName="space-y-3"
+            >
+              {historyEntries.map((entry) => (
+                <HistoryEntryCard
+                  key={entry.queue_entry_id}
+                  entry={entry}
+                  isDeleteBusy={busyAction === `delete:${entry.queue_entry_id}`}
+                  hasUnread={Boolean(unreadEntryIds[entry.queue_entry_id])}
+                  onDragStart={handleDragStart(entry.queue_entry_id, entry.status)}
+                  onContextMenu={handleEntryContextMenu(entry.queue_entry_id)}
+                  onDelete={handleDeleteFromMenu}
+                  onOpenChat={openChat}
+                  onToggleMenu={handleToggleMenu}
+                  onCloseMenu={closeMenu}
+                  menuOpen={menuEntryId === entry.queue_entry_id}
+                  canMove={canMoveEntry(entry)}
+                  onMove={handleOpenMove}
+                  onEdit={handleOpenEdit}
+                />
+              ))}
+            </QueueColumn>
           </div>
         )}
       </div>
@@ -1684,90 +1171,17 @@ export default function EmployeeDashboardPage() {
         </div>
       ) : null}
       {chatEntry ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
-          onClick={closeChat}
-        >
-          <ResponsiveCard
-            className="w-full max-w-2xl space-y-4"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="relative flex items-start justify-center">
-              <div className="text-center">
-                <h2 className="text-xl font-semibold">
-                  {chatEntry.full_name ?? 'Customer'}
-                </h2>
-                <p className="text-xs text-white/70">
-                  {chatEntry.service_label ?? 'Service'} ·{' '}
-                  {chatEntry.phone_e164 ?? 'No phone on file'}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="absolute right-0 top-0 rounded bg-white/10 px-3 py-1 text-sm"
-                onClick={closeChat}
-              >
-                Close
-              </button>
-            </div>
-
-            <div
-              ref={chatListRef}
-              className="h-80 space-y-3 overflow-y-auto rounded-md border border-white/10 bg-black/20 p-3"
-            >
-              {chatMessages.length === 0 ? (
-                <p className="text-sm text-white/70">No messages yet.</p>
-              ) : (
-                chatMessages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${
-                      message.direction === 'out'
-                        ? 'justify-end'
-                        : 'justify-start'
-                    }`}
-                  >
-                    <div
-                      className={`max-w-[75%] rounded-xl px-3 py-2 text-sm ${
-                        message.direction === 'out'
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-white/10 text-white'
-                      }`}
-                    >
-                      <p className="whitespace-pre-wrap">{message.body}</p>
-                      <p className="mt-1 text-[10px] text-white/70">
-                        {formatTime(message.at)}
-                        {message.direction === 'out' && message.status
-                          ? ` · ${message.status}`
-                          : ''}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {chatError ? (
-              <p className="text-xs text-red-200">{chatError}</p>
-            ) : null}
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <textarea
-                className="min-h-[80px] w-full rounded-md bg-white text-black px-3 py-2"
-                placeholder="Type a message..."
-                value={chatDraft}
-                onChange={(event) => setChatDraft(event.target.value)}
-              />
-              <Button
-                className="shrink-0 min-w-[7.5rem]"
-                onClick={handleSendMessage}
-                disabled={chatSending || !chatDraft.trim()}
-              >
-                {chatSending ? 'Sending...' : 'Send'}
-              </Button>
-            </div>
-          </ResponsiveCard>
-        </div>
+        <ChatPanel
+          chatEntry={chatEntry}
+          chatMessages={chatMessages}
+          chatError={chatError}
+          chatDraft={chatDraft}
+          chatSending={chatSending}
+          onClose={closeChat}
+          onSend={handleSendMessage}
+          onDraftChange={setChatDraft}
+          listRef={chatListRef}
+        />
       ) : null}
     </div>
   );
