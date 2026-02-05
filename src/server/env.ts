@@ -20,7 +20,6 @@ const envSchema = z.object({
   RATE_LIMIT_EMPLOYEE_USER_PER_MIN: z.string().optional(),
   RATE_LIMIT_EMPLOYEE_LOCATION_PER_MIN: z.string().optional(),
   RATE_LIMIT_TWILIO_IP_PER_MIN: z.string().optional(),
-  CONTENT_SECURITY_POLICY: z.string().optional(),
   NEXT_PUBLIC_ENABLE_ANALYTICS: z.string().optional(),
   NEXT_PUBLIC_ENABLE_ERROR_REPORTING: z.string().optional(),
   NEXT_PUBLIC_DEBUG_MODE: z.string().optional(),

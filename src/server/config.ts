@@ -32,10 +32,6 @@ export const config = {
       submit: parseInt(env.RATE_LIMIT_SUBMIT || '5', 10),
       enabled: true,
     },
-    headers: {
-      csp: env.CONTENT_SECURITY_POLICY || "default-src 'self'",
-      hsts: env.NODE_ENV === 'production',
-    }
   },
 
   // Feature Flags
@@ -94,44 +90,6 @@ export function validateConfig(): { valid: boolean; errors: string[] } {
 }
 
 // Security headers configuration
-export function getSecurityHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    'X-Frame-Options': 'DENY',
-    'X-Content-Type-Options': 'nosniff',
-    'X-XSS-Protection': '1; mode=block',
-    'Referrer-Policy': 'strict-origin-when-cross-origin',
-  };
-
-  // Add HSTS in production
-  if (config.security.headers.hsts) {
-    headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload';
-  }
-
-  // Content Security Policy
-  const csp = [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: https: blob:",
-    "connect-src 'self' https://vitals.vercel-insights.com",
-    "frame-src 'none'",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-  ];
-
-  // Add upgrade-insecure-requests in production
-  if (config.isProduction) {
-    csp.push("upgrade-insecure-requests");
-  }
-
-  headers['Content-Security-Policy'] = csp.join('; ');
-
-  return headers;
-}
-
 // Logging utilities
 export function debugLog(...args: unknown[]): void {
   if (config.features.debugMode || config.isDevelopment) {
