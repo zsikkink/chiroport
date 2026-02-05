@@ -23,6 +23,7 @@ export interface LocationInfoData {
 export interface ConcourseData {
   name: string;
   slug: string;
+  aliases?: string[];
   displayName: string;
   locationInfo: LocationInfoData;
 }
@@ -68,6 +69,17 @@ function validateLocationData(data: LocationData): void {
         );
       }
       concourseSlugs.add(concourse.slug);
+
+      if (concourse.aliases?.length) {
+        concourse.aliases.forEach((alias) => {
+          if (concourseSlugs.has(alias)) {
+            throw new Error(
+              `Duplicate concourse alias "${alias}" detected in airport "${airport.name}"`
+            );
+          }
+          concourseSlugs.add(alias);
+        });
+      }
 
       const info = concourse.locationInfo;
       if (

@@ -50,12 +50,10 @@ export function findConcourse(airportSlug: string, concourseSlug: string): Conco
   const directMatch = airport.concourses.find(concourse => concourse.slug === concourseSlug);
   if (directMatch) return directMatch;
 
-  if (airportSlug === 'houston' && concourseSlug === 'concourse-a') {
-    return (
-      airport.concourses.find(concourse => concourse.slug === 'west-concourse') ||
-      null
-    );
-  }
+  const aliasMatch = airport.concourses.find(concourse =>
+    concourse.aliases?.includes(concourseSlug)
+  );
+  if (aliasMatch) return aliasMatch;
 
   return null;
 }

@@ -52,6 +52,7 @@
         {
           "name": "west-concourse",
           "slug": "west-concourse",
+          "aliases": ["concourse-a"],
           "displayName": "West Concourse",
           "locationInfo": {
             "gate": "A-9",
