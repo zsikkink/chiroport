@@ -149,7 +149,7 @@ serve(async (req) => {
         windowSeconds: 60,
       },
     ],
-    { endpoint: 'twilio_webhook', logContext: { ip } }
+    { endpoint: 'twilio_webhook', logContext: { ip }, failOpen: false }
   );
 
   if (!rateLimit.allowed) {

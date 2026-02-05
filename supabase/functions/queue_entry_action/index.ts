@@ -111,6 +111,7 @@ serve(async (req) => {
       {
         endpoint: 'queue_entry_action',
         logContext: { userId, locationId, action: payload.action },
+        failOpen: false,
       }
     );
 

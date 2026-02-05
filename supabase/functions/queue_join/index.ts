@@ -127,6 +127,7 @@ serve(async (req) => {
     {
       endpoint: 'queue_join',
       logContext: { ip, phone: phoneE164 },
+      failOpen: false,
     }
   );
 

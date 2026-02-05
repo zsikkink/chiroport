@@ -75,14 +75,14 @@ serve(async (req) => {
           limit: getRateLimitConfig('RATE_LIMIT_EMPLOYEE_USER_PER_MIN', 300),
           windowSeconds: 60,
         },
-        {
-          bucket: `location:${locationId}`,
-          limit: getRateLimitConfig('RATE_LIMIT_EMPLOYEE_LOCATION_PER_MIN', 1000),
-          windowSeconds: 60,
-        },
-      ],
-      { endpoint: 'advance_queue', logContext: { userId, locationId } }
-    );
+      {
+        bucket: `location:${locationId}`,
+        limit: getRateLimitConfig('RATE_LIMIT_EMPLOYEE_LOCATION_PER_MIN', 1000),
+        windowSeconds: 60,
+      },
+    ],
+    { endpoint: 'advance_queue', logContext: { userId, locationId }, failOpen: false }
+  );
 
     if (!rateLimit.allowed) {
       const headers = new Headers();

@@ -123,7 +123,7 @@ serve(async (req) => {
           windowSeconds: 60,
         },
       ],
-      { endpoint: 'update_queue_entry', logContext: { userId, locationId } }
+      { endpoint: 'update_queue_entry', logContext: { userId, locationId }, failOpen: false }
     );
 
     if (!rateLimit.allowed) {

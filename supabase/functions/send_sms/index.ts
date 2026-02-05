@@ -70,7 +70,7 @@ serve(async (req) => {
         windowSeconds: 60,
       },
     ],
-    { endpoint: 'send_sms', logContext: { ip } }
+    { endpoint: 'send_sms', logContext: { ip }, failOpen: false }
   );
 
   if (!rateLimit.allowed) {

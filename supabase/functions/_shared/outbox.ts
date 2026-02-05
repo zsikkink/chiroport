@@ -128,6 +128,7 @@ export async function sendClaimedMessage(
   const rateLimit = await checkRateLimit(supabase, rules, {
     endpoint: 'send_sms',
     logContext: { phone: message.to_phone, locationId },
+    failOpen: false,
   });
 
   if (!rateLimit.allowed) {

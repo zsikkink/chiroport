@@ -83,7 +83,7 @@ serve(async (req) => {
           windowSeconds: 60,
         },
       ],
-      { endpoint: 'set_serving', logContext: { userId, locationId } }
+      { endpoint: 'set_serving', logContext: { userId, locationId }, failOpen: false }
     );
 
     if (!rateLimit.allowed) {

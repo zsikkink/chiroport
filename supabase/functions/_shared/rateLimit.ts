@@ -22,6 +22,38 @@ type RateLimitResult = {
   rows: RateLimitRow[];
 };
 
+function maskPhone(value: string) {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length <= 4) return '****';
+  return `***${digits.slice(-4)}`;
+}
+
+function maskEmail(value: string) {
+  const [local, domain] = value.split('@');
+  if (!domain) return '***';
+  const safeLocal = local ? `${local[0]}***` : '***';
+  return `${safeLocal}@${domain}`;
+}
+
+function sanitizeLogContext(context?: Record<string, unknown>) {
+  if (!context) return undefined;
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(context)) {
+    if (typeof value === 'string') {
+      if (key.toLowerCase().includes('phone')) {
+        sanitized[key] = maskPhone(value);
+        continue;
+      }
+      if (key.toLowerCase().includes('email')) {
+        sanitized[key] = maskEmail(value);
+        continue;
+      }
+    }
+    sanitized[key] = value;
+  }
+  return sanitized;
+}
+
 export function getRateLimitConfig(name: string, fallback: number): number {
   const raw = Deno.env.get(name);
   if (!raw) return fallback;
@@ -107,7 +139,7 @@ export async function checkRateLimit(
       remaining: row.remaining,
       reset_at: row.reset_at,
     })),
-    context: options?.logContext,
+    context: sanitizeLogContext(options?.logContext),
   });
 
   return { allowed: false, retryAfterSeconds, rows };
