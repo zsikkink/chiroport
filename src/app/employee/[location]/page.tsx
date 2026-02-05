@@ -11,144 +11,39 @@ import {
   type MouseEvent,
 } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { Session } from '@supabase/supabase-js';
 import { ResponsiveCard, Button, LoadingSpinner, Heading } from '@/components/ui';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { requireEnv } from '@/lib/supabase/helpers';
-import type { Database } from '@/lib/supabase/database.types';
 import { toLocationSlug } from '@/lib/locationSlug';
 import { TREATMENT_OPTIONS } from '@/domain/services/catalog';
-
-type EmployeeProfile = {
-  role: Database['public']['Enums']['employee_role'];
-  is_open: boolean;
-};
-
-type LocationOption = {
-  id: string;
-  display_name: string;
-  airport_code: string;
-  code: string;
-};
-
-type WaitingRow =
-  Database['public']['Views']['employee_queue_waiting_view']['Row'];
-type ServingRow =
-  Database['public']['Views']['employee_queue_serving_view']['Row'];
-type HistoryRow =
-  Database['public']['Views']['employee_queue_history_view']['Row'];
-type WithEntryId<T> = T & { queue_entry_id: string };
-type MenuEntry = WithEntryId<WaitingRow | ServingRow | HistoryRow>;
+import { useChatData } from './hooks/useChatData';
+import { useEmployeePresence } from './hooks/useEmployeePresence';
+import { useEntryActions } from './hooks/useEntryActions';
+import { useQueueData } from './hooks/useQueueData';
+import { useRealtimeSubscriptions } from './hooks/useRealtimeSubscriptions';
+import type {
+  ChatEntry,
+  CreateFormState,
+  DragPayload,
+  EditFormState,
+  HistoryRow,
+  LocationOption,
+  MenuEntry,
+  ServingRow,
+  WaitingRow,
+  WithEntryId,
+} from './types';
+import {
+  formatConfirmSmsStatus,
+  formatServingSmsStatus,
+  formatSmsStatus,
+  formatStatusLabel,
+  formatTime,
+  formatWaitedLabel,
+  toChatEntry,
+} from './utils';
 
 const supabase = getSupabaseBrowserClient();
-
-type SupabaseErrorShape = {
-  message?: string;
-  details?: string;
-  hint?: string;
-  code?: string;
-};
-
-type SmsStatus = string | null | undefined;
-
-type ChatEntry = {
-  queue_entry_id: string;
-  full_name: string | null;
-  phone_e164: string | null;
-  service_label: string | null;
-  created_at: string | null;
-};
-
-type ChatMessage = {
-  id: string;
-  direction: 'in' | 'out';
-  body: string;
-  at: string;
-  status?: string | null;
-  messageType?: string | null;
-};
-
-type DragPayload = {
-  entryId: string;
-  status: string | null;
-};
-
-type EditFormState = {
-  fullName: string;
-  email: string;
-  phone: string;
-  serviceLabel: string;
-  customerType: 'paying' | 'priority_pass';
-};
-
-type CreateFormState = {
-  fullName: string;
-  email: string;
-  phone: string;
-  serviceLabel: string;
-  customerType: 'paying' | 'priority_pass';
-  consent: boolean;
-};
-
-type EntrySnapshot = {
-  entryId: string;
-  waiting?: WithEntryId<WaitingRow>;
-  serving?: WithEntryId<ServingRow>;
-  history?: WithEntryId<HistoryRow>;
-};
-
-const CUSTOMER_TYPE_PRIORITY: Record<string, number> = {
-  paying: 0,
-  priority_pass: 1,
-};
-
-function toEpoch(value: string | null | undefined) {
-  if (!value) return 0;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
-}
-
-function sortWaitingEntries(rows: WithEntryId<WaitingRow>[]) {
-  return [...rows].sort((a, b) => {
-    const priorityA = CUSTOMER_TYPE_PRIORITY[a.customer_type ?? 'priority_pass'] ?? 1;
-    const priorityB = CUSTOMER_TYPE_PRIORITY[b.customer_type ?? 'priority_pass'] ?? 1;
-    if (priorityA !== priorityB) return priorityA - priorityB;
-    const sortA = Number(a.sort_key ?? 0);
-    const sortB = Number(b.sort_key ?? 0);
-    if (sortA !== sortB) return sortA - sortB;
-    return toEpoch(a.created_at) - toEpoch(b.created_at);
-  });
-}
-
-function sortServingEntries(rows: WithEntryId<ServingRow>[]) {
-  return [...rows].sort((a, b) => toEpoch(a.created_at) - toEpoch(b.created_at));
-}
-
-function sortHistoryEntries(rows: WithEntryId<HistoryRow>[]) {
-  return [...rows].sort((a, b) => toEpoch(b.end_ts) - toEpoch(a.end_ts));
-}
-
-function upsertEntry<T extends { queue_entry_id: string }>(rows: T[], next: T) {
-  const index = rows.findIndex((row) => row.queue_entry_id === next.queue_entry_id);
-  if (index === -1) {
-    return [...rows, next];
-  }
-  if (rows[index] === next) {
-    return rows;
-  }
-  const updated = rows.slice();
-  updated[index] = next;
-  return updated;
-}
-
-function removeEntry<T extends { queue_entry_id: string }>(
-  rows: T[],
-  entryId: string
-) {
-  const index = rows.findIndex((row) => row.queue_entry_id === entryId);
-  if (index === -1) return rows;
-  return [...rows.slice(0, index), ...rows.slice(index + 1)];
-}
 
 type WaitingEntryCardProps = {
   entry: WithEntryId<WaitingRow>;
@@ -636,152 +531,9 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
   );
 });
 
-function toChatEntry(entry: {
-  queue_entry_id: string;
-  full_name: string | null;
-  phone_e164: string | null;
-  service_label?: string | null;
-  customer_type?: string | null;
-  created_at?: string | null;
-}): ChatEntry {
-  return {
-    queue_entry_id: entry.queue_entry_id,
-    full_name: entry.full_name ?? null,
-    phone_e164: entry.phone_e164 ?? null,
-    service_label: entry.service_label ?? entry.customer_type ?? null,
-    created_at: entry.created_at ?? null,
-  };
-}
-
-function formatSupabaseError(error: unknown, fallback: string) {
-  if (!error || typeof error !== 'object') return fallback;
-  const err = error as SupabaseErrorShape;
-  const message = err.message?.trim() || fallback;
-  const detailParts = [
-    err.code ? `code: ${err.code}` : null,
-    err.details ? `details: ${err.details}` : null,
-    err.hint ? `hint: ${err.hint}` : null,
-  ].filter(Boolean);
-  return detailParts.length ? `${message} (${detailParts.join(' | ')})` : message;
-}
-
-function formatTime(value: string | null | undefined) {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
-
-function formatWaitedLabel(
-  servedAt: string | null | undefined,
-  createdAt: string | null | undefined
-) {
-  if (!servedAt || !createdAt) return null;
-  const servedMs = new Date(servedAt).getTime();
-  const createdMs = new Date(createdAt).getTime();
-  if (Number.isNaN(servedMs) || Number.isNaN(createdMs)) return null;
-  const diffMinutes = Math.max(0, Math.round((servedMs - createdMs) / 60000));
-  const label = diffMinutes === 1 ? '1 minute' : `${diffMinutes} minutes`;
-  return `Waited ${label}`;
-}
-
-function formatStatusLabel(status: string | null | undefined) {
-  if (!status) return 'unknown';
-  if (status === 'no_show' || status === 'cancelled') return 'canceled';
-  return status;
-}
-
-function formatSmsStatus(status: SmsStatus) {
-  if (!status || status === 'n/a') {
-    return { label: status === 'n/a' ? 'N/A' : '—', className: 'text-black/40' };
-  }
-  switch (status) {
-    case 'sent':
-      return { label: 'Sent', className: 'text-emerald-700' };
-    case 'queued':
-      return { label: 'Queued', className: 'text-amber-700' };
-    case 'sending':
-      return { label: 'Sending', className: 'text-amber-700' };
-    case 'failed':
-      return { label: 'Failed', className: 'text-red-600' };
-    case 'dead':
-      return { label: 'Dead', className: 'text-red-600' };
-    default:
-      return { label: status, className: 'text-black/70' };
-  }
-}
-
-function formatConfirmSmsStatus(status: SmsStatus) {
-  if (status === 'sent') {
-    return { label: 'Sent', className: 'text-emerald-700' };
-  }
-  return { label: "Didn't send", className: 'text-red-600' };
-}
-
-function formatServingSmsStatus(status: SmsStatus) {
-  if (status === 'sent') {
-    return { label: 'Sent', className: 'text-emerald-700' };
-  }
-  return { label: "Didn't send", className: 'text-red-600' };
-}
-
-async function resolveActionError(error: unknown, fallback: string) {
-  const err = error as { context?: Response; message?: string };
-  if (err?.context) {
-    try {
-      const raw = await err.context.text();
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw) as { error?: string };
-          if (parsed?.error) {
-            return parsed.error;
-          }
-        } catch {
-          return raw;
-        }
-      }
-    } catch {
-      // Ignore response parsing failures.
-    }
-  }
-  return formatSupabaseError(error, fallback);
-}
-
-function hasQueueEntryId<T extends { queue_entry_id: string | null }>(
-  row: T
-): row is T & { queue_entry_id: string } {
-  return Boolean(row.queue_entry_id);
-}
-
 export default function EmployeeDashboardPage() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [authError, setAuthError] = useState('');
-  const [profile, setProfile] = useState<EmployeeProfile | null>(null);
-  const [accessDenied, setAccessDenied] = useState(false);
-
-  const [locations, setLocations] = useState<LocationOption[]>([]);
-  const [selectedLocationId, setSelectedLocationId] = useState('');
-  const [queueId, setQueueId] = useState<string | null>(null);
-
-  const [waitingEntries, setWaitingEntries] = useState<WithEntryId<WaitingRow>[]>([]);
-  const [servingEntries, setServingEntries] = useState<WithEntryId<ServingRow>[]>([]);
-  const [historyEntries, setHistoryEntries] = useState<WithEntryId<HistoryRow>[]>([]);
-  const [dataLoading, setDataLoading] = useState(false);
   const [actionError, setActionError] = useState('');
-  const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [chatEntry, setChatEntry] = useState<ChatEntry | null>(null);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatError, setChatError] = useState('');
-  const [chatDraft, setChatDraft] = useState('');
-  const [chatSending, setChatSending] = useState(false);
-  const [unreadEntryIds, setUnreadEntryIds] = useState<Record<string, boolean>>(
-    {}
-  );
+  const [selectedLocationId, setSelectedLocationId] = useState('');
   const [menuEntryId, setMenuEntryId] = useState<string | null>(null);
   const [moveEntry, setMoveEntry] = useState<MenuEntry | null>(null);
   const [moveTargetLocationId, setMoveTargetLocationId] = useState('');
@@ -796,17 +548,20 @@ export default function EmployeeDashboardPage() {
   const locationParam =
     typeof params?.location === 'string' ? params.location : '';
 
-  const currentUser = session?.user ?? null;
+  const {
+    currentUser,
+    authLoading,
+    authError,
+    profile,
+    accessDenied,
+    locations,
+    handleSignIn,
+    handleSignOut,
+  } = useEmployeePresence({ onActionError: setActionError });
+
   const debugEnabled = process.env.NODE_ENV !== 'production';
   const renderCountRef = useRef(0);
-  const refreshCountRef = useRef(0);
-  const queueSubCountRef = useRef(0);
-  const smsSubCountRef = useRef(0);
-  const waitingRef = useRef(waitingEntries);
-  const servingRef = useRef(servingEntries);
-  const historyRef = useRef(historyEntries);
-  const chatEntryRef = useRef(chatEntry);
-  const chatListRef = useRef<HTMLDivElement | null>(null);
+
   const locationOptions = useMemo(() => {
     return locations.map((location) => ({
       ...location,
@@ -831,7 +586,7 @@ export default function EmployeeDashboardPage() {
         location.airport_code === currentLocation.airport_code &&
         location.id !== currentLocation.id
     );
-  }, [locationOptions, moveEntry?.location_id]);
+  }, [locationOptions, moveEntry]);
   const locationMap = useMemo(() => {
     const map = new Map<string, LocationOption>();
     locationOptions.forEach((location) => {
@@ -856,26 +611,12 @@ export default function EmployeeDashboardPage() {
     [airportCounts, locationMap]
   );
 
-  renderCountRef.current += 1;
-  if (debugEnabled) {
-    console.debug(`[employee] render #${renderCountRef.current}`);
-  }
-
   useEffect(() => {
-    waitingRef.current = waitingEntries;
-  }, [waitingEntries]);
-
-  useEffect(() => {
-    servingRef.current = servingEntries;
-  }, [servingEntries]);
-
-  useEffect(() => {
-    historyRef.current = historyEntries;
-  }, [historyEntries]);
-
-  useEffect(() => {
-    chatEntryRef.current = chatEntry;
-  }, [chatEntry]);
+    renderCountRef.current += 1;
+    if (debugEnabled) {
+      console.debug(`[employee] render #${renderCountRef.current}`);
+    }
+  });
 
   useEffect(() => {
     if (!moveEntry) {
@@ -905,296 +646,6 @@ export default function EmployeeDashboardPage() {
     });
   }, [editEntry]);
 
-  const loadProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from('employee_profiles')
-      .select('role,is_open')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (error) {
-      const message = formatSupabaseError(error, 'Failed to load profile.');
-      console.error('[employee] loadProfile failed', { error, userId });
-      setAuthError(message);
-      setProfile(null);
-      return;
-    }
-
-    if (!data || !data.is_open) {
-      setAccessDenied(true);
-      setProfile(null);
-      return;
-    }
-
-    setAccessDenied(false);
-    setProfile({ role: data.role, is_open: data.is_open });
-  }, []);
-
-  const loadLocations = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('locations')
-      .select('id,display_name,airport_code,code')
-      .eq('is_open', true)
-      .order('airport_code', { ascending: true })
-      .order('code', { ascending: true });
-
-    if (error) {
-      const message = formatSupabaseError(error, 'Failed to load locations.');
-      console.error('[employee] loadLocations failed', { error });
-      setActionError(message);
-      return;
-    }
-
-    setLocations(data ?? []);
-  }, []);
-
-  const loadQueueId = useCallback(async (locationId: string) => {
-    const { data, error } = await supabase
-      .from('queues')
-      .select('id')
-      .eq('location_id', locationId)
-      .eq('code', 'default')
-      .maybeSingle();
-
-    if (error) {
-      const message = formatSupabaseError(error, 'Failed to load queue.');
-      console.error('[employee] loadQueueId failed', { error, locationId });
-      setActionError(message);
-      setQueueId(null);
-      return;
-    }
-
-    setQueueId(data?.id ?? null);
-  }, []);
-
-  const refreshQueueData = useCallback(
-    async (options?: { showLoading?: boolean; reason?: string }) => {
-      if (!selectedLocationId) return;
-      const showLoading = options?.showLoading ?? false;
-      refreshCountRef.current += 1;
-      if (debugEnabled) {
-        console.debug('[employee] refreshQueueData', {
-          count: refreshCountRef.current,
-          locationId: selectedLocationId,
-          reason: options?.reason ?? 'auto',
-          showLoading,
-        });
-      }
-      if (showLoading) {
-        setDataLoading(true);
-      }
-      setActionError('');
-
-      const [waiting, serving, history] = await Promise.all([
-        supabase
-          .from('employee_queue_waiting_view')
-          .select('*')
-          .eq('location_id', selectedLocationId)
-          .order('queue_position', { ascending: true }),
-        supabase
-          .from('employee_queue_serving_view')
-          .select('*')
-          .eq('location_id', selectedLocationId)
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('employee_queue_history_view')
-          .select('*')
-          .eq('location_id', selectedLocationId)
-          .order('end_ts', { ascending: false }),
-      ]);
-
-      if (waiting.error || serving.error || history.error) {
-        const rootError = waiting.error || serving.error || history.error;
-        const message = formatSupabaseError(rootError, 'Failed to load queue data.');
-        console.error('[employee] refreshQueueData failed', {
-          waitingError: waiting.error,
-          servingError: serving.error,
-          historyError: history.error,
-          locationId: selectedLocationId,
-        });
-        setActionError(message);
-      } else {
-        const waitingRows = (waiting.data ?? []).filter(hasQueueEntryId);
-        const servingRows = (serving.data ?? []).filter(hasQueueEntryId);
-        const historyRows = (history.data ?? []).filter(hasQueueEntryId);
-
-        setWaitingEntries(sortWaitingEntries(waitingRows));
-        setServingEntries(sortServingEntries(servingRows));
-        setHistoryEntries(sortHistoryEntries(historyRows));
-      }
-
-      if (showLoading) {
-        setDataLoading(false);
-      }
-    },
-    [selectedLocationId, debugEnabled]
-  );
-
-  const loadChatMessages = useCallback(
-    async (entry: ChatEntry) => {
-      setChatLoading(true);
-      setChatError('');
-      const hasPhone = Boolean(entry.phone_e164);
-
-      const [outbox, inbound] = await Promise.all([
-        supabase
-          .from('sms_outbox')
-          .select('id, body, status, created_at, sent_at, message_type')
-          .eq('queue_entry_id', entry.queue_entry_id)
-          .order('created_at', { ascending: true }),
-        hasPhone
-          ? supabase
-              .from('sms_inbound')
-              .select('id, body, received_at')
-              .eq('from_phone', entry.phone_e164 as string)
-              .order('received_at', { ascending: true })
-          : Promise.resolve({ data: [], error: null }),
-      ]);
-
-      if (outbox.error || inbound.error) {
-        const rootError = outbox.error || inbound.error;
-        const message = formatSupabaseError(
-          rootError,
-          'Failed to load messages.'
-        );
-        console.error('[employee] loadChatMessages failed', {
-          outboxError: outbox.error,
-          inboundError: inbound.error,
-        });
-        setChatError(message);
-        setChatMessages([]);
-      } else {
-        const outboundMessages: ChatMessage[] = (outbox.data ?? [])
-          .filter((row) => row.body && (row.sent_at || row.created_at))
-          .map((row) => ({
-            id: row.id,
-            direction: 'out',
-            body: row.body,
-            at: row.sent_at ?? row.created_at,
-            status: row.status,
-            messageType: row.message_type,
-          }));
-
-        const inboundMessages: ChatMessage[] = (inbound.data ?? [])
-          .filter((row) => row.body && row.received_at)
-          .map((row) => ({
-            id: row.id,
-            direction: 'in',
-            body: row.body,
-            at: row.received_at,
-          }));
-
-        const combined = [...outboundMessages, ...inboundMessages].sort(
-          (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()
-        );
-
-        setChatMessages(combined);
-      }
-
-      setChatLoading(false);
-    },
-    []
-  );
-
-  const scrollChatToBottom = useCallback(() => {
-    if (!chatListRef.current) return;
-    requestAnimationFrame(() => {
-      if (!chatListRef.current) return;
-      chatListRef.current.scrollTop = chatListRef.current.scrollHeight;
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!chatEntry) return;
-    if (chatLoading) return;
-    scrollChatToBottom();
-  }, [chatEntry, chatLoading, chatMessages.length, scrollChatToBottom]);
-
-  const openChat = useCallback(
-    async (entry: ChatEntry) => {
-      setChatEntry(null);
-      setChatDraft('');
-      setChatError('');
-      setChatMessages([]);
-      setUnreadEntryIds((prev) => {
-        if (!prev[entry.queue_entry_id]) return prev;
-        const next = { ...prev };
-        delete next[entry.queue_entry_id];
-        return next;
-      });
-      await loadChatMessages(entry);
-      setChatEntry(entry);
-    },
-    [loadChatMessages]
-  );
-
-  const closeChat = () => {
-    setChatEntry(null);
-    setChatMessages([]);
-    setChatError('');
-    setChatDraft('');
-  };
-
-  const handleSendMessage = async () => {
-    if (!chatEntry) return;
-    if (!chatDraft.trim()) return;
-
-    setChatSending(true);
-    setChatError('');
-    try {
-      await invokeEmployeeFunction('send_employee_message', {
-        queueEntryId: chatEntry.queue_entry_id,
-        body: chatDraft.trim(),
-      });
-
-      setChatDraft('');
-      await loadChatMessages(chatEntry);
-    } catch (error) {
-      const message = await resolveActionError(
-        error,
-        'Failed to send message.'
-      );
-      setChatError(message);
-    } finally {
-      setChatSending(false);
-    }
-  };
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setAuthLoading(false);
-    });
-
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-    });
-
-    return () => {
-      data.subscription.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (session?.access_token) {
-      supabase.functions.setAuth(session.access_token);
-    }
-  }, [session?.access_token]);
-
-  useEffect(() => {
-    if (!currentUser) {
-      setProfile(null);
-      return;
-    }
-    loadProfile(currentUser.id);
-  }, [currentUser, loadProfile]);
-
-  useEffect(() => {
-    if (profile) {
-      loadLocations();
-    }
-  }, [profile, loadLocations]);
-
   useEffect(() => {
     if (!locationOptions.length) return;
     const resolvedLocation =
@@ -1207,609 +658,7 @@ export default function EmployeeDashboardPage() {
     if (locationParam !== resolvedLocation.slug) {
       router.replace(`/employee/${resolvedLocation.slug}`);
     }
-  }, [
-    locationOptions,
-    locationParam,
-    router,
-    selectedLocationId,
-  ]);
-
-  useEffect(() => {
-    if (!selectedLocationId) return;
-    loadQueueId(selectedLocationId);
-    refreshQueueData({ showLoading: true, reason: 'location-change' });
-  }, [selectedLocationId, loadQueueId, refreshQueueData]);
-
-  const updateEntryInLists = useCallback(
-    (entryId: string, updates: Partial<WaitingRow & ServingRow & HistoryRow>) => {
-      setWaitingEntries((prev) => {
-        const index = prev.findIndex((row) => row.queue_entry_id === entryId);
-        if (index === -1) return prev;
-        const updated = prev.slice();
-        updated[index] = { ...updated[index], ...updates } as (typeof updated)[number];
-        return sortWaitingEntries(updated);
-      });
-      setServingEntries((prev) => {
-        const index = prev.findIndex((row) => row.queue_entry_id === entryId);
-        if (index === -1) return prev;
-        const updated = prev.slice();
-        updated[index] = { ...updated[index], ...updates } as (typeof updated)[number];
-        return sortServingEntries(updated);
-      });
-      setHistoryEntries((prev) => {
-        const index = prev.findIndex((row) => row.queue_entry_id === entryId);
-        if (index === -1) return prev;
-        const updated = prev.slice();
-        updated[index] = { ...updated[index], ...updates } as (typeof updated)[number];
-        return sortHistoryEntries(updated);
-      });
-    },
-    []
-  );
-
-  const removeEntryFromLists = useCallback((entryId: string) => {
-    setUnreadEntryIds((prev) => {
-      if (!prev[entryId]) return prev;
-      const next = { ...prev };
-      delete next[entryId];
-      return next;
-    });
-    setWaitingEntries((prev) => removeEntry(prev, entryId));
-    setServingEntries((prev) => removeEntry(prev, entryId));
-    setHistoryEntries((prev) => removeEntry(prev, entryId));
-  }, []);
-
-  const captureEntrySnapshot = useCallback((entryId: string): EntrySnapshot => {
-    const waiting = waitingRef.current.find((row) => row.queue_entry_id === entryId);
-    const serving = servingRef.current.find((row) => row.queue_entry_id === entryId);
-    const history = historyRef.current.find((row) => row.queue_entry_id === entryId);
-    const snapshot: EntrySnapshot = { entryId };
-    if (waiting) snapshot.waiting = { ...waiting };
-    if (serving) snapshot.serving = { ...serving };
-    if (history) snapshot.history = { ...history };
-    return snapshot;
-  }, []);
-
-  const restoreEntrySnapshot = useCallback((snapshot: EntrySnapshot | null) => {
-    if (!snapshot) return;
-    if (snapshot.waiting) {
-      setWaitingEntries((prev) =>
-        sortWaitingEntries(upsertEntry(prev, snapshot.waiting!))
-      );
-    } else {
-      setWaitingEntries((prev) => removeEntry(prev, snapshot.entryId));
-    }
-    if (snapshot.serving) {
-      setServingEntries((prev) =>
-        sortServingEntries(upsertEntry(prev, snapshot.serving!))
-      );
-    } else {
-      setServingEntries((prev) => removeEntry(prev, snapshot.entryId));
-    }
-    if (snapshot.history) {
-      setHistoryEntries((prev) =>
-        sortHistoryEntries(upsertEntry(prev, snapshot.history!))
-      );
-    } else {
-      setHistoryEntries((prev) => removeEntry(prev, snapshot.entryId));
-    }
-  }, []);
-
-  const applyOptimisticServing = useCallback(
-    (entryId: string) => {
-      const snapshot = captureEntrySnapshot(entryId);
-      const base =
-        snapshot.waiting ?? snapshot.serving ?? snapshot.history ?? null;
-      if (!base) return snapshot;
-      const nowIso = new Date().toISOString();
-      const servingEntry = {
-        ...(base as ServingRow),
-        status: 'serving',
-        served_at: nowIso,
-        updated_at: nowIso,
-      } as WithEntryId<ServingRow>;
-      setServingEntries((prev) =>
-        sortServingEntries(upsertEntry(prev, servingEntry))
-      );
-      setWaitingEntries((prev) => removeEntry(prev, entryId));
-      setHistoryEntries((prev) => removeEntry(prev, entryId));
-      return snapshot;
-    },
-    [captureEntrySnapshot]
-  );
-
-  const applyOptimisticHistory = useCallback(
-    (entryId: string, status: 'completed' | 'cancelled') => {
-      const snapshot = captureEntrySnapshot(entryId);
-      const base =
-        snapshot.waiting ?? snapshot.serving ?? snapshot.history ?? null;
-      if (!base) return snapshot;
-      const nowIso = new Date().toISOString();
-      const historyEntry = {
-        ...(base as HistoryRow),
-        status,
-        end_ts: nowIso,
-        updated_at: nowIso,
-      } as WithEntryId<HistoryRow>;
-      setHistoryEntries((prev) =>
-        sortHistoryEntries(upsertEntry(prev, historyEntry))
-      );
-      setWaitingEntries((prev) => removeEntry(prev, entryId));
-      setServingEntries((prev) => removeEntry(prev, entryId));
-      return snapshot;
-    },
-    [captureEntrySnapshot]
-  );
-
-  const applyOptimisticWaiting = useCallback(
-    (entryId: string) => {
-      const snapshot = captureEntrySnapshot(entryId);
-      const base =
-        snapshot.waiting ?? snapshot.serving ?? snapshot.history ?? null;
-      if (!base) return snapshot;
-      const nowIso = new Date().toISOString();
-      const waitingEntry = {
-        ...(base as WaitingRow),
-        status: 'waiting',
-        updated_at: nowIso,
-      } as WithEntryId<WaitingRow>;
-      setWaitingEntries((prev) =>
-        sortWaitingEntries(upsertEntry(prev, waitingEntry))
-      );
-      setServingEntries((prev) => removeEntry(prev, entryId));
-      setHistoryEntries((prev) => removeEntry(prev, entryId));
-      return snapshot;
-    },
-    [captureEntrySnapshot]
-  );
-
-  const applyOptimisticRemoval = useCallback(
-    (entryId: string) => {
-      const snapshot = captureEntrySnapshot(entryId);
-      setWaitingEntries((prev) => removeEntry(prev, entryId));
-      setServingEntries((prev) => removeEntry(prev, entryId));
-      setHistoryEntries((prev) => removeEntry(prev, entryId));
-      return snapshot;
-    },
-    [captureEntrySnapshot]
-  );
-
-  const applyOptimisticEdit = useCallback(
-    (entryId: string, updates: Partial<WaitingRow & ServingRow & HistoryRow>) => {
-      const snapshot = captureEntrySnapshot(entryId);
-      updateEntryInLists(entryId, updates);
-      return snapshot;
-    },
-    [captureEntrySnapshot, updateEntryInLists]
-  );
-
-  const fetchWaitingEntry = useCallback(async (entryId: string) => {
-    const { data } = await supabase
-      .from('employee_queue_waiting_view')
-      .select('*')
-      .eq('queue_entry_id', entryId)
-      .maybeSingle();
-    return data && hasQueueEntryId(data) ? data : null;
-  }, []);
-
-  const fetchServingEntry = useCallback(async (entryId: string) => {
-    const { data } = await supabase
-      .from('employee_queue_serving_view')
-      .select('*')
-      .eq('queue_entry_id', entryId)
-      .maybeSingle();
-    return data && hasQueueEntryId(data) ? data : null;
-  }, []);
-
-  const fetchHistoryEntry = useCallback(async (entryId: string) => {
-    const { data } = await supabase
-      .from('employee_queue_history_view')
-      .select('*')
-      .eq('queue_entry_id', entryId)
-      .maybeSingle();
-    return data && hasQueueEntryId(data) ? data : null;
-  }, []);
-
-  const handleQueueEntryChange = useCallback(
-    async (payload: {
-      eventType: string;
-      new?: Record<string, unknown>;
-      old?: Record<string, unknown>;
-    }) => {
-      const record = (payload.eventType === 'DELETE'
-        ? payload.old
-        : payload.new) as Database['public']['Tables']['queue_entries']['Row'] | undefined;
-      if (!record) return;
-      const entryId = record.id;
-      if (debugEnabled) {
-        console.debug('[employee] queue_entries event', {
-          eventType: payload.eventType,
-          entryId,
-          status: record.status,
-        });
-      }
-
-      if (payload.eventType === 'DELETE') {
-        removeEntryFromLists(entryId);
-        return;
-      }
-
-      if (record.status === 'waiting') {
-        const existing = waitingRef.current.find(
-          (row) => row.queue_entry_id === entryId
-        );
-        if (existing) {
-          updateEntryInLists(entryId, {
-            status: record.status,
-            sort_key: record.sort_key ?? existing.sort_key,
-            updated_at: record.updated_at ?? existing.updated_at,
-          });
-        } else {
-          const row = await fetchWaitingEntry(entryId);
-          if (row) {
-            setWaitingEntries((prev) => sortWaitingEntries(upsertEntry(prev, row)));
-          }
-        }
-        setServingEntries((prev) => removeEntry(prev, entryId));
-        setHistoryEntries((prev) => removeEntry(prev, entryId));
-        return;
-      }
-
-      if (record.status === 'serving') {
-        const existing = servingRef.current.find(
-          (row) => row.queue_entry_id === entryId
-        );
-        if (existing) {
-          updateEntryInLists(entryId, {
-            status: record.status,
-            updated_at: record.updated_at ?? existing.updated_at,
-          });
-        } else {
-          const row = await fetchServingEntry(entryId);
-          if (row) {
-            setServingEntries((prev) => sortServingEntries(upsertEntry(prev, row)));
-          }
-        }
-        setWaitingEntries((prev) => removeEntry(prev, entryId));
-        setHistoryEntries((prev) => removeEntry(prev, entryId));
-        return;
-      }
-
-      if (['completed', 'cancelled', 'no_show'].includes(record.status ?? '')) {
-        const existing = historyRef.current.find(
-          (row) => row.queue_entry_id === entryId
-        );
-        if (existing) {
-          const endTs =
-            record.completed_at ??
-            record.cancelled_at ??
-            record.no_show_at ??
-            record.served_at ??
-            record.updated_at ??
-            record.created_at ??
-            existing.end_ts;
-          updateEntryInLists(entryId, {
-            status: record.status,
-            end_ts: endTs,
-            updated_at: record.updated_at ?? existing.updated_at,
-          });
-        } else {
-          const row = await fetchHistoryEntry(entryId);
-          if (row) {
-            setHistoryEntries((prev) => sortHistoryEntries(upsertEntry(prev, row)));
-          }
-        }
-        setWaitingEntries((prev) => removeEntry(prev, entryId));
-        setServingEntries((prev) => removeEntry(prev, entryId));
-      }
-    },
-    [
-      debugEnabled,
-      fetchHistoryEntry,
-      fetchServingEntry,
-      fetchWaitingEntry,
-      removeEntryFromLists,
-      updateEntryInLists,
-    ]
-  );
-
-  useEffect(() => {
-    if (!queueId) return;
-    queueSubCountRef.current += 1;
-    if (debugEnabled) {
-      console.debug('[employee] subscribe queue_entries', {
-        count: queueSubCountRef.current,
-        queueId,
-      });
-    }
-    const channel = supabase
-      .channel(`queue_entries_${queueId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'queue_entries',
-          filter: `queue_id=eq.${queueId}`,
-        },
-        (payload) => {
-          void handleQueueEntryChange(payload);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queueId, debugEnabled, handleQueueEntryChange]);
-
-  useEffect(() => {
-    smsSubCountRef.current += 1;
-    if (debugEnabled) {
-      console.debug('[employee] subscribe sms channels', {
-        count: smsSubCountRef.current,
-      });
-    }
-    const inboundChannel = supabase
-      .channel('sms_inbound_updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'sms_inbound',
-        },
-        (payload) => {
-          const row = payload.new as {
-            from_phone?: string;
-            body?: string;
-            received_at?: string;
-            id?: string;
-          };
-          if (!row?.from_phone || !row.received_at) return;
-          const receivedAt = row.received_at;
-          const fromPhone = row.from_phone;
-          const body = row.body ?? '';
-
-          const shouldUpdate = (entry: {
-            phone_e164: string | null;
-            created_at?: string | null;
-            last_inbound_at?: string | null;
-          }) => {
-            if (!entry.phone_e164 || entry.phone_e164 !== fromPhone) return false;
-            if (entry.created_at && toEpoch(receivedAt) < toEpoch(entry.created_at)) {
-              return false;
-            }
-            if (entry.last_inbound_at && toEpoch(receivedAt) <= toEpoch(entry.last_inbound_at)) {
-              return false;
-            }
-            return true;
-          };
-
-          const updateInbound = <
-            T extends {
-              queue_entry_id: string;
-              phone_e164: string | null;
-              created_at?: string | null;
-              last_inbound_at?: string | null;
-              last_inbound_body?: string | null;
-            }
-          >(
-            rows: T[]
-          ) => {
-            let updated = rows;
-            const updatedEntryIds = new Set<string>();
-            rows.forEach((entry, index) => {
-              if (!shouldUpdate(entry)) return;
-              updatedEntryIds.add(entry.queue_entry_id);
-              if (updated === rows) {
-                updated = rows.slice();
-              }
-              updated[index] = {
-                ...entry,
-                last_inbound_body: body,
-                last_inbound_at: receivedAt,
-              };
-            });
-            return { rows: updated, updatedEntryIds };
-          };
-
-          const waitingUpdate = updateInbound(waitingRef.current);
-          const servingUpdate = updateInbound(servingRef.current);
-          const historyUpdate = updateInbound(historyRef.current);
-          const updatedEntryIds = new Set<string>([
-            ...waitingUpdate.updatedEntryIds,
-            ...servingUpdate.updatedEntryIds,
-            ...historyUpdate.updatedEntryIds,
-          ]);
-
-          if (waitingUpdate.rows !== waitingRef.current) {
-            setWaitingEntries(sortWaitingEntries(waitingUpdate.rows));
-          }
-          if (servingUpdate.rows !== servingRef.current) {
-            setServingEntries(sortServingEntries(servingUpdate.rows));
-          }
-          if (historyUpdate.rows !== historyRef.current) {
-            setHistoryEntries(sortHistoryEntries(historyUpdate.rows));
-          }
-
-          const activeChat = chatEntryRef.current;
-          if (updatedEntryIds.size > 0) {
-            const activeId = activeChat?.queue_entry_id ?? null;
-            setUnreadEntryIds((prev) => {
-              const next = { ...prev };
-              updatedEntryIds.forEach((entryId) => {
-                if (activeId && entryId === activeId) {
-                  delete next[entryId];
-                  return;
-                }
-                next[entryId] = true;
-              });
-              return next;
-            });
-          }
-          if (activeChat?.phone_e164 === fromPhone) {
-            setChatMessages((prev) => [
-              ...prev,
-              {
-                id: `inbound:${row.id ?? receivedAt}`,
-                direction: 'in',
-                body,
-                at: receivedAt,
-              },
-            ]);
-          }
-        }
-      )
-      .subscribe();
-
-    const outboxChannel = supabase
-      .channel('sms_outbox_updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'sms_outbox',
-        },
-        (payload) => {
-          const row = payload.new as {
-            id?: string;
-            queue_entry_id?: string;
-            message_type?: string;
-            status?: string;
-            body?: string;
-            created_at?: string;
-            sent_at?: string | null;
-          };
-          if (!row?.queue_entry_id) return;
-          const status = row.status ?? null;
-          const messageType = row.message_type ?? null;
-          const entryId = row.queue_entry_id;
-          const updates: Partial<WaitingRow & ServingRow & HistoryRow> = {};
-          if (messageType === 'confirm') updates.confirm_sms_status = status;
-          if (messageType === 'next') updates.next_sms_status = status;
-          if (messageType === 'serving') updates.serving_sms_status = status;
-          if (Object.keys(updates).length) {
-            updateEntryInLists(entryId, updates);
-          }
-
-          const activeChat = chatEntryRef.current;
-          if (activeChat?.queue_entry_id === entryId && row.body) {
-            setChatMessages((prev) => {
-              const existingIndex = prev.findIndex(
-                (message) => message.id === row.id
-              );
-              const message = {
-                id: row.id ?? `outbound:${entryId}:${row.created_at ?? Date.now()}`,
-                direction: 'out' as const,
-                body: row.body ?? '',
-                at: row.sent_at ?? row.created_at ?? new Date().toISOString(),
-                status: row.status ?? null,
-                messageType,
-              };
-              if (existingIndex === -1) {
-                return [...prev, message].sort(
-                  (a, b) => toEpoch(a.at) - toEpoch(b.at)
-                );
-              }
-              const updated = prev.slice();
-              const existingMessage = updated[existingIndex];
-              if (!existingMessage) {
-                return prev;
-              }
-              updated[existingIndex] = {
-                ...existingMessage,
-                status: row.status ?? null,
-              };
-              return updated;
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(inboundChannel);
-      supabase.removeChannel(outboxChannel);
-    };
-  }, [debugEnabled, updateEntryInLists]);
-
-  const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setAuthError('');
-    const formData = new FormData(event.currentTarget);
-    const email = String(formData.get('email') ?? '').trim();
-    const password = String(formData.get('password') ?? '');
-
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setAuthError(error.message);
-    }
-  };
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    setProfile(null);
-  };
-
-  const runAction = useCallback(
-    async (
-      key: string,
-      action: () => Promise<void>,
-      context?: Record<string, unknown>
-    ) => {
-      let success = false;
-      setBusyAction(key);
-      setActionError('');
-      console.info('[employee] action start', {
-        action: key,
-        userId: currentUser?.id,
-        queueId,
-        locationId: selectedLocationId,
-        ...context,
-      });
-      try {
-        await action();
-        console.info('[employee] action success', { action: key });
-        success = true;
-      } catch (error) {
-        const message = await resolveActionError(
-          error,
-          'Action failed. Please try again.'
-        );
-        console.error('[employee] action failed', {
-          action: key,
-          error,
-          message,
-          context,
-        });
-        setActionError(message);
-      } finally {
-        setBusyAction(null);
-      }
-      return success;
-    },
-    [currentUser?.id, queueId, selectedLocationId]
-  );
-
-  const runOptimisticAction = useCallback(
-    async (
-      key: string,
-      optimistic: () => EntrySnapshot | null,
-      action: () => Promise<void>,
-      context?: Record<string, unknown>
-    ) => {
-      const snapshot = optimistic();
-      const success = await runAction(key, action, context);
-      if (!success) {
-        restoreEntrySnapshot(snapshot);
-      }
-      return success;
-    },
-    [restoreEntrySnapshot, runAction]
-  );
+  }, [locationOptions, locationParam, router, selectedLocationId]);
 
   const getFunctionHeaders = useCallback(async () => {
     const anonKey = requireEnv(
@@ -1889,7 +738,11 @@ export default function EmployeeDashboardPage() {
         throw new Error(result.raw || `Edge Function error (${result.response.status})`);
       }
 
-      if (result.parsed && typeof result.parsed === 'object' && 'error' in result.parsed) {
+      if (
+        result.parsed &&
+        typeof result.parsed === 'object' &&
+        'error' in result.parsed
+      ) {
         const errorValue = (result.parsed as { error?: string }).error;
         if (errorValue) {
           throw new Error(errorValue);
@@ -1900,184 +753,109 @@ export default function EmployeeDashboardPage() {
     [getFunctionHeaders]
   );
 
-  const callQueueEntryAction = useCallback(
-    async (
-      action: string,
-      entryId: string,
-      extra?: Record<string, unknown>
-    ) => {
-      await invokeEmployeeFunction('queue_entry_action', {
-        action,
-        queueEntryId: entryId,
-        ...extra,
+  const queueData = useQueueData({
+    selectedLocationId,
+    debugEnabled,
+    onActionError: setActionError,
+  });
+
+  const {
+    queueId,
+    waitingEntries,
+    servingEntries,
+    historyEntries,
+    dataLoading,
+    waitingRef,
+    servingRef,
+    historyRef,
+    setWaitingEntries,
+    setServingEntries,
+    setHistoryEntries,
+    updateEntryInLists,
+    removeEntryFromLists,
+    fetchWaitingEntry,
+    fetchServingEntry,
+    fetchHistoryEntry,
+  } = queueData;
+
+  const {
+    chatEntry,
+    chatMessages,
+    chatError,
+    chatDraft,
+    chatSending,
+    unreadEntryIds,
+    chatListRef,
+    chatEntryRef,
+    setChatDraft,
+    openChat,
+    closeChat,
+    handleSendMessage,
+    setChatMessages,
+    setUnreadEntryIds,
+  } = useChatData({ invokeEmployeeFunction });
+
+  useRealtimeSubscriptions(
+    {
+      queueId,
+      debugEnabled,
+      waitingRef,
+      servingRef,
+      historyRef,
+      setWaitingEntries,
+      setServingEntries,
+      setHistoryEntries,
+      updateEntryInLists,
+      removeEntryFromLists,
+      fetchWaitingEntry,
+      fetchServingEntry,
+      fetchHistoryEntry,
+    },
+    {
+      chatEntryRef,
+      setChatMessages,
+      setUnreadEntryIds,
+    }
+  );
+
+  const {
+    busyAction,
+    runOptimisticAction,
+    handleSetServing,
+    handleComplete,
+    handleCancel,
+    handleReturnToQueue,
+    handleDelete,
+    handleMoveSubmit: handleMoveSubmitAction,
+    handleCreateSubmit: handleCreateSubmitAction,
+    handleEditSubmit: handleEditSubmitAction,
+  } = useEntryActions({
+    currentUserId: currentUser?.id ?? null,
+    queueId,
+    selectedLocationId,
+    setActionError,
+    queueState: queueData,
+    invokeEmployeeFunction,
+    getFunctionHeaders,
+  });
+
+  const handleDeleteWithChat = useCallback(
+    (entryId: string) => {
+      void handleDelete(entryId, () => {
+        if (chatEntryRef.current?.queue_entry_id === entryId) {
+          closeChat();
+        }
       });
     },
-    [invokeEmployeeFunction]
-  );
-
-
-  const handleSetServing = useCallback(
-    async (entryId: string) => {
-      await runOptimisticAction(
-        `serving:${entryId}`,
-        () => applyOptimisticServing(entryId),
-        async () => {
-          await callQueueEntryAction('serving', entryId);
-        },
-        { entryId }
-      );
-    },
-    [applyOptimisticServing, callQueueEntryAction, runOptimisticAction]
-  );
-
-  const handleComplete = useCallback(
-    async (entryId: string) => {
-      await runOptimisticAction(
-        `complete:${entryId}`,
-        () => applyOptimisticHistory(entryId, 'completed'),
-        async () => {
-          await callQueueEntryAction('complete', entryId);
-        },
-        { entryId }
-      );
-    },
-    [applyOptimisticHistory, callQueueEntryAction, runOptimisticAction]
-  );
-
-  const handleCancel = useCallback(
-    async (entryId: string) => {
-      await runOptimisticAction(
-        `cancel:${entryId}`,
-        () => applyOptimisticHistory(entryId, 'cancelled'),
-        async () => {
-          await callQueueEntryAction('cancel', entryId);
-        },
-        { entryId }
-      );
-    },
-    [applyOptimisticHistory, callQueueEntryAction, runOptimisticAction]
-  );
-
-  const handleReturnToQueue = useCallback(
-    async (entryId: string) => {
-      await runOptimisticAction(
-        `return:${entryId}`,
-        () => applyOptimisticWaiting(entryId),
-        async () => {
-          await callQueueEntryAction('return', entryId);
-        },
-        { entryId }
-      );
-    },
-    [applyOptimisticWaiting, callQueueEntryAction, runOptimisticAction]
-  );
-
-  const handleDragStart = useCallback(
-    (entryId: string, status: string | null) =>
-      (event: DragEvent<HTMLDivElement>) => {
-        const payload: DragPayload = { entryId, status };
-        event.dataTransfer.setData('text/plain', JSON.stringify(payload));
-        event.dataTransfer.effectAllowed = 'move';
-      },
-    []
-  );
-
-  const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-  }, []);
-
-  const handleDrop = useCallback(
-    (target: 'waiting' | 'serving' | 'history') =>
-      async (event: DragEvent<HTMLDivElement>) => {
-        event.preventDefault();
-        const raw = event.dataTransfer.getData('text/plain');
-        if (!raw) return;
-        let payload: DragPayload | null = null;
-        try {
-          payload = JSON.parse(raw) as DragPayload;
-        } catch {
-          return;
-        }
-        if (!payload?.entryId) return;
-        const fromStatus = payload.status ?? null;
-
-        if (target === 'waiting') {
-          if (fromStatus === 'waiting') return;
-          await handleReturnToQueue(payload.entryId);
-          return;
-        }
-
-        if (target === 'serving') {
-          if (fromStatus === 'serving') return;
-          if (fromStatus === 'waiting') {
-            await handleSetServing(payload.entryId);
-            return;
-          }
-          await runOptimisticAction(
-            `serving_move:${payload.entryId}`,
-            () => applyOptimisticServing(payload.entryId),
-            async () => {
-              await callQueueEntryAction('serving', payload.entryId);
-            },
-            { entryId: payload.entryId }
-          );
-          return;
-        }
-
-        if (target === 'history') {
-          if (['completed', 'cancelled', 'no_show'].includes(fromStatus ?? '')) {
-            return;
-          }
-          setHistoryDecisionEntryId(payload.entryId);
-        }
-      },
-    [
-      applyOptimisticServing,
-      callQueueEntryAction,
-      handleReturnToQueue,
-      handleSetServing,
-      runOptimisticAction,
-    ]
-  );
-
-  const handleDelete = useCallback(
-    async (entryId: string) => {
-      const confirmed = window.confirm(
-        'Delete this queue entry? This cannot be undone.'
-      );
-      if (!confirmed) return;
-
-      await runOptimisticAction(
-        `delete:${entryId}`,
-        () => applyOptimisticRemoval(entryId),
-        async () => {
-          await callQueueEntryAction('delete', entryId);
-          removeEntryFromLists(entryId);
-          if (chatEntryRef.current?.queue_entry_id === entryId) {
-            setChatEntry(null);
-            setChatMessages([]);
-            setChatError('');
-            setChatDraft('');
-          }
-        },
-        { entryId }
-      );
-    },
-    [
-      applyOptimisticRemoval,
-      callQueueEntryAction,
-      removeEntryFromLists,
-      runOptimisticAction,
-    ]
+    [chatEntryRef, closeChat, handleDelete]
   );
 
   const handleDeleteFromMenu = useCallback(
     (entryId: string) => {
       setMenuEntryId(null);
-      void handleDelete(entryId);
+      handleDeleteWithChat(entryId);
     },
-    [handleDelete]
+    [handleDeleteWithChat]
   );
 
   const handleToggleMenu = useCallback((entryId: string) => {
@@ -2156,154 +934,41 @@ export default function EmployeeDashboardPage() {
 
   const handleMoveSubmit = useCallback(async () => {
     if (!moveEntry) return;
-    if (!moveTargetLocationId) {
-      setActionError('Select a target location.');
-      return;
-    }
-
-    const success = await runOptimisticAction(
-      `move:${moveEntry.queue_entry_id}`,
-      () => applyOptimisticRemoval(moveEntry.queue_entry_id),
-      async () => {
-        await callQueueEntryAction('move', moveEntry.queue_entry_id, {
-          targetLocationId: moveTargetLocationId,
-        });
-      },
-      { entryId: moveEntry.queue_entry_id, targetLocationId: moveTargetLocationId }
-    );
+    const success = await handleMoveSubmitAction({
+      entryId: moveEntry.queue_entry_id,
+      targetLocationId: moveTargetLocationId,
+    });
 
     if (success) {
-      removeEntryFromLists(moveEntry.queue_entry_id);
       setMoveEntry(null);
       setMoveTargetLocationId('');
     }
-  }, [
-    callQueueEntryAction,
-    moveEntry,
-    moveTargetLocationId,
-    runOptimisticAction,
-    removeEntryFromLists,
-    applyOptimisticRemoval,
-  ]);
+  }, [handleMoveSubmitAction, moveEntry, moveTargetLocationId]);
 
   const handleCreateSubmit = useCallback(async () => {
     if (!createForm) return;
-    if (!selectedLocation) {
-      setActionError('Select a location.');
-      return;
-    }
-    if (
-      !createForm.fullName.trim() ||
-      !createForm.email.trim() ||
-      !createForm.phone.trim()
-    ) {
-      setActionError('Name, email, and phone are required.');
-      return;
-    }
-    if (!createForm.consent) {
-      setActionError('Consent is required.');
-      return;
-    }
-
-    const consentKey =
-      createForm.serviceLabel === 'Chiropractor'
-        ? 'queue_join_consent_chiropractic'
-        : 'queue_join_consent_bodywork';
-
-    const success = await runAction(
-      'create-entry',
-      async () => {
-        const headers = await getFunctionHeaders();
-        const { data, error } = await supabase.functions.invoke('queue_join', {
-          body: {
-            airportCode: selectedLocation.airport_code,
-            locationCode: selectedLocation.code,
-            name: createForm.fullName.trim(),
-            phone: createForm.phone.trim(),
-            email: createForm.email.trim(),
-            consent: true,
-            customerType: createForm.customerType,
-            serviceLabel: createForm.serviceLabel,
-            consentKey,
-          },
-          headers,
-        });
-
-        if (error) throw error;
-        const parsed =
-          typeof data === 'string' ? (JSON.parse(data) as Record<string, unknown>) : data;
-        if (!parsed || (parsed as { error?: string }).error) {
-          throw new Error((parsed as { error?: string })?.error || 'Failed to create entry');
-        }
-        const entryId = (parsed as { queueEntryId?: string }).queueEntryId;
-        if (!entryId) {
-          throw new Error('Queue entry was not created.');
-        }
-
-        const row = await fetchWaitingEntry(entryId);
-        if (row) {
-          setWaitingEntries((prev) => sortWaitingEntries(upsertEntry(prev, row)));
-        } else {
-          await refreshQueueData({ showLoading: false, reason: 'create-entry' });
-        }
-      },
-      { locationId: selectedLocation.id }
-    );
+    const success = await handleCreateSubmitAction({
+      form: createForm,
+      selectedLocation,
+    });
 
     if (success) {
       handleCloseCreateEntry();
     }
-  }, [
-    createForm,
-    fetchWaitingEntry,
-    getFunctionHeaders,
-    handleCloseCreateEntry,
-    refreshQueueData,
-    runAction,
-    selectedLocation,
-  ]);
+  }, [createForm, handleCloseCreateEntry, handleCreateSubmitAction, selectedLocation]);
 
   const handleEditSubmit = useCallback(async () => {
     if (!editEntry || !editForm) return;
-    const optimisticUpdates = {
-      full_name: editForm.fullName.trim() || null,
-      email: editForm.email.trim().toLowerCase() || null,
-      phone_e164: editForm.phone.trim() || null,
-      service_label: editForm.serviceLabel,
-      customer_type: editForm.customerType,
-    };
-    const success = await runOptimisticAction(
-      `edit:${editEntry.queue_entry_id}`,
-      () => applyOptimisticEdit(editEntry.queue_entry_id, optimisticUpdates),
-      async () => {
-        await invokeEmployeeFunction('update_queue_entry', {
-          queueEntryId: editEntry.queue_entry_id,
-          fullName: editForm.fullName,
-          email: editForm.email,
-          phone: editForm.phone,
-          serviceLabel: editForm.serviceLabel,
-          customerType: editForm.customerType,
-        });
-      },
-      { entryId: editEntry.queue_entry_id }
-    );
+    const success = await handleEditSubmitAction({
+      entryId: editEntry.queue_entry_id,
+      form: editForm,
+    });
 
     if (success) {
-      const updated = await fetchHistoryEntry(editEntry.queue_entry_id);
-      if (updated) {
-        setHistoryEntries((prev) => sortHistoryEntries(upsertEntry(prev, updated)));
-      }
       setEditEntry(null);
       setEditForm(null);
     }
-  }, [
-    editEntry,
-    editForm,
-    applyOptimisticEdit,
-    fetchHistoryEntry,
-    invokeEmployeeFunction,
-    runOptimisticAction,
-  ]);
+  }, [editEntry, editForm, handleEditSubmitAction]);
 
   const handleLocationSelect = useCallback(
     (locationId: string) => {
@@ -2334,6 +999,78 @@ export default function EmployeeDashboardPage() {
   const toggleLocationMenu = useCallback(() => {
     setIsLocationMenuOpen((prev) => !prev);
   }, []);
+
+  const handleDragStart = useCallback(
+    (entryId: string, status: string | null) =>
+      (event: DragEvent<HTMLDivElement>) => {
+        const payload: DragPayload = { entryId, status };
+        event.dataTransfer.setData('text/plain', JSON.stringify(payload));
+        event.dataTransfer.effectAllowed = 'move';
+      },
+    []
+  );
+
+  const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const handleDrop = useCallback(
+    (target: 'waiting' | 'serving' | 'history') =>
+      async (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        const raw = event.dataTransfer.getData('text/plain');
+        if (!raw) return;
+        let payload: DragPayload | null = null;
+        try {
+          payload = JSON.parse(raw) as DragPayload;
+        } catch {
+          return;
+        }
+        if (!payload?.entryId) return;
+        const fromStatus = payload.status ?? null;
+
+        if (target === 'waiting') {
+          if (fromStatus === 'waiting') return;
+          await handleReturnToQueue(payload.entryId);
+          return;
+        }
+
+        if (target === 'serving') {
+          if (fromStatus === 'serving') return;
+          if (fromStatus === 'waiting') {
+            await handleSetServing(payload.entryId);
+            return;
+          }
+          await runOptimisticAction(
+            `serving_move:${payload.entryId}`,
+            () => queueData.applyOptimisticServing(payload.entryId),
+            async () => {
+              await invokeEmployeeFunction('queue_entry_action', {
+                action: 'serving',
+                queueEntryId: payload.entryId,
+              });
+            },
+            { entryId: payload.entryId }
+          );
+          return;
+        }
+
+        if (target === 'history') {
+          if (['completed', 'cancelled', 'no_show'].includes(fromStatus ?? '')) {
+            return;
+          }
+          setHistoryDecisionEntryId(payload.entryId);
+        }
+      },
+    [
+      handleReturnToQueue,
+      handleSetServing,
+      invokeEmployeeFunction,
+      queueData,
+      runOptimisticAction,
+    ]
+  );
 
   if (authLoading) {
     return <LoadingSpinner text="Loading employee access..." className="mt-20" />;
