@@ -135,6 +135,8 @@ async function restRequest<T>(
 }
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const path = new URL(req.url).pathname;
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
   }
@@ -155,6 +157,8 @@ serve(async (req) => {
   if (!rateLimit.allowed) {
     return buildRateLimitResponse({
       retryAfterSeconds: rateLimit.retryAfterSeconds,
+      origin,
+      path,
     });
   }
 

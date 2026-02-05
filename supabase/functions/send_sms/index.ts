@@ -24,13 +24,14 @@ function getClientIp(req: Request) {
 
 serve(async (req) => {
   const origin = req.headers.get('origin');
+  const path = new URL(req.url).pathname;
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: buildCorsHeaders(origin) });
+    return new Response(null, { status: 204, headers: buildCorsHeaders(origin, path) });
   }
 
   if (req.method !== 'POST') {
     const headers = new Headers();
-    withCorsHeaders(headers, origin);
+    withCorsHeaders(headers, origin, path);
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
       headers,
@@ -52,7 +53,7 @@ serve(async (req) => {
 
   if (!hasInternalSecret && !hasServiceRole) {
     const headers = new Headers();
-    withCorsHeaders(headers, origin);
+    withCorsHeaders(headers, origin, path);
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers,
@@ -75,11 +76,12 @@ serve(async (req) => {
 
   if (!rateLimit.allowed) {
     const headers = new Headers();
-    withCorsHeaders(headers, origin);
+    withCorsHeaders(headers, origin, path);
     return buildRateLimitResponse({
       retryAfterSeconds: rateLimit.retryAfterSeconds,
       headers,
       origin,
+      path,
     });
   }
 
@@ -94,7 +96,7 @@ serve(async (req) => {
 
   if (error) {
     const headers = new Headers();
-    withCorsHeaders(headers, origin);
+    withCorsHeaders(headers, origin, path);
     return new Response(JSON.stringify({ error: 'Failed to load outbox' }), {
       status: 500,
       headers,
@@ -113,7 +115,7 @@ serve(async (req) => {
   }
 
   const headers = new Headers();
-  withCorsHeaders(headers, origin);
+  withCorsHeaders(headers, origin, path);
   return new Response(JSON.stringify({ processed: results.length, results }), {
     status: 200,
     headers,

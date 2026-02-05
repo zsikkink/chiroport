@@ -67,11 +67,12 @@ export function buildRateLimitResponse(params: {
   message?: string;
   headers?: Headers;
   origin?: string | null;
+  path?: string | null;
 }) {
   const retryAfter = Math.max(1, Math.ceil(params.retryAfterSeconds));
   const headers = params.headers ?? new Headers();
   headers.set('Retry-After', retryAfter.toString());
-  withCorsHeaders(headers, params.origin);
+  withCorsHeaders(headers, params.origin, params.path);
   return new Response(
     JSON.stringify({
       error: {

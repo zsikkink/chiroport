@@ -90,5 +90,10 @@ npm run rate-limit:smoke  # Rate-limit smoke test
 - **Backend**: Supabase (DB + Edge Functions)
 - **SMS**: Twilio
 
+## CORS Origin Logging (Audit Mode)
+Before enforcing a strict CORS allowlist, this repo logs incoming Origin headers
+for Edge Functions in **production/staging only**. See `docs/cors-origin-logging.md`
+for log format, where to find logs, and how long to observe.
+
 ## License
 See `LICENSE`.
