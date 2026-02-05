@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { z } from 'npm:zod@3.23.8';
-import { withCorsHeaders, corsHeaders } from '../_shared/cors.ts';
+import { withCorsHeaders, buildCorsHeaders } from '../_shared/cors.ts';
 import { createServiceRoleClient } from '../_shared/supabaseClient.ts';
 import { normalizePhoneToE164 } from '../_shared/phone.ts';
 import {
@@ -48,13 +48,14 @@ const joinSchema = z.object({
 });
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: buildCorsHeaders(origin) });
   }
 
   if (req.method !== 'POST') {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
       headers,
@@ -66,7 +67,7 @@ serve(async (req) => {
     payload = await req.json();
   } catch {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
       status: 400,
       headers,
@@ -76,7 +77,7 @@ serve(async (req) => {
   const parsed = joinSchema.safeParse(payload);
   if (!parsed.success) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({ error: 'Invalid payload', details: parsed.error.flatten() }),
       { status: 400, headers }
@@ -85,7 +86,7 @@ serve(async (req) => {
 
   if (!parsed.data.consent) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Consent is required' }), {
       status: 400,
       headers,
@@ -95,7 +96,7 @@ serve(async (req) => {
   const phoneE164 = normalizePhoneToE164(parsed.data.phone);
   if (!phoneE164) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Invalid phone number' }), {
       status: 400,
       headers,
@@ -131,10 +132,11 @@ serve(async (req) => {
 
   if (!rateLimit.allowed) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return buildRateLimitResponse({
       retryAfterSeconds: rateLimit.retryAfterSeconds,
       headers,
+      origin,
     });
   }
 
@@ -147,7 +149,7 @@ serve(async (req) => {
     if (!consentVersionId) {
       if (!parsed.data.consentKey) {
         const headers = new Headers();
-        withCorsHeaders(headers);
+        withCorsHeaders(headers, origin);
         return new Response(JSON.stringify({ error: 'Consent version is required' }), {
           status: 400,
           headers,
@@ -163,7 +165,7 @@ serve(async (req) => {
 
       if (consentError || !consentRow) {
         const headers = new Headers();
-        withCorsHeaders(headers);
+        withCorsHeaders(headers, origin);
         return new Response(JSON.stringify({ error: 'Consent version is unavailable' }), {
           status: 400,
           headers,
@@ -229,7 +231,7 @@ serve(async (req) => {
             .maybeSingle();
 
           const headers = new Headers();
-          withCorsHeaders(headers);
+          withCorsHeaders(headers, origin);
           return new Response(
             JSON.stringify({
               queueEntryId: existingEntry.id,
@@ -247,7 +249,7 @@ serve(async (req) => {
       }
 
       const headers = new Headers();
-      withCorsHeaders(headers);
+      withCorsHeaders(headers, origin);
       return new Response(
         JSON.stringify({
           error: joinError?.message || 'Failed to join queue',
@@ -346,7 +348,7 @@ serve(async (req) => {
     });
 
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({
         queueEntryId: joinResult.out_queue_entry_id,
@@ -362,7 +364,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('queue_join failed', error);
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Queue join failed',

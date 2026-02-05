@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { withCorsHeaders, corsHeaders } from '../_shared/cors.ts';
+import { withCorsHeaders, buildCorsHeaders } from '../_shared/cors.ts';
 import { requireEmployee } from '../_shared/employeeAuth.ts';
 import { enqueueAndSendOutboxMessage } from '../_shared/outbox.ts';
 import {
@@ -15,13 +15,14 @@ type Payload = {
 };
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: buildCorsHeaders(origin) });
   }
 
   if (req.method !== 'POST') {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
       headers,
@@ -31,7 +32,7 @@ serve(async (req) => {
   const authHeader = req.headers.get('authorization');
   if (!authHeader) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers,
@@ -48,7 +49,7 @@ serve(async (req) => {
   const messageBody = payload.body?.trim() ?? '';
   if (!payload.queueEntryId) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Queue entry id is required' }), {
       status: 400,
       headers,
@@ -57,7 +58,7 @@ serve(async (req) => {
 
   if (!messageBody) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Message body is required' }), {
       status: 400,
       headers,
@@ -69,7 +70,7 @@ serve(async (req) => {
     auth = await requireEmployee(authHeader);
   } catch (error) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unauthorized' }),
       { status: 403, headers }
@@ -101,10 +102,11 @@ serve(async (req) => {
 
     if (!rateLimit.allowed) {
       const headers = new Headers();
-      withCorsHeaders(headers);
+      withCorsHeaders(headers, origin);
       return buildRateLimitResponse({
         retryAfterSeconds: rateLimit.retryAfterSeconds,
         headers,
+        origin,
       });
     }
   }
@@ -121,7 +123,7 @@ serve(async (req) => {
       queueEntryId: payload.queueEntryId,
     });
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({ error: entryError.message || 'Unable to load queue entry' }),
       { status: 403, headers }
@@ -135,7 +137,7 @@ serve(async (req) => {
 
   if (!entry?.id || !phone) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({ error: 'Customer phone number is missing' }),
       { status: 409, headers }
@@ -157,7 +159,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('send_employee_message failed', error);
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({ error: 'Failed to send message' }),
       { status: 500, headers }
@@ -172,7 +174,7 @@ serve(async (req) => {
   });
 
   const headers = new Headers();
-  withCorsHeaders(headers);
+  withCorsHeaders(headers, origin);
   return new Response(JSON.stringify({ success: true }), {
     status: 200,
     headers,

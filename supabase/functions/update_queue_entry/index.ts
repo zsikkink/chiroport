@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { withCorsHeaders, corsHeaders } from '../_shared/cors.ts';
+import { withCorsHeaders, buildCorsHeaders } from '../_shared/cors.ts';
 import { requireEmployee } from '../_shared/employeeAuth.ts';
 import { normalizePhoneToE164 } from '../_shared/phone.ts';
 import {
@@ -21,13 +21,14 @@ type Payload = {
 const ALLOWED_CUSTOMER_TYPES = new Set(['paying', 'priority_pass']);
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: buildCorsHeaders(origin) });
   }
 
   if (req.method !== 'POST') {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
       headers,
@@ -37,7 +38,7 @@ serve(async (req) => {
   const authHeader = req.headers.get('authorization');
   if (!authHeader) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers,
@@ -53,7 +54,7 @@ serve(async (req) => {
 
   if (!payload.queueEntryId) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Queue entry id is required' }), {
       status: 400,
       headers,
@@ -63,7 +64,7 @@ serve(async (req) => {
   const serviceLabel = payload.serviceLabel?.trim();
   if (!serviceLabel) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Service label is required' }), {
       status: 400,
       headers,
@@ -72,7 +73,7 @@ serve(async (req) => {
 
   if (!payload.customerType || !ALLOWED_CUSTOMER_TYPES.has(payload.customerType)) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Customer type is invalid' }), {
       status: 400,
       headers,
@@ -82,7 +83,7 @@ serve(async (req) => {
   const phoneE164 = normalizePhoneToE164(payload.phone ?? '');
   if (!phoneE164) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Valid phone number is required' }), {
       status: 400,
       headers,
@@ -94,7 +95,7 @@ serve(async (req) => {
     auth = await requireEmployee(authHeader);
   } catch (error) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unauthorized' }),
       { status: 403, headers }
@@ -127,10 +128,11 @@ serve(async (req) => {
 
     if (!rateLimit.allowed) {
       const headers = new Headers();
-      withCorsHeaders(headers);
+      withCorsHeaders(headers, origin);
       return buildRateLimitResponse({
         retryAfterSeconds: rateLimit.retryAfterSeconds,
         headers,
+        origin,
       });
     }
   }
@@ -147,7 +149,7 @@ serve(async (req) => {
       queueEntryId: payload.queueEntryId,
     });
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({ error: entryError.message || 'Failed to load queue entry' }),
       { status: 500, headers }
@@ -156,7 +158,7 @@ serve(async (req) => {
 
   if (!entry?.id || !entry.customer_id || !entry.queue_id) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({ error: 'Queue entry not found' }),
       { status: 404, headers }
@@ -186,7 +188,7 @@ serve(async (req) => {
 
   if (noCustomerChanges && noQueueChanges) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({ error: 'No changes to apply' }),
       { status: 409, headers }
@@ -208,7 +210,7 @@ serve(async (req) => {
       customerId: entry.customer_id,
     });
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({
         error:
@@ -240,7 +242,7 @@ serve(async (req) => {
         queueEntryId: entry.id,
       });
       const headers = new Headers();
-      withCorsHeaders(headers);
+      withCorsHeaders(headers, origin);
       return new Response(
         JSON.stringify({ error: 'Unable to reorder queue entry' }),
         { status: 500, headers }
@@ -263,7 +265,7 @@ serve(async (req) => {
       queueEntryId: entry.id,
     });
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({ error: updateError?.message || 'No changes applied' }),
       { status: updateError ? 500 : 409, headers }
@@ -281,7 +283,7 @@ serve(async (req) => {
   });
 
   const headers = new Headers();
-  withCorsHeaders(headers);
+  withCorsHeaders(headers, origin);
   return new Response(JSON.stringify({ success: true }), {
     status: 200,
     headers,

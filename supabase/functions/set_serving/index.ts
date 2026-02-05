@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { withCorsHeaders, corsHeaders } from '../_shared/cors.ts';
+import { withCorsHeaders, buildCorsHeaders } from '../_shared/cors.ts';
 import { requireEmployee } from '../_shared/employeeAuth.ts';
 import { MESSAGE_TYPES, buildServingNotification } from '../_shared/messages.ts';
 import { enqueueAndSendOutboxMessage } from '../_shared/outbox.ts';
@@ -11,13 +11,14 @@ import {
 import { getLocationIdForQueueEntry } from '../_shared/queue.ts';
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: buildCorsHeaders(origin) });
   }
 
   if (req.method !== 'POST') {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
       headers,
@@ -27,7 +28,7 @@ serve(async (req) => {
   const authHeader = req.headers.get('authorization');
   if (!authHeader) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers,
@@ -43,7 +44,7 @@ serve(async (req) => {
 
   if (!payload.queueEntryId) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Queue entry id is required' }), {
       status: 400,
       headers,
@@ -55,7 +56,7 @@ serve(async (req) => {
     auth = await requireEmployee(authHeader);
   } catch (error) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unauthorized' }),
       { status: 403, headers }
@@ -87,10 +88,11 @@ serve(async (req) => {
 
     if (!rateLimit.allowed) {
       const headers = new Headers();
-      withCorsHeaders(headers);
+      withCorsHeaders(headers, origin);
       return buildRateLimitResponse({
         retryAfterSeconds: rateLimit.retryAfterSeconds,
         headers,
+        origin,
       });
     }
   }
@@ -110,7 +112,7 @@ serve(async (req) => {
       queueEntryId: payload.queueEntryId,
     });
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({ error: error.message || 'Failed to set serving' }),
       { status: 403, headers }
@@ -119,7 +121,7 @@ serve(async (req) => {
 
   if (!data) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(
       JSON.stringify({
         error: 'Queue entry not found or not in waiting status',
@@ -155,7 +157,7 @@ serve(async (req) => {
   }
 
   const headers = new Headers();
-  withCorsHeaders(headers);
+  withCorsHeaders(headers, origin);
   return new Response(
     JSON.stringify({
       queueEntryId: data.id,

@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { withCorsHeaders, corsHeaders } from '../_shared/cors.ts';
+import { withCorsHeaders, buildCorsHeaders } from '../_shared/cors.ts';
 import { createServiceRoleClient } from '../_shared/supabaseClient.ts';
 import { sendClaimedMessage } from '../_shared/outbox.ts';
 import { requireEnv } from '../_shared/env.ts';
@@ -23,13 +23,14 @@ function getClientIp(req: Request) {
 }
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: buildCorsHeaders(origin) });
   }
 
   if (req.method !== 'POST') {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
       headers,
@@ -51,7 +52,7 @@ serve(async (req) => {
 
   if (!hasInternalSecret && !hasServiceRole) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers,
@@ -74,10 +75,11 @@ serve(async (req) => {
 
   if (!rateLimit.allowed) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return buildRateLimitResponse({
       retryAfterSeconds: rateLimit.retryAfterSeconds,
       headers,
+      origin,
     });
   }
 
@@ -92,7 +94,7 @@ serve(async (req) => {
 
   if (error) {
     const headers = new Headers();
-    withCorsHeaders(headers);
+    withCorsHeaders(headers, origin);
     return new Response(JSON.stringify({ error: 'Failed to load outbox' }), {
       status: 500,
       headers,
@@ -111,7 +113,7 @@ serve(async (req) => {
   }
 
   const headers = new Headers();
-  withCorsHeaders(headers);
+  withCorsHeaders(headers, origin);
   return new Response(JSON.stringify({ processed: results.length, results }), {
     status: 200,
     headers,
