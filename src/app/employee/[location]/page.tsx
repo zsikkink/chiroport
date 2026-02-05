@@ -17,6 +17,7 @@ import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { requireEnv } from '@/lib/supabase/helpers';
 import type { Database } from '@/lib/supabase/database.types';
 import { toLocationSlug } from '@/lib/locationSlug';
+import { TREATMENT_OPTIONS } from '@/domain/services/catalog';
 
 type EmployeeProfile = {
   role: Database['public']['Enums']['employee_role'];
@@ -72,11 +73,6 @@ type DragPayload = {
   status: string | null;
 };
 
-type TreatmentOption = {
-  label: string;
-  customerType: 'paying' | 'priority_pass';
-};
-
 type EditFormState = {
   fullName: string;
   email: string;
@@ -105,15 +101,6 @@ const CUSTOMER_TYPE_PRIORITY: Record<string, number> = {
   paying: 0,
   priority_pass: 1,
 };
-
-const TREATMENT_OPTIONS: TreatmentOption[] = [
-  { label: 'Chiropractor', customerType: 'paying' },
-  { label: 'Priority Pass', customerType: 'priority_pass' },
-  { label: 'Priority Pass + Adjustments', customerType: 'paying' },
-  { label: 'Massage: 15 minutes', customerType: 'paying' },
-  { label: 'Massage: 20 minutes', customerType: 'paying' },
-  { label: 'Massage: 30 minutes', customerType: 'paying' },
-];
 
 function toEpoch(value: string | null | undefined) {
   if (!value) return 0;
