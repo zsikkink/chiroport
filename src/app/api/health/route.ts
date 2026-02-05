@@ -27,9 +27,7 @@ export async function GET(request: NextRequest) {
     }
 
     const healthCheckSecret = env.HEALTH_CHECK_SECRET;
-    const providedSecret =
-      request.headers.get('x-health-secret') ||
-      request.nextUrl.searchParams.get('secret');
+    const providedSecret = request.headers.get('x-health-secret');
     const isProduction = env.NODE_ENV === 'production';
 
     // Basic authentication for health endpoint
