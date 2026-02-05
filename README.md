@@ -79,11 +79,31 @@ npm test             # Jest
 npm run db:migrate   # supabase db push
 npm run db:types     # supabase gen types
 npm run rate-limit:smoke  # Rate-limit smoke test
+npm run queue:clear  # Clear queue entries (destructive)
+npm run queue:clear:smoke # Smoke test queue:clear guardrails
 ```
 
 ## Locations & Images
 - Location data lives in `data/locationData.json`.
 - Location images are served from `public/images/stores/`.
+
+## Queue Maintenance (Destructive)
+Use `queue:clear` for manual cleanup. It is guarded to prevent accidental production wipes.
+
+Examples:
+```bash
+# Dry-run a location clear
+npm run queue:clear -- --airport-code ATL --location-code concourse-a --dry-run
+
+# Clear a specific queue (non-prod)
+npm run queue:clear -- --queue-id <uuid>
+
+# Clear all entries (requires confirmation)
+npm run queue:clear -- --all --confirm
+
+# Clear all entries in production (explicit)
+npm run queue:clear -- --all --confirm --force-prod
+```
 
 ## Deployment
 - **Frontend**: Vercel
