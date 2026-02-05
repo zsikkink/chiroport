@@ -1,6 +1,6 @@
 # Chiroport
 
-A modern, responsive web application for managing chiropractic services across major US airports. Built with Next.js 14, TypeScript, and Tailwind CSS.
+A modern, responsive web application for managing chiropractic services across major US airports. Built with Next.js 16, TypeScript, Tailwind CSS, and Supabase.
 
 ## 🚀 Features
 
@@ -13,7 +13,7 @@ A modern, responsive web application for managing chiropractic services across m
 ## 🏗️ Architecture
 
 ### Tech Stack
-- **Framework**: Next.js 14 with App Router
+- **Framework**: Next.js 16 with App Router
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS with custom CSS variables
 - **Fonts**: Google Fonts (Lato + Libre Baskerville)
@@ -24,31 +24,25 @@ A modern, responsive web application for managing chiropractic services across m
 ### Project Structure
 ```
 src/
-├── app/                    # Next.js App Router pages
-│   ├── globals.css        # Global styles and animations
-│   ├── layout.tsx         # Root layout with fonts and metadata
-│   ├── page.tsx           # Home page
-│   └── locations/         # Location-specific routes
-├── components/            # Reusable React components
-│   ├── Button.tsx         # Button system with variants
-│   ├── ErrorBoundary.tsx  # Error handling component
-│   ├── LoadingSpinner.tsx # Loading states
-│   ├── Typography.tsx     # Text components
-│   └── ...               # Other UI components
-├── types/                 # TypeScript type definitions
-├── utils/                 # Utility functions and data
-│   ├── config.ts         # Environment configuration
-│   ├── locationData.ts   # Centralized location data
-│   └── theme.ts          # Design system constants
-└── public/               # Static assets
-    ├── icons/            # SVG icons
-    └── images/           # Location photos
+├── app/                    # Next.js App Router pages + API routes
+├── components/             # Shared UI components
+├── content/                # Marketing/service copy
+├── data/                   # JSON-backed location data
+├── features/               # Feature-level UI modules
+├── lib/                    # Client helpers (Supabase, location data)
+├── schemas/                # Zod schemas
+└── server/                 # Server-only config + helpers
+supabase/
+├── functions/              # Edge functions
+└── migrations/             # SQL migrations
+scripts/                    # Local tooling (sync, clear, smoke tests)
+tests/                      # Jest + Playwright tests
 ```
 
 ## 🛠️ Development
 
 ### Prerequisites
-- Node.js 18+ 
+- Node.js 22+
 - npm or yarn
 
 ### Getting Started
@@ -67,16 +61,19 @@ npm run dev
 ```
 
 ### Environment Variables
-Create a `.env.local` file:
-```env
-# Optional: Feature flags
-NEXT_PUBLIC_ENABLE_ANALYTICS=false
-NEXT_PUBLIC_ENABLE_ERROR_REPORTING=true
-NEXT_PUBLIC_DEBUG_MODE=false
+Use `env.template` as the source of truth and copy it to `.env.local`:
+```bash
+cp env.template .env.local
+```
+You’ll need Supabase (browser + Edge), Twilio, and rate-limit values for a full local setup.
 
-# Optional: Performance settings
-NEXT_PUBLIC_IMAGE_QUALITY=85
-NEXT_PUBLIC_CACHE_TIMEOUT=300000
+### Supabase / Database Workflow
+```bash
+# Apply migrations to your Supabase project
+supabase db push
+
+# Regenerate TypeScript types for database
+npm run db:types
 ```
 
 ### Available Scripts
@@ -86,6 +83,8 @@ npm run build        # Build for production
 npm run start        # Start production server
 npm run lint         # Run ESLint
 npm run type-check   # Run TypeScript compiler
+npm run db:migrate   # Apply Supabase migrations (db push)
+npm run db:types     # Regenerate Supabase types
 ```
 
 ## 📍 Adding New Locations
