@@ -19,68 +19,7 @@ type LocationOption = {
   code: string;
 };
 
-type StatLocation = {
-  display_name: string | null;
-  airport_code: string | null;
-  code: string | null;
-};
-
-type StatsRow = {
-  id?: string;
-  location_id?: string | null;
-  local_date?: string | null;
-  month_start?: string | null;
-  timezone?: string | null;
-  created_at?: string | null;
-  locations?: StatLocation | null;
-  [key: string]: unknown;
-};
-
 const supabase = getSupabaseBrowserClient();
-
-const METADATA_KEYS = new Set(['locations', 'local_date', 'month_start']);
-
-function formatMetricLabel(key: string) {
-  return key
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function formatMetricValue(value: unknown) {
-  if (value === null || value === undefined) return '—';
-  if (typeof value === 'number') {
-    return Number.isInteger(value) ? value.toString() : value.toFixed(2);
-  }
-  if (typeof value === 'object') {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
-
-function buildMetricEntries(row: StatsRow) {
-  const entries = Object.entries(row).filter(
-    ([key]) => !METADATA_KEYS.has(key)
-  );
-  entries.sort(([keyA], [keyB]) => keyA.localeCompare(keyB));
-  return entries;
-}
-
-function getLocationLabel(row: StatsRow) {
-  if (row.location_id == null) {
-    return 'All locations';
-  }
-  return row.locations?.display_name ?? row.location_id ?? 'Unknown location';
-}
-
-function getDateLabel(row: StatsRow) {
-  if (row.local_date) {
-    return row.local_date;
-  }
-  if (row.month_start) {
-    return row.month_start;
-  }
-  return '—';
-}
 
 export default function AnalyticsPage() {
   const [session, setSession] = useState<Session | null>(null);
@@ -89,10 +28,10 @@ export default function AnalyticsPage() {
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [locations, setLocations] = useState<LocationOption[]>([]);
-  const [dailyStats, setDailyStats] = useState<StatsRow[]>([]);
-  const [monthlyStats, setMonthlyStats] = useState<StatsRow[]>([]);
-  const [statsLoading, setStatsLoading] = useState(false);
-  const [statsError, setStatsError] = useState('');
+  const [embedUrl, setEmbedUrl] = useState<string | null>(null);
+  const [embedLoading, setEmbedLoading] = useState(false);
+  const [embedError, setEmbedError] = useState('');
+  const [uiError, setUiError] = useState('');
   const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false);
   const router = useRouter();
 
@@ -137,50 +76,40 @@ export default function AnalyticsPage() {
       .order('code', { ascending: true });
 
     if (error) {
-      setStatsError(error.message);
+      setUiError(error.message);
       return;
     }
 
     setLocations(data ?? []);
   }, []);
 
-  const loadStats = useCallback(async () => {
-    setStatsLoading(true);
-    setStatsError('');
-    const supabaseAny = supabase as unknown as {
-      from: (table: string) => {
-        select: (query: string) => {
-          order: (column: string, options?: { ascending?: boolean }) => Promise<{
-            data: StatsRow[] | null;
-            error: { message?: string } | null;
-          }>;
-        };
-      };
-    };
-
-    const [daily, monthly] = await Promise.all([
-      supabaseAny
-        .from('queue_daily_stats')
-        .select('*, locations(display_name, airport_code, code)')
-        .order('local_date', { ascending: false }),
-      supabaseAny
-        .from('queue_monthly_stats')
-        .select('*, locations(display_name, airport_code, code)')
-        .order('month_start', { ascending: false }),
-    ]);
-
-    if (daily.error || monthly.error) {
-      setStatsError(
-        daily.error?.message ||
-          monthly.error?.message ||
-          'Failed to load analytics.'
-      );
-    } else {
-      setDailyStats(daily.data ?? []);
-      setMonthlyStats(monthly.data ?? []);
+  const loadEmbed = useCallback(async (accessToken: string) => {
+    setEmbedLoading(true);
+    setEmbedError('');
+    setEmbedUrl(null);
+    try {
+      const response = await fetch('/api/analytics/metabase', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setEmbedError(payload.error || 'Failed to load analytics.');
+        setEmbedLoading(false);
+        return;
+      }
+      if (!payload?.url) {
+        setEmbedError('Failed to load analytics.');
+        setEmbedLoading(false);
+        return;
+      }
+      setEmbedUrl(payload.url);
+    } catch {
+      setEmbedError('Failed to load analytics.');
+    } finally {
+      setEmbedLoading(false);
     }
-
-    setStatsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -209,8 +138,10 @@ export default function AnalyticsPage() {
   useEffect(() => {
     if (!isAdmin) return;
     loadLocations();
-    loadStats();
-  }, [isAdmin, loadLocations, loadStats]);
+    if (session?.access_token) {
+      loadEmbed(session.access_token);
+    }
+  }, [isAdmin, loadLocations, loadEmbed, session?.access_token]);
 
   const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -355,85 +286,31 @@ export default function AnalyticsPage() {
           <p className="text-sm text-white/80">
             Signed in as {currentUser.email} (admin)
           </p>
-          {statsError ? (
-            <p className="text-sm text-red-200">{statsError}</p>
+          {uiError ? (
+            <p className="text-sm text-red-200">{uiError}</p>
+          ) : null}
+          {embedError ? (
+            <p className="text-sm text-red-200">{embedError}</p>
           ) : null}
         </header>
 
-        {statsLoading ? (
+        {embedLoading ? (
           <LoadingSpinner text="Loading analytics..." />
+        ) : embedUrl ? (
+          <ResponsiveCard className="p-0">
+            <iframe
+              title="Chiroport Analytics"
+              src={embedUrl}
+              className="h-[75vh] w-full rounded-lg"
+              allowFullScreen
+            />
+          </ResponsiveCard>
         ) : (
-          <div className="space-y-6">
-            <ResponsiveCard title="Daily Stats (last 7 days)" className="space-y-3">
-              {dailyStats.length === 0 ? (
-                <p className="text-sm text-white/70">No daily stats available.</p>
-              ) : (
-                dailyStats.map((row) => {
-                  const key =
-                    row.id ??
-                    `${row.location_id ?? 'all'}:${row.local_date ?? 'unknown'}`;
-                  return (
-                    <details
-                      key={key}
-                      className="rounded-md border border-white/10 bg-white/5 px-3 py-2"
-                    >
-                      <summary className="cursor-pointer text-sm font-semibold">
-                        {getLocationLabel(row)} · {getDateLabel(row)}{' '}
-                        {row.timezone ? `(${row.timezone})` : ''}
-                      </summary>
-                      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-                        {buildMetricEntries(row).map(([field, value]) => (
-                          <div key={field} className="flex justify-between gap-3">
-                            <span className="text-white/70">
-                              {formatMetricLabel(field)}
-                            </span>
-                            <span className="text-white">
-                              {formatMetricValue(value)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  );
-                })
-              )}
-            </ResponsiveCard>
-
-            <ResponsiveCard title="Monthly Stats" className="space-y-3">
-              {monthlyStats.length === 0 ? (
-                <p className="text-sm text-white/70">No monthly stats available.</p>
-              ) : (
-                monthlyStats.map((row) => {
-                  const key =
-                    row.id ??
-                    `${row.location_id ?? 'all'}:${row.month_start ?? 'unknown'}`;
-                  return (
-                    <details
-                      key={key}
-                      className="rounded-md border border-white/10 bg-white/5 px-3 py-2"
-                    >
-                      <summary className="cursor-pointer text-sm font-semibold">
-                        {getLocationLabel(row)} · {getDateLabel(row)}{' '}
-                        {row.timezone ? `(${row.timezone})` : ''}
-                      </summary>
-                      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-                        {buildMetricEntries(row).map(([field, value]) => (
-                          <div key={field} className="flex justify-between gap-3">
-                            <span className="text-white/70">
-                              {formatMetricLabel(field)}
-                            </span>
-                            <span className="text-white">
-                              {formatMetricValue(value)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  );
-                })
-              )}
-            </ResponsiveCard>
-          </div>
+          <ResponsiveCard>
+            <p className="text-sm text-white/70">
+              Analytics dashboard is not available yet.
+            </p>
+          </ResponsiveCard>
         )}
       </div>
 

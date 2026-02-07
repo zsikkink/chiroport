@@ -38,6 +38,10 @@ const envSchema = z.object({
   LOG_LEVEL: z.string().optional(),
   NEXT_PUBLIC_IMAGE_QUALITY: z.string().optional(),
   NEXT_PUBLIC_CACHE_TIMEOUT: z.string().optional(),
+  METABASE_SITE_URL: z.string().optional(),
+  METABASE_EMBED_SECRET: z.string().optional(),
+  METABASE_DASHBOARD_ID: z.string().optional(),
+  METABASE_EMBED_TTL_SECONDS: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
