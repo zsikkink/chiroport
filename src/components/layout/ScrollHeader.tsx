@@ -18,10 +18,9 @@ interface ScrollHeaderProps {
  * Dynamically sizes text to prevent wrapping.
  */
 export default function ScrollHeader({
-  title: _title = 'Chiroport',
+  title = 'Chiroport',
   className = ''
 }: ScrollHeaderProps) {
-  void _title;
   const router = useRouter();
   const [isScrolled, setIsScrolled] = useState(false);
   useEffect(() => {
@@ -73,7 +72,7 @@ export default function ScrollHeader({
       }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="relative flex items-center justify-between h-16">
           <div className="flex items-center gap-3">
             {/* Logo - Home Button */}
             <button
@@ -85,6 +84,8 @@ export default function ScrollHeader({
                 transition-opacity duration-200
                 focus:outline-none focus:ring-2 focus:ring-white/40 focus:ring-offset-2 focus:ring-offset-[var(--color-header)]
                 flex-shrink-0
+                !shadow-none hover:!shadow-none active:!shadow-none
+                hover:translate-y-0 active:translate-y-0
               "
               aria-label="Go to home page"
             >
@@ -96,6 +97,11 @@ export default function ScrollHeader({
                 className="w-5 h-5"
               />
             </button>
+          </div>
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-16">
+            <span className="max-w-full truncate text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-white">
+              {title}
+            </span>
           </div>
           <div className="w-10 h-10 flex-shrink-0" />
         </div>

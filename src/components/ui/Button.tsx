@@ -37,7 +37,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
 }, ref) => {
   // Base classes for all buttons with accessibility features
   const baseClasses = `
-    font-lato rounded transition-colors
+    font-lato rounded
+    transition-[transform,box-shadow,background-color,color,border-color] duration-200
+    enabled:hover:-translate-y-px enabled:active:translate-y-0
     overflow-hidden
     flex items-center
   `;

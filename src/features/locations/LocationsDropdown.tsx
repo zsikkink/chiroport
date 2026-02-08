@@ -59,9 +59,11 @@ export default function LocationsList({ screenWidth }: LocationsListProps) {
                     bg-[var(--color-header)]
                     hover:bg-[var(--color-primary-dark)]
                     text-white
-                    transition-colors duration-200
+                    transition-all duration-200
                     rounded-md
-                    border border-[color:var(--color-body)]
+                    border border-white/25
+                    shadow-[0_10px_20px_-16px_rgba(15,23,42,0.48)]
+                    hover:shadow-[0_12px_24px_-16px_rgba(15,23,42,0.56)]
                   "
                   style={{
                     fontSize: textSizes.buttonSize,

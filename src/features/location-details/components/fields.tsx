@@ -1,8 +1,13 @@
 'use client';
 
 import { AsYouType } from 'libphonenumber-js';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { WizardState } from '@/features/location-details/types';
+
+const selectedCheckboxStyle: CSSProperties = {
+  backgroundColor: 'rgb(110 231 183)',
+  borderColor: 'rgb(16 185 129)',
+};
 
 interface InputFieldProps {
   label: string;
@@ -25,17 +30,17 @@ export function InputField({
 }: InputFieldProps) {
   return (
     <div>
-      <label className="block text-slate-700 text-base font-bold mb-2">
-        {label} {required && '*'}
+      <label className="block text-black text-lg font-bold mb-2">
+        {label} {required && <span className="text-red-600">*</span>}
       </label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-white text-slate-900 rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-100 placeholder-gray-500"
+        className="w-full bg-white text-slate-900 text-lg rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-100 placeholder-gray-500"
       />
-      {error && <p className="text-red-400 text-sm mt-1">{error}</p>}
+      {error && <p className="text-red-400 text-lg mt-1">{error}</p>}
     </div>
   );
 }
@@ -85,8 +90,8 @@ export function PhoneField({
 
   return (
     <div>
-      <label className="block text-slate-700 text-base font-bold mb-2">
-        Phone Number *
+      <label className="block text-black text-lg font-bold mb-2">
+        Phone Number <span className="text-red-600">*</span>
       </label>
 
       {isIntl ? (
@@ -97,7 +102,7 @@ export function PhoneField({
           value={intlDisplay}
           onChange={handlePhoneChange}
           placeholder="+44 20 7123 4567"
-          className="w-full bg-white text-slate-900 rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-100 placeholder-gray-500"
+          className="w-full bg-white text-slate-900 text-lg rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-100 placeholder-gray-500"
         />
       ) : (
         // — U.S. formatting —
@@ -106,12 +111,12 @@ export function PhoneField({
           value={formatUSPhone(details.phone || '')}
           onChange={handlePhoneChange}
           placeholder="Phone number"
-          className="w-full bg-white text-slate-900 rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-100 placeholder-gray-500"
+          className="w-full bg-white text-slate-900 text-lg rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-100 placeholder-gray-500"
         />
       )}
 
       {submitAttempted && errors.phone && (
-        <p className="text-red-400 text-sm mt-1">{errors.phone[0]}</p>
+        <p className="text-red-400 text-lg mt-1">{errors.phone[0]}</p>
       )}
     </div>
   );
@@ -148,10 +153,11 @@ export function ConsentField({
             className={`
             w-5 h-5 rounded border-2 border-slate-300 flex items-center justify-center transition-colors duration-200
             ${isChecked 
-              ? 'bg-emerald-50' 
+              ? 'bg-emerald-300 border-emerald-500'
               : 'bg-transparent group-hover:bg-slate-100'
             }
           `}
+            style={isChecked ? selectedCheckboxStyle : undefined}
           >
             {isChecked && (
               <svg className="w-3 h-3 text-emerald-700" fill="currentColor" viewBox="0 0 20 20">
@@ -164,12 +170,12 @@ export function ConsentField({
             )}
           </div>
         </div>
-        <span className="ml-3 text-slate-700 text-base leading-relaxed">
-          {label} *
+        <span className="ml-3 text-slate-700 text-lg leading-relaxed">
+          {label} <span className="text-red-600">*</span>
         </span>
       </label>
       {submitAttempted && errors.consent && (
-        <p className="text-red-400 text-sm mt-2">{errors.consent[0]}</p>
+        <p className="text-red-400 text-lg mt-2">{errors.consent[0]}</p>
       )}
     </div>
   );

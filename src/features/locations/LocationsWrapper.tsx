@@ -26,6 +26,7 @@ export default function LocationsWrapper({
   const [maxHeight, setMaxHeight] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const activeButtonText = isOpen ? 'Select location' : buttonText;
 
   // Monitor screen width constantly
   useEffect(() => {
@@ -48,7 +49,7 @@ export default function LocationsWrapper({
     const availableWidth = screenWidth - (margin * 2); // 90% total
     
     // Calculate the exact width needed for the text (no arrow space needed)
-    const textLength = buttonText.length;
+    const textLength = activeButtonText.length;
     const fontSize = screenWidth > 768 ? 32 : 24; // Larger font on desktop
     const estimatedTextWidth = textLength * fontSize * 0.6; // Character width estimation
     const paddingSpace = screenWidth > 768 ? 32 : 24; // More padding on desktop
@@ -71,7 +72,7 @@ export default function LocationsWrapper({
       marginLeft: margin,
       marginRight: margin
     };
-  }, [screenWidth, buttonText]);
+  }, [screenWidth, activeButtonText]);
 
   // Calculate dynamic text size based on button width
   const getTextSize = useCallback(() => {
@@ -82,7 +83,7 @@ export default function LocationsWrapper({
     const availableTextWidth = closedWidth - paddingSpace;
     
     // Estimate text width - rough calculation based on character count and font size
-    const textLength = buttonText.length;
+    const textLength = activeButtonText.length;
     
     // Start with larger base size on desktop
     let fontSize = screenWidth > 768 ? 32 : 24; // Larger starting size on desktop
@@ -100,7 +101,7 @@ export default function LocationsWrapper({
       fontSize: `${fontSize}px`,
       lineHeight: '1.2'
     };
-  }, [screenWidth, getWidths, buttonText]);
+  }, [screenWidth, getWidths, activeButtonText]);
 
   // Function to measure and update height
   const updateHeight = useCallback(() => {
@@ -154,14 +155,16 @@ export default function LocationsWrapper({
       }}
     >
       {/* Container with proper overflow handling */}
-      <div className="
-        border border-slate-200/80 rounded-2xl 
+      <div className={`
+        border rounded-2xl 
         overflow-hidden 
-        bg-white
-        shadow-[0_16px_32px_-24px_rgba(15,23,42,0.28)]
         transition-all duration-300 ease-in-out
         w-full
-      ">
+        ${isOpen
+          ? 'border-transparent bg-[var(--color-header)] ring-0 shadow-[0_22px_42px_-26px_rgba(15,23,42,0.7)]'
+          : 'border-transparent bg-white shadow-[0_14px_28px_-12px_rgba(15,23,42,0.46),0_4px_10px_-6px_rgba(15,23,42,0.28)]'
+        }
+      `}>
         {/* Main Button - Dynamically sized */}
         <PrimaryButton
           ref={buttonRef}
@@ -173,16 +176,19 @@ export default function LocationsWrapper({
             flex items-center justify-center
             overflow-hidden
             font-bold
-            !bg-[var(--color-header)] !text-white
-            hover:!bg-[var(--color-primary-dark)]
-            shadow-[0_8px_22px_-14px_rgba(15,23,42,0.35)]
-            hover:shadow-[0_10px_26px_-14px_rgba(15,23,42,0.45)]
+            tracking-tight
+            ${isOpen
+              ? '!bg-transparent !text-white hover:!bg-white/8 !ring-0 !shadow-none hover:!shadow-none'
+              : '!bg-[var(--color-header)] !text-white hover:!bg-[var(--color-primary-dark)] shadow-[0_14px_28px_-14px_rgba(15,23,42,0.56),0_3px_8px_-4px_rgba(15,23,42,0.38)] hover:shadow-[0_16px_30px_-14px_rgba(15,23,42,0.62),0_4px_10px_-4px_rgba(15,23,42,0.42)]'
+            }
           `}
           style={{
             fontSize: textStyle.fontSize,
             lineHeight: textStyle.lineHeight,
-            minHeight: `${Math.max(48, parseInt(textStyle.fontSize) * 2)}px`
+            minHeight: `${Math.max(52, Math.round(parseInt(textStyle.fontSize) * 2.1))}px`
           }}
+          aria-expanded={isOpen}
+          aria-controls="locations-list-panel"
         >
           <span className="
             text-center
@@ -190,17 +196,18 @@ export default function LocationsWrapper({
             whitespace-nowrap
             w-full
           ">
-            {buttonText}
+            {activeButtonText}
           </span>
         </PrimaryButton>
         
         {/* Expanding Panel */}
         <div
+          id="locations-list-panel"
           style={{ maxHeight: maxHeight }}
           className="
             overflow-hidden 
             transition-all duration-300 ease-in-out 
-            bg-slate-50
+            bg-[var(--color-header)]
             w-full
           "
         >

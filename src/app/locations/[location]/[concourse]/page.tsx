@@ -100,15 +100,18 @@ export default async function ConcoursePage({ params }: PageProps) {
     notFound();
   }
 
-  const headerTitle = `${airport.code} ${concourseInfo.displayName}`;
+  const locationLabel = `${airport.code} · ${concourseInfo.displayName}`;
 
   return (
     <>
-      <ScrollHeader title={headerTitle} />
+      <ScrollHeader title={locationLabel} />
       
       <StaticLayout>
         {/* Location Details Section - Client component */}
         <div className="w-full sm:max-w-3xl mx-auto px-4 sm:px-0 mt-20">
+          <h1 className="mb-4 text-center text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+            Check-in Questions
+          </h1>
           <LocationDetails
             locationInfo={locationInfo}
             airportCode={airport.code}

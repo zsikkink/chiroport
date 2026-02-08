@@ -10,15 +10,17 @@ export default function BackButton({ onClick }: BackButtonProps) {
       onClick={onClick}
       aria-label="Go back"
       className="
-        flex items-center justify-center mb-2
-        h-9 w-9 rounded-full
-        bg-[var(--color-header)] text-white
-        border border-[color:var(--color-body)]
-        hover:bg-[var(--color-primary-dark)]
+        mb-2 inline-flex items-center justify-center
+        p-0
+        text-slate-900
+        hover:text-black
         transition-colors duration-200
+        !shadow-none hover:!shadow-none active:!shadow-none
+        hover:!translate-y-0 active:!translate-y-0
+        focus:outline-none
       "
     >
-      <ChevronLeftIcon className="w-6 h-6" />
+      <ChevronLeftIcon className="h-5 w-5" />
     </button>
   );
 }

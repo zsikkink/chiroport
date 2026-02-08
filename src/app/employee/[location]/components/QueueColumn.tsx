@@ -24,7 +24,7 @@ export function QueueColumn({
   headerAction,
   useCardTitle = false,
   itemsClassName = 'space-y-4',
-  cardClassName = 'h-full min-h-[calc(100vh-260px)]',
+  cardClassName = 'h-full min-h-[calc(100vh-260px)] bg-[var(--color-body)]',
 }: QueueColumnProps) {
   const content = (
     <>

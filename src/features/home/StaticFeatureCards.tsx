@@ -1,7 +1,7 @@
 import type { ComponentType, SVGProps } from 'react';
 import { StaticBodyText, StaticResponsiveCard } from '@/components/ui';
 import {
-  PlusIcon,
+  AdjustmentsHorizontalIcon,
   HandRaisedIcon,
   CursorArrowRaysIcon,
   ArrowsPointingOutIcon,
@@ -20,7 +20,7 @@ interface StaticFeatureCardsProps {
  */
 export default function StaticFeatureCards({ className = '' }: StaticFeatureCardsProps) {
   const serviceIcons: Array<ComponentType<SVGProps<SVGSVGElement>>> = [
-    PlusIcon,
+    AdjustmentsHorizontalIcon,
     HandRaisedIcon,
     CursorArrowRaysIcon,
     ArrowsPointingOutIcon,
@@ -39,10 +39,10 @@ export default function StaticFeatureCards({ className = '' }: StaticFeatureCard
         <StaticResponsiveCard title="Services Include" className="mb-5 sm:mb-6">
           <ul className="space-y-3">
             {serviceItems.map((item, index) => {
-              const Icon = serviceIcons[index] ?? PlusIcon;
+              const Icon = serviceIcons[index] ?? AdjustmentsHorizontalIcon;
               return (
                 <li key={item} className="flex items-start gap-3 text-lg sm:text-xl font-medium text-slate-700">
-                  <span className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+                  <span className="mt-px flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
                     <Icon className="h-4 w-4" />
                   </span>
                   <span className="leading-relaxed">{item}</span>
@@ -60,14 +60,6 @@ export default function StaticFeatureCards({ className = '' }: StaticFeatureCard
             <StaticBodyText size="lg" className="text-slate-600 leading-relaxed">
               {aboutCopy}
             </StaticBodyText>
-            <div className="mt-4">
-              <a
-                href="#contact"
-                className="text-sm font-semibold text-emerald-800 hover:text-emerald-900 underline underline-offset-4"
-              >
-                Learn more
-              </a>
-            </div>
           </StaticResponsiveCard>
         </div>
         

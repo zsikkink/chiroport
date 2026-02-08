@@ -1,4 +1,4 @@
-import { ScrollHeader, StaticLayout } from '@/components/layout';
+import { StaticLayout } from '@/components/layout';
 import { DynamicHomeContent } from '@/features/home';
 
 /**
@@ -11,14 +11,9 @@ import { DynamicHomeContent } from '@/features/home';
  */
 export default function Home() {
   return (
-    <>
-      {/* Scroll-aware header - client component */}
-      <ScrollHeader title="" />
-      
-      <StaticLayout>
-        {/* Dynamic content including title, menu, and responsive feature cards */}
-        <DynamicHomeContent />
-      </StaticLayout>
-    </>
+    <StaticLayout>
+      {/* Dynamic content including title, menu, and responsive feature cards */}
+      <DynamicHomeContent />
+    </StaticLayout>
   );
 }
