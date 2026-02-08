@@ -28,7 +28,7 @@ export function ChatPanel({
 }: ChatPanelProps) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4"
       onClick={onClose}
     >
       <ResponsiveCard
@@ -40,14 +40,14 @@ export function ChatPanel({
             <h2 className="text-xl font-semibold">
               {chatEntry.full_name ?? 'Customer'}
             </h2>
-            <p className="text-xs text-white/70">
+            <p className="text-xs text-slate-500">
               {chatEntry.service_label ?? 'Service'} ·{' '}
               {chatEntry.phone_e164 ?? 'No phone on file'}
             </p>
           </div>
           <button
             type="button"
-            className="absolute right-0 top-0 rounded bg-white/10 px-3 py-1 text-sm"
+            className="absolute right-0 top-0 rounded border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600 hover:bg-slate-50"
             onClick={onClose}
           >
             Close
@@ -56,10 +56,10 @@ export function ChatPanel({
 
         <div
           ref={listRef}
-          className="h-80 space-y-3 overflow-y-auto rounded-md border border-white/10 bg-black/20 p-3"
+          className="h-80 space-y-3 overflow-y-auto rounded-md border border-slate-200 bg-slate-50 p-3"
         >
           {chatMessages.length === 0 ? (
-            <p className="text-sm text-white/70">No messages yet.</p>
+            <p className="text-sm text-slate-500">No messages yet.</p>
           ) : (
             chatMessages.map((message) => (
               <div
@@ -73,12 +73,12 @@ export function ChatPanel({
                 <div
                   className={`max-w-[75%] rounded-xl px-3 py-2 text-sm ${
                     message.direction === 'out'
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-white/10 text-white'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-slate-800 border border-slate-200'
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{message.body}</p>
-                  <p className="mt-1 text-[10px] text-white/70">
+                  <p className="mt-1 text-[10px] text-slate-400">
                     {formatTime(message.at)}
                     {message.direction === 'out' && message.status
                       ? ` · ${message.status}`
@@ -90,7 +90,7 @@ export function ChatPanel({
           )}
         </div>
 
-        {chatError ? <p className="text-xs text-red-200">{chatError}</p> : null}
+        {chatError ? <p className="text-xs text-red-600">{chatError}</p> : null}
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <textarea

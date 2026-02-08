@@ -15,7 +15,7 @@ interface LoadingSpinnerProps {
  */
 export default function LoadingSpinner({
   size = 'md',
-  color = 'white',
+  color = 'primary',
   className = '',
   text
 }: LoadingSpinnerProps) {
@@ -78,8 +78,8 @@ export default function LoadingSpinner({
  */
 export function PageLoader({ text = "Loading..." }: { text?: string }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-primary">
-      <LoadingSpinner size="lg" text={text} />
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <LoadingSpinner size="lg" text={text} color="primary" />
     </div>
   );
 }

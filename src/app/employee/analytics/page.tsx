@@ -432,14 +432,12 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0b1412] text-white font-lato relative overflow-hidden">
-      <div className="pointer-events-none absolute -top-40 -right-32 h-96 w-96 rounded-full bg-emerald-400/20 blur-[120px]" />
-      <div className="pointer-events-none absolute top-40 -left-40 h-96 w-96 rounded-full bg-teal-500/10 blur-[140px]" />
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-lato">
       {!isLocationMenuOpen ? (
         <div className="fixed left-4 top-8 z-50">
           <button
             type="button"
-            className="rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+            className="rounded-full border border-slate-200 bg-white p-2 text-slate-700 shadow-sm hover:bg-slate-100"
             onMouseEnter={openLocationMenu}
             onFocus={openLocationMenu}
             onClick={toggleLocationMenu}
@@ -466,13 +464,13 @@ export default function AnalyticsPage() {
         <header className="flex flex-col gap-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/70">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
                 Analytics
               </p>
               <h1 className="text-3xl sm:text-4xl font-libre-baskerville">
                 Employee Dashboard
               </h1>
-              <p className="text-sm text-white/70">
+              <p className="text-sm text-slate-500">
                 Track arrivals, wait times, completion, and dropoff trends across locations.
               </p>
             </div>
@@ -480,11 +478,11 @@ export default function AnalyticsPage() {
               Sign Out
             </Button>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-white/70">
-            <span className="rounded-full bg-white/10 px-3 py-1">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1">
               Signed in as {currentUser.email} (admin)
             </span>
-            <span className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-3 py-1 text-emerald-100">
+            <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-blue-700">
               Live data
             </span>
           </div>
@@ -496,12 +494,12 @@ export default function AnalyticsPage() {
           ) : null}
         </header>
 
-        <ResponsiveCard className="border border-white/10 bg-white/[0.06]">
+        <ResponsiveCard className="border border-slate-200 bg-white">
           <div className="grid gap-4 md:grid-cols-3">
             <label className="text-sm">
               Location
               <select
-                className="mt-1 w-full rounded-md bg-white text-black px-3 py-2 shadow-sm"
+                className="mt-1 w-full rounded-md border border-slate-200 bg-white text-slate-900 px-3 py-2 shadow-sm focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 value={selectedLocationId}
                 onChange={(event) => setSelectedLocationId(event.target.value)}
               >
@@ -516,7 +514,7 @@ export default function AnalyticsPage() {
             <label className="text-sm">
               Date range
               <select
-                className="mt-1 w-full rounded-md bg-white text-black px-3 py-2 shadow-sm"
+                className="mt-1 w-full rounded-md border border-slate-200 bg-white text-slate-900 px-3 py-2 shadow-sm focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 value={selectedDatePreset}
                 onChange={(event) =>
                   setSelectedDatePreset(event.target.value as DatePreset)
@@ -532,7 +530,7 @@ export default function AnalyticsPage() {
             <label className="text-sm">
               Customer type
               <select
-                className="mt-1 w-full rounded-md bg-white text-black px-3 py-2 shadow-sm"
+                className="mt-1 w-full rounded-md border border-slate-200 bg-white text-slate-900 px-3 py-2 shadow-sm focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 value={selectedCustomerType}
                 onChange={(event) =>
                   setSelectedCustomerType(event.target.value as CustomerFilter)
@@ -544,7 +542,7 @@ export default function AnalyticsPage() {
               </select>
             </label>
           </div>
-          <p className="mt-3 text-xs text-white/60">
+          <p className="mt-3 text-xs text-slate-500">
             Non-paying customers are treated as Priority Pass in analytics.
           </p>
         </ResponsiveCard>
@@ -553,7 +551,7 @@ export default function AnalyticsPage() {
           <LoadingSpinner text="Loading analytics..." />
         ) : analyticsData ? (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-white/70">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
               <span>
                 Data range:{' '}
                 {analyticsData.filters.date_start &&
@@ -625,33 +623,33 @@ export default function AnalyticsPage() {
               ].map((item) => (
                 <ResponsiveCard
                   key={item.label}
-                  className="border border-white/10 bg-white/[0.06] py-4 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.7)]"
+                  className="border border-slate-200 bg-white py-4 shadow-sm"
                 >
-                  <p className="text-[0.65rem] uppercase tracking-[0.3em] text-emerald-100/70">
+                  <p className="text-[0.65rem] uppercase tracking-[0.3em] text-slate-400">
                     {item.label}
                   </p>
-                  <p className="mt-2 text-2xl font-semibold text-white">
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">
                     {item.value}
                   </p>
                 </ResponsiveCard>
               ))}
             </div>
 
-            <ResponsiveCard className="border border-white/10 bg-white/[0.04]">
+            <ResponsiveCard className="border border-slate-200 bg-white">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Daily breakdown</h2>
-                <span className="text-xs text-white/60">
+                <span className="text-xs text-slate-500">
                   {analyticsData.series.length} days
                 </span>
               </div>
               {analyticsData.series.length === 0 ? (
-                <p className="mt-4 text-sm text-white/70">
+                <p className="mt-4 text-sm text-slate-500">
                   No data available for the selected filters.
                 </p>
               ) : (
                 <div className="mt-4 overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
-                    <thead className="text-[0.65rem] uppercase tracking-[0.25em] text-white/50">
+                    <thead className="text-[0.65rem] uppercase tracking-[0.25em] text-slate-400">
                       <tr>
                         <th className="py-2 pr-4">Date</th>
                         <th className="py-2 pr-4">Arrivals</th>
@@ -665,11 +663,11 @@ export default function AnalyticsPage() {
                         <th className="py-2 pr-4">Avg wait</th>
                       </tr>
                     </thead>
-                    <tbody className="text-white/80">
+                    <tbody className="text-slate-700">
                       {analyticsData.series.map((row) => (
                         <tr
                           key={row.local_date}
-                          className="border-t border-white/10 hover:bg-white/5"
+                          className="border-t border-slate-100 hover:bg-slate-50"
                         >
                           <td className="py-2 pr-4">{row.local_date}</td>
                           <td className="py-2 pr-4">
@@ -709,7 +707,7 @@ export default function AnalyticsPage() {
           </>
         ) : (
           <ResponsiveCard>
-            <p className="text-sm text-white/70">
+            <p className="text-sm text-slate-500">
               Analytics are not available yet.
             </p>
           </ResponsiveCard>
@@ -722,13 +720,13 @@ export default function AnalyticsPage() {
         }`}
       >
         <div
-          className={`absolute inset-0 bg-black/60 transition-opacity ${
+          className={`absolute inset-0 bg-slate-900/20 transition-opacity ${
             isLocationMenuOpen ? 'opacity-100' : 'opacity-0'
           }`}
           onClick={closeLocationMenu}
         />
         <aside
-          className={`absolute left-0 top-0 h-full w-72 max-w-[85vw] border-r border-white/10 bg-[#1f241f] p-5 transition-transform ${
+          className={`absolute left-0 top-0 h-full w-72 max-w-[85vw] border-r border-slate-200 bg-white p-5 transition-transform ${
             isLocationMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
           onMouseEnter={openLocationMenu}
@@ -744,19 +742,19 @@ export default function AnalyticsPage() {
                 setIsLocationMenuOpen(false);
                 router.push('/employee/analytics');
               }}
-              className="w-full rounded-md border border-emerald-300/60 bg-emerald-500/20 px-3 py-2 text-left text-emerald-100"
+              className="w-full rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-left text-blue-700"
             >
               <p className="text-sm font-semibold">Analytics</p>
             </button>
             {locationOptions.length === 0 ? (
-              <p className="text-sm text-white/70">No locations available.</p>
+              <p className="text-sm text-slate-500">No locations available.</p>
             ) : (
               locationOptions.map((location) => (
                 <button
                   key={location.id}
                   type="button"
                   onClick={() => handleLocationSelect(location.id)}
-                  className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-left text-white hover:bg-white/10"
+                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
                 >
                   <p className="text-sm font-semibold">
                     {location.display_name}

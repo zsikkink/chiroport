@@ -638,12 +638,12 @@ export default function EmployeeDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen px-4 sm:px-8 py-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900 px-4 sm:px-8 py-8">
       {!isLocationMenuOpen ? (
         <div className="fixed left-4 top-8 z-50">
           <button
             type="button"
-            className="rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+            className="rounded-full border border-slate-200 bg-white p-2 text-slate-700 shadow-sm hover:bg-slate-100"
             onMouseEnter={openLocationMenu}
             onFocus={openLocationMenu}
             onClick={toggleLocationMenu}
@@ -689,7 +689,7 @@ export default function EmployeeDashboardPage() {
               headerAction={
                 <button
                   type="button"
-                  className="rounded-full bg-white/20 p-1 text-white transition hover:bg-white/30"
+                  className="rounded-full border border-slate-200 bg-white p-1 text-slate-700 transition hover:bg-slate-50"
                   onClick={handleOpenCreateEntry}
                   aria-label="Add customer to queue"
                   title="Add customer"
@@ -800,13 +800,13 @@ export default function EmployeeDashboardPage() {
         }`}
       >
         <div
-          className={`absolute inset-0 bg-black/60 transition-opacity ${
+          className={`absolute inset-0 bg-slate-900/20 transition-opacity ${
             isLocationMenuOpen ? 'opacity-100' : 'opacity-0'
           }`}
           onClick={closeLocationMenu}
         />
         <aside
-          className={`absolute left-0 top-0 h-full w-72 max-w-[85vw] border-r border-white/10 bg-[#1f241f] p-5 transition-transform ${
+          className={`absolute left-0 top-0 h-full w-72 max-w-[85vw] border-r border-slate-200 bg-white p-5 transition-transform ${
             isLocationMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
           onMouseEnter={openLocationMenu}
@@ -820,13 +820,13 @@ export default function EmployeeDashboardPage() {
               <button
                 type="button"
                 onClick={handleAnalyticsSelect}
-                className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-left text-white hover:bg-white/10"
+                className="w-full rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-left text-blue-700 hover:bg-blue-100"
               >
                 <p className="text-sm font-semibold">Analytics</p>
               </button>
             ) : null}
             {locationOptions.length === 0 ? (
-              <p className="text-sm text-white/70">No locations available.</p>
+              <p className="text-sm text-slate-500">No locations available.</p>
             ) : (
               locationOptions.map((location) => {
                 const isActive = location.id === selectedLocationId;
@@ -837,8 +837,8 @@ export default function EmployeeDashboardPage() {
                     onClick={() => handleLocationSelect(location.id)}
                     className={`w-full rounded-md border px-3 py-2 text-left ${
                       isActive
-                        ? 'border-emerald-300/60 bg-emerald-500/20 text-emerald-100'
-                        : 'border-white/10 bg-white/5 text-white hover:bg-white/10'
+                        ? 'border-blue-200 bg-blue-50 text-blue-700'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
                     <p className="text-sm font-semibold">
@@ -852,25 +852,25 @@ export default function EmployeeDashboardPage() {
         </aside>
       </div>
       {moveEntry ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
           <ResponsiveCard className="w-full max-w-md space-y-4">
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-semibold">Move customer</h2>
-                <p className="text-sm text-white/70">
+                <p className="text-sm text-slate-500">
                   Move {moveEntry.full_name ?? 'this customer'} to another location.
                 </p>
               </div>
               <button
                 type="button"
-                className="rounded bg-white/10 px-3 py-1 text-sm"
+                className="rounded border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600 hover:bg-slate-50"
                 onClick={handleCloseMove}
               >
                 Close
               </button>
             </div>
             {moveLocationOptions.length === 0 ? (
-              <p className="text-sm text-white/70">
+              <p className="text-sm text-slate-500">
                 No other locations available at this airport.
               </p>
             ) : (
@@ -910,23 +910,23 @@ export default function EmployeeDashboardPage() {
       ) : null}
       {editEntry && editForm ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4"
           onClick={handleCloseEdit}
         >
           <ResponsiveCard
-            className="w-full max-w-lg space-y-4 !bg-[#2f352f] !backdrop-blur-none"
+            className="w-full max-w-lg space-y-4"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-semibold">Edit customer</h2>
-                <p className="text-sm text-white/70">
+                <p className="text-sm text-slate-500">
                   Update contact info and treatment selection.
                 </p>
               </div>
               <button
                 type="button"
-                className="rounded bg-white/10 px-3 py-1 text-sm"
+                className="rounded border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600 hover:bg-slate-50"
                 onClick={handleCloseEdit}
               >
                 Close
@@ -1017,7 +1017,7 @@ export default function EmployeeDashboardPage() {
       ) : null}
       {createEntryOpen && createForm ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4"
           onClick={handleCloseCreateEntry}
         >
           <ResponsiveCard
@@ -1027,13 +1027,13 @@ export default function EmployeeDashboardPage() {
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-semibold">Add customer</h2>
-                <p className="text-sm text-white/70">
+                <p className="text-sm text-slate-500">
                   Create a new queue entry for this location.
                 </p>
               </div>
               <button
                 type="button"
-                className="rounded bg-white/10 px-3 py-1 text-sm"
+                className="rounded border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600 hover:bg-slate-50"
                 onClick={handleCloseCreateEntry}
               >
                 Close
@@ -1134,7 +1134,7 @@ export default function EmployeeDashboardPage() {
       ) : null}
       {historyDecisionEntryId ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4"
           onClick={handleCloseHistoryDecision}
         >
           <ResponsiveCard

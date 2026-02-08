@@ -24,8 +24,7 @@ export default async function EmployeeRedirectPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6">
-      <p className="text-sm text-white/70">No locations are available.</p>
+      <p className="text-sm text-slate-500">No locations are available.</p>
     </div>
   );
 }
-

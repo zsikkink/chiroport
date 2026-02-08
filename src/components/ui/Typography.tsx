@@ -39,7 +39,7 @@ export default function Typography({
   size,
   weight,
   font,
-  color = 'text-white',
+  color = 'text-slate-900',
   className = '',
   as,
   style = {},

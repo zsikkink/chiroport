@@ -151,13 +151,12 @@ export default function DropdownCard({
       <div 
         className={`
           w-full
-          bg-white bg-opacity-15 
-          backdrop-filter backdrop-blur-sm
-          border border-white border-opacity-30
-          shadow-md
-          rounded-lg transition-colors duration-300
+          bg-white
+          border border-slate-200/80
+          shadow-[0_12px_32px_-20px_rgba(15,23,42,0.2)]
+          rounded-xl transition-colors duration-300
           overflow-hidden
-          ${isHovered ? 'bg-opacity-25 border-opacity-50' : ''}
+          ${isHovered ? 'bg-slate-50' : ''}
         `}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -168,10 +167,10 @@ export default function DropdownCard({
             w-full
             flex justify-between items-center 
             py-4 px-4 
-            text-white transition-colors duration-300
+            text-slate-900 transition-colors duration-300
             overflow-hidden
             font-semibold
-            ${isHovered ? 'bg-white/15' : 'hover:bg-white/15'}
+            ${isHovered ? 'bg-slate-100' : 'hover:bg-slate-100'}
           `}
           style={{
             fontSize: titleStyle.fontSize,
@@ -190,11 +189,11 @@ export default function DropdownCard({
           </span>
           <div className="w-5 h-5 flex-shrink-0">
             {onClick ? (
-              <ChevronRightIcon className="w-full h-full text-white" />
+              <ChevronRightIcon className="w-full h-full text-slate-700" />
             ) : (
               isOpen
-                ? <ChevronDownIcon className="w-full h-full text-white" />
-                : <ChevronRightIcon className="w-full h-full text-white" />
+                ? <ChevronDownIcon className="w-full h-full text-slate-700" />
+                : <ChevronRightIcon className="w-full h-full text-slate-700" />
             )}
           </div>
         </button>

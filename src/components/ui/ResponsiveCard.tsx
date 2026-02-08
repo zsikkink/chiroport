@@ -35,14 +35,15 @@ export default function ResponsiveCard({
   const isClickable = !!onClick;
   
   const cardClasses = [
-    'bg-white/10',
-    'backdrop-blur-sm',
-    'rounded-lg', 
-    'shadow-lg',
+    'bg-white',
+    'rounded-xl',
+    'border',
+    'border-slate-200/80',
+    'shadow-[0_10px_30px_-18px_rgba(15,23,42,0.2)]',
     'overflow-hidden',
     'transition-all',
     'duration-300',
-    isClickable ? 'cursor-pointer hover:bg-white/20' : '',
+    isClickable ? 'cursor-pointer hover:shadow-[0_16px_40px_-22px_rgba(15,23,42,0.25)]' : '',
     className
   ].filter(Boolean).join(' ');
   

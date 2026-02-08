@@ -7,7 +7,7 @@ export default function TermsAndConditionsPage() {
       <main className="responsive-container pb-12">
         <div className="space-y-3">
           <StaticTitle>Terms &amp; Conditions</StaticTitle>
-          <StaticBodyText size="lg" className="text-white/80">
+          <StaticBodyText size="lg" className="text-slate-600">
             Last Updated: January 4, 2026
           </StaticBodyText>
         </div>
@@ -101,52 +101,52 @@ export default function TermsAndConditionsPage() {
             <div className="rounded-xl border border-white/10 bg-white/5 p-5">
               <div className="space-y-3">
                 <div>
-                  <StaticBodyText size="lg" className="text-white/70">
+                  <StaticBodyText size="lg" className="text-slate-600">
                     Email
                   </StaticBodyText>
                   <a
                     href="mailto:info@thechiroport.com"
-                    className="text-lg text-white underline underline-offset-4 hover:text-white/90"
+                    className="text-lg text-blue-700 underline underline-offset-4 hover:text-blue-800"
                   >
                     info@thechiroport.com
                   </a>
                 </div>
 
                 <div>
-                  <StaticBodyText size="lg" className="text-white/70">
+                  <StaticBodyText size="lg" className="text-slate-600">
                     Phone
                   </StaticBodyText>
                   <a
                     href="tel:+16125681224"
-                    className="text-lg text-white underline underline-offset-4 hover:text-white/90"
+                    className="text-lg text-blue-700 underline underline-offset-4 hover:text-blue-800"
                   >
                     (612) 568-1224
                   </a>
                 </div>
 
                 <div>
-                  <StaticBodyText size="lg" className="text-white/70">
+                  <StaticBodyText size="lg" className="text-slate-600">
                     Website
                   </StaticBodyText>
                   <a
                     href="https://www.thechiroport.com"
                     target="_blank"
                     rel="noreferrer"
-                    className="text-lg text-white underline underline-offset-4 hover:text-white/90"
+                    className="text-lg text-blue-700 underline underline-offset-4 hover:text-blue-800"
                   >
                     https://www.thechiroport.com
                   </a>
                 </div>
 
                 <div className="pt-2">
-                  <StaticBodyText size="lg" className="text-white/70">
+                  <StaticBodyText size="lg" className="text-slate-600">
                     Legal Business Name
                   </StaticBodyText>
                   <StaticBodyText size="lg">The Chiroport Worldwide LLC</StaticBodyText>
                 </div>
 
                 <div>
-                  <StaticBodyText size="lg" className="text-white/70">
+                  <StaticBodyText size="lg" className="text-slate-600">
                     Brand Name
                   </StaticBodyText>
                   <StaticBodyText size="lg">The Chiroport</StaticBodyText>

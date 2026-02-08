@@ -36,7 +36,7 @@ export default function StaticTypography({
   size,
   weight,
   font,
-  color = 'text-white',
+  color = 'text-slate-900',
   className = '',
   as,
   style = {},

@@ -30,12 +30,12 @@ export function QueueColumn({
     <>
       {!useCardTitle ? (
         <div className="mb-3 flex items-center justify-between">
-          <Heading className="text-white">{title}</Heading>
+          <Heading className="text-slate-900">{title}</Heading>
           {headerAction}
         </div>
       ) : null}
       {isEmpty ? (
-        <p className="text-sm text-white/70">{emptyLabel}</p>
+        <p className="text-sm text-slate-500">{emptyLabel}</p>
       ) : (
         <div className={itemsClassName}>{children}</div>
       )}

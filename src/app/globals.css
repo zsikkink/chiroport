@@ -13,17 +13,17 @@
 
 /* Root CSS variables for theming - accessible throughout the application */
 :root {
-  /* Color scheme - can be modified for different brand colors */
-  --color-primary: #56655A; /* Soft green background color */
-  --color-primary-dark: #475549; /* Darker green for hover states */
-  --color-primary-light: #677569; /* Lighter green for accents */
+  /* Color scheme - modern clinical palette */
+  --color-primary: #1f4fd6; /* Brand blue */
+  --color-primary-dark: #1b43b8; /* Darker blue for hover states */
+  --color-primary-light: #5b7cff; /* Lighter blue for accents */
   
-  --color-text-primary: #ffffff; /* White text for dark backgrounds */
-  --color-text-secondary: #f0f0f0; /* Off-white for secondary text */
-  --color-text-dark: #333333; /* Dark text for light backgrounds */
+  --color-text-primary: #0f172a; /* Slate-900 */
+  --color-text-secondary: #475569; /* Slate-600 */
+  --color-text-dark: #0f172a; /* Slate-900 */
   
-  --color-ui-border: #ffffff; /* White borders */
-  --color-ui-shadow: rgba(0, 0, 0, 0.1); /* Subtle shadows */
+  --color-ui-border: #e2e8f0; /* Slate-200 borders */
+  --color-ui-shadow: rgba(15, 23, 42, 0.08); /* Subtle shadows */
   --color-ui-background: #ffffff; /* White backgrounds for cards */
 
   /* Font variables - dynamically provided by Next.js font loader in layout.tsx */
@@ -43,13 +43,13 @@
 /* Dark mode settings - maintain same color scheme for simplicity */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-primary: #56655A;
-    --color-primary-dark: #475549;
-    --color-primary-light: #677569;
+    --color-primary: #1f4fd6;
+    --color-primary-dark: #1b43b8;
+    --color-primary-light: #5b7cff;
     
-    --color-text-primary: #ffffff;
-    --color-text-secondary: #f0f0f0;
-    --color-text-dark: #333333;
+    --color-text-primary: #0f172a;
+    --color-text-secondary: #475569;
+    --color-text-dark: #0f172a;
     
     /* Font settings stay consistent across color schemes */
     --font-sans: var(--font-lato);
@@ -66,7 +66,7 @@
   }
   
   body {
-    background-color: var(--color-primary);
+    background-color: #f5f7fb;
     color: var(--color-text-primary);
     font-family: var(--font-sans);
     min-height: 100vh;

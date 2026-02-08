@@ -31,10 +31,10 @@ export function StatusBar({
           </Button>
         </div>
       </div>
-      <p className="text-center text-sm text-white/80">
+      <p className="text-center text-sm text-slate-500">
         Signed in as {userEmail} ({role})
       </p>
-      {actionError ? <p className="text-sm text-red-200">{actionError}</p> : null}
+      {actionError ? <p className="text-sm text-red-600">{actionError}</p> : null}
     </header>
   );
 }

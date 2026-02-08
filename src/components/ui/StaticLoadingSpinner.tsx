@@ -13,7 +13,7 @@ interface StaticLoadingSpinnerProps {
  */
 export default function StaticLoadingSpinner({
   size = 'md',
-  color = 'white',
+  color = 'primary',
   className = '',
   text
 }: StaticLoadingSpinnerProps) {
@@ -76,8 +76,8 @@ export default function StaticLoadingSpinner({
  */
 export function StaticPageLoader({ text = "Loading..." }: { text?: string }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-primary">
-      <StaticLoadingSpinner size="lg" text={text} />
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <StaticLoadingSpinner size="lg" text={text} color="primary" />
     </div>
   );
 }
