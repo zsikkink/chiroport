@@ -45,27 +45,28 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   // Variant-specific styling - only used when no style override
   const variantClasses: Record<ButtonVariant, string> = {
     primary: `
-      bg-emerald-100 hover:bg-emerald-200 text-emerald-900 
+      bg-[var(--color-header)] hover:bg-[var(--color-primary-dark)] text-white 
       py-3 px-4 
-      font-bold border border-emerald-200 shadow-sm
+      font-bold border border-[color:var(--color-body)] shadow-sm
       min-h-[3rem]
     `,
     secondary: `
-      bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 
+      bg-[var(--color-header)] hover:bg-[var(--color-primary-dark)] text-white 
       py-2 px-4 
-      font-medium border border-slate-200
+      font-medium border border-[color:var(--color-body)]
       min-h-[2.5rem]
     `,
     location: `
-      bg-emerald-50 hover:bg-emerald-100 text-emerald-900 
+      bg-[var(--color-header)] hover:bg-[var(--color-primary-dark)] text-white 
       py-2 px-4 
-      font-medium shadow-sm border border-emerald-200
+      font-medium shadow-sm border border-[color:var(--color-body)]
       min-h-[2.5rem]
     `,
     back: `
-      bg-emerald-50 hover:bg-emerald-100 text-emerald-900 
+      bg-[var(--color-header)] hover:bg-[var(--color-primary-dark)] text-white 
       py-2 px-3 
       font-medium
+      border border-[color:var(--color-body)]
       min-h-[2rem]
     `
   };

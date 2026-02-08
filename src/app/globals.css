@@ -18,6 +18,7 @@
   --color-primary-dark: #475549; /* Darker green for hover states */
   --color-primary-light: #677569; /* Lighter green for accents */
   --color-header: #56655A; /* Original green header */
+  --color-body: #e9eef4; /* Page background */
   
   --color-text-primary: #0f172a; /* Slate-900 */
   --color-text-secondary: #475569; /* Slate-600 */
@@ -67,7 +68,7 @@
   }
   
   body {
-    background-color: #e9eef4;
+    background-color: var(--color-body);
     color: var(--color-text-primary);
     font-family: var(--font-sans);
     min-height: 100vh;

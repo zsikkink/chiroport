@@ -173,8 +173,8 @@ export default function LocationsWrapper({
             flex items-center justify-center
             overflow-hidden
             font-bold
-            !bg-emerald-200 !text-emerald-950
-            hover:!bg-emerald-300
+            !bg-[var(--color-header)] !text-white
+            hover:!bg-[var(--color-primary-dark)]
             shadow-[0_8px_22px_-14px_rgba(15,23,42,0.35)]
             hover:shadow-[0_10px_26px_-14px_rgba(15,23,42,0.45)]
           `}

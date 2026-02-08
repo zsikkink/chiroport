@@ -167,10 +167,10 @@ export default function DropdownCard({
             w-full
             flex justify-between items-center 
             py-4 px-4 
-            text-slate-900 transition-colors duration-300
+            text-white transition-colors duration-300
             overflow-hidden
             font-semibold
-            ${isHovered ? 'bg-slate-100' : 'hover:bg-slate-100'}
+            ${isHovered ? 'bg-[var(--color-primary-dark)]' : 'bg-[var(--color-header)] hover:bg-[var(--color-primary-dark)]'}
           `}
           style={{
             fontSize: titleStyle.fontSize,
@@ -189,11 +189,11 @@ export default function DropdownCard({
           </span>
           <div className="w-5 h-5 flex-shrink-0">
             {onClick ? (
-              <ChevronRightIcon className="w-full h-full text-slate-700" />
+              <ChevronRightIcon className="w-full h-full text-white" />
             ) : (
               isOpen
-                ? <ChevronDownIcon className="w-full h-full text-slate-700" />
-                : <ChevronRightIcon className="w-full h-full text-slate-700" />
+                ? <ChevronDownIcon className="w-full h-full text-white" />
+                : <ChevronRightIcon className="w-full h-full text-white" />
             )}
           </div>
         </button>

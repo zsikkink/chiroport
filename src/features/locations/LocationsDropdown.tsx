@@ -56,11 +56,12 @@ export default function LocationsList({ screenWidth }: LocationsListProps) {
                   onClick={() => handleLocationClick(airport.slug, concourse.slug)}
                   className="
                     w-full overflow-hidden
-                    bg-slate-50
-                    hover:bg-emerald-50
+                    bg-[var(--color-header)]
+                    hover:bg-[var(--color-primary-dark)]
+                    text-white
                     transition-colors duration-200
                     rounded-md
-                    border border-slate-200/80
+                    border border-[color:var(--color-body)]
                   "
                   style={{
                     fontSize: textSizes.buttonSize,
@@ -69,7 +70,7 @@ export default function LocationsList({ screenWidth }: LocationsListProps) {
                   }}
                 >
                   <span className="
-                    font-medium 
+                    font-medium text-white
                     overflow-hidden
                     whitespace-nowrap
                     text-ellipsis

@@ -40,16 +40,16 @@ export default function AnimatedButton({
         disabled={disabled}
         data-selected={selected}
         className={`
-          relative w-full text-lg font-semibold rounded-lg p-4 border-2 border-white
+          relative w-full text-lg font-semibold rounded-lg p-4 border-2 border-[color:var(--color-body)]
           transition-all duration-200 overflow-hidden
-          bg-emerald-100 hover:bg-emerald-200 text-emerald-900 shadow-sm
+          bg-[var(--color-header)] hover:bg-[var(--color-primary-dark)] text-white shadow-sm
           min-h-[3rem] flex items-center justify-center
           ${selected && (persistSelection || isAnimating)
-            ? 'bg-white text-[#56655A] hover:bg-gray-100'
-            : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900'}
+            ? 'bg-[var(--color-primary-dark)] text-white hover:bg-[var(--color-primary-dark)]'
+            : 'bg-[var(--color-header)] hover:bg-[var(--color-primary-dark)] text-white'}
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
           ${className}
-          ${isAnimating ? 'animate-pulse border-emerald-200' : ''}
+          ${isAnimating ? 'animate-pulse border-[color:var(--color-body)]' : ''}
         `}
         style={
           isAnimating

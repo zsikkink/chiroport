@@ -203,7 +203,14 @@ export const DetailsStep = ({
           </BodyText>
           <button
             onClick={onDismissError}
-            className="text-slate-600 text-sm mt-2 underline hover:text-slate-800 hover:bg-slate-100 px-2 py-1 rounded transition-all duration-200"
+            className="
+              mt-3 px-3 py-1.5 text-sm font-semibold
+              bg-[var(--color-header)] text-white
+              border border-[color:var(--color-body)]
+              rounded-md
+              hover:bg-[var(--color-primary-dark)]
+              transition-colors duration-200
+            "
           >
             Dismiss
           </button>
