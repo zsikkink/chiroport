@@ -84,11 +84,11 @@ export default function DynamicHomeContent() {
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(86,101,90,0.14),transparent_60%)]"
+        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(86,101,90,0.14),transparent_60%)]"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-gradient-to-b from-slate-50 via-slate-100/40 to-transparent"
+        className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-64 bg-gradient-to-b from-slate-50 via-slate-100/40 to-transparent"
       />
 
       {/* Hero section with dynamic title */}
