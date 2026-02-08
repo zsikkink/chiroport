@@ -114,7 +114,7 @@ export default function DynamicHomeContent() {
           The Chiroport
         </h1>
         <p className="mt-3 text-lg sm:text-xl text-slate-700 font-lato">
-          Airport wellness—adjustments, massage, and stretch therapy in minutes. Feel great at the gate!
+          Airport wellness in minutes. Feel great at the gate!
         </p>
       </div>
       
