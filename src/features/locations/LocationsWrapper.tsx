@@ -157,7 +157,7 @@ export default function LocationsWrapper({
       <div className="
         border border-slate-200 rounded-xl 
         overflow-hidden 
-        bg-white
+        bg-slate-50
         shadow-[0_12px_32px_-20px_rgba(15,23,42,0.18)]
         transition-all duration-300 ease-in-out
         w-full
@@ -197,7 +197,7 @@ export default function LocationsWrapper({
           className="
             overflow-hidden 
             transition-all duration-300 ease-in-out 
-            bg-slate-50
+            bg-slate-100
             w-full
           "
         >

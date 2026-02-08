@@ -23,9 +23,9 @@
   --color-text-secondary: #475569; /* Slate-600 */
   --color-text-dark: #0f172a; /* Slate-900 */
   
-  --color-ui-border: #e2e8f0; /* Slate-200 borders */
+  --color-ui-border: #d9e2ee; /* Slightly stronger card borders */
   --color-ui-shadow: rgba(15, 23, 42, 0.08); /* Subtle shadows */
-  --color-ui-background: #ffffff; /* White backgrounds for cards */
+  --color-ui-background: #f8fafc; /* Slate-50 card backgrounds */
 
   /* Font variables - dynamically provided by Next.js font loader in layout.tsx */
   --font-sans: var(--font-lato); /* Main body font */
@@ -67,7 +67,7 @@
   }
   
   body {
-    background-color: #f5f7fb;
+    background-color: #f1f5f9;
     color: var(--color-text-primary);
     font-family: var(--font-sans);
     min-height: 100vh;

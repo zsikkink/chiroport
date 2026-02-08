@@ -29,11 +29,11 @@ export default function StaticResponsiveCard({
   className = ''
 }: StaticResponsiveCardProps) {
   const cardClasses = [
-    'bg-white',
+    'bg-slate-50',
     'rounded-xl',
     'border',
-    'border-slate-200/80',
-    'shadow-[0_10px_30px_-18px_rgba(15,23,42,0.2)]',
+    'border-slate-200',
+    'shadow-[0_12px_28px_-20px_rgba(15,23,42,0.18)]',
     'overflow-hidden',
     className
   ].filter(Boolean).join(' ');
