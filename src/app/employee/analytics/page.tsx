@@ -19,6 +19,105 @@ type LocationOption = {
   code: string;
 };
 
+type AnalyticsFilters = {
+  location_id: string | null;
+  date_start: string | null;
+  date_end: string | null;
+  customer_type: 'paying' | 'priority_pass' | null;
+};
+
+type AnalyticsKpis = {
+  arrivals_total: number;
+  arrivals_paying: number;
+  arrivals_non_paying: number;
+  served_total: number;
+  completed_total: number;
+  cancelled_total: number;
+  cancelled_before_served_total: number;
+  completion_rate: number | null;
+  dropoff_rate: number | null;
+  wait_avg_minutes: number | null;
+  time_in_system_avg_minutes: number | null;
+};
+
+type AnalyticsSeriesRow = AnalyticsKpis & {
+  local_date: string;
+};
+
+type AnalyticsResponse = {
+  filters: AnalyticsFilters;
+  kpis: AnalyticsKpis;
+  series: AnalyticsSeriesRow[];
+};
+
+type DatePreset =
+  | 'latest'
+  | 'last_7'
+  | 'last_30'
+  | 'last_90'
+  | 'last_180'
+  | 'last_365'
+  | 'all_time';
+
+type CustomerFilter = 'all' | 'paying' | 'priority_pass';
+
+const DATE_PRESETS: { value: DatePreset; label: string; days?: number }[] = [
+  { value: 'latest', label: 'Latest day' },
+  { value: 'last_7', label: 'Last 7 days', days: 7 },
+  { value: 'last_30', label: 'Last 30 days', days: 30 },
+  { value: 'last_90', label: 'Last 3 months', days: 90 },
+  { value: 'last_180', label: 'Last 6 months', days: 180 },
+  { value: 'last_365', label: 'Last year', days: 365 },
+  { value: 'all_time', label: 'All time' },
+];
+
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function subtractDays(date: Date, days: number): Date {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() - days);
+  return copy;
+}
+
+function resolveDateRange(preset: DatePreset): { start: string | null; end: string | null } {
+  if (preset === 'latest') {
+    return { start: null, end: null };
+  }
+
+  const today = new Date();
+  const end = formatLocalDate(today);
+
+  if (preset === 'all_time') {
+    return { start: '2000-01-01', end };
+  }
+
+  const days = DATE_PRESETS.find((option) => option.value === preset)?.days ?? 7;
+  const start = formatLocalDate(subtractDays(today, days - 1));
+  return { start, end };
+}
+
+function formatNumber(value: number | null | undefined, digits = 0): string {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return '—';
+  }
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: digits,
+    minimumFractionDigits: digits,
+  }).format(value);
+}
+
+function formatPercent(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return '—';
+  }
+  return `${formatNumber(value * 100, 0)}%`;
+}
+
 const supabase = getSupabaseBrowserClient();
 
 export default function AnalyticsPage() {
@@ -28,9 +127,16 @@ export default function AnalyticsPage() {
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [locations, setLocations] = useState<LocationOption[]>([]);
-  const [embedUrl, setEmbedUrl] = useState<string | null>(null);
-  const [embedLoading, setEmbedLoading] = useState(false);
-  const [embedError, setEmbedError] = useState('');
+  const [selectedLocationId, setSelectedLocationId] = useState<string>('all');
+  const [selectedCustomerType, setSelectedCustomerType] =
+    useState<CustomerFilter>('all');
+  const [selectedDatePreset, setSelectedDatePreset] =
+    useState<DatePreset>('latest');
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsResponse | null>(
+    null
+  );
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState('');
   const [uiError, setUiError] = useState('');
   const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false);
   const router = useRouter();
@@ -83,35 +189,6 @@ export default function AnalyticsPage() {
     setLocations(data ?? []);
   }, []);
 
-  const loadEmbed = useCallback(async (accessToken: string) => {
-    setEmbedLoading(true);
-    setEmbedError('');
-    setEmbedUrl(null);
-    try {
-      const response = await fetch('/api/analytics/metabase', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setEmbedError(payload.error || 'Failed to load analytics.');
-        setEmbedLoading(false);
-        return;
-      }
-      if (!payload?.url) {
-        setEmbedError('Failed to load analytics.');
-        setEmbedLoading(false);
-        return;
-      }
-      setEmbedUrl(payload.url);
-    } catch {
-      setEmbedError('Failed to load analytics.');
-    } finally {
-      setEmbedLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
@@ -138,10 +215,76 @@ export default function AnalyticsPage() {
   useEffect(() => {
     if (!isAdmin) return;
     loadLocations();
-    if (session?.access_token) {
-      loadEmbed(session.access_token);
-    }
-  }, [isAdmin, loadLocations, loadEmbed, session?.access_token]);
+  }, [isAdmin, loadLocations]);
+
+  const dateRange = useMemo(
+    () => resolveDateRange(selectedDatePreset),
+    [selectedDatePreset]
+  );
+
+  useEffect(() => {
+    if (!isAdmin || !session?.access_token) return;
+
+    const controller = new AbortController();
+
+    const loadAnalytics = async () => {
+      setAnalyticsLoading(true);
+      setAnalyticsError('');
+
+      const params = new URLSearchParams();
+      if (selectedLocationId !== 'all') {
+        params.set('locationId', selectedLocationId);
+      }
+      if (selectedCustomerType !== 'all') {
+        params.set('customerType', selectedCustomerType);
+      }
+      if (dateRange.start && dateRange.end) {
+        params.set('dateStart', dateRange.start);
+        params.set('dateEnd', dateRange.end);
+      }
+
+      const url = params.size
+        ? `/api/analytics?${params.toString()}`
+        : '/api/analytics';
+
+      try {
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          signal: controller.signal,
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          setAnalyticsError(payload?.error || 'Failed to load analytics.');
+          setAnalyticsData(null);
+          return;
+        }
+        setAnalyticsData(payload as AnalyticsResponse);
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          setAnalyticsError('Failed to load analytics.');
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setAnalyticsLoading(false);
+        }
+      }
+    };
+
+    loadAnalytics();
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    dateRange.end,
+    dateRange.start,
+    isAdmin,
+    selectedCustomerType,
+    selectedLocationId,
+    session?.access_token,
+  ]);
 
   const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -289,26 +432,220 @@ export default function AnalyticsPage() {
           {uiError ? (
             <p className="text-sm text-red-200">{uiError}</p>
           ) : null}
-          {embedError ? (
-            <p className="text-sm text-red-200">{embedError}</p>
+          {analyticsError ? (
+            <p className="text-sm text-red-200">{analyticsError}</p>
           ) : null}
         </header>
 
-        {embedLoading ? (
+        <ResponsiveCard>
+          <div className="grid gap-4 md:grid-cols-3">
+            <label className="text-sm">
+              Location
+              <select
+                className="mt-1 w-full rounded-md bg-white text-black px-3 py-2"
+                value={selectedLocationId}
+                onChange={(event) => setSelectedLocationId(event.target.value)}
+              >
+                <option value="all">All locations</option>
+                {locationOptions.map((location) => (
+                  <option key={location.id} value={location.id}>
+                    {location.display_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              Date range
+              <select
+                className="mt-1 w-full rounded-md bg-white text-black px-3 py-2"
+                value={selectedDatePreset}
+                onChange={(event) =>
+                  setSelectedDatePreset(event.target.value as DatePreset)
+                }
+              >
+                {DATE_PRESETS.map((preset) => (
+                  <option key={preset.value} value={preset.value}>
+                    {preset.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              Customer type
+              <select
+                className="mt-1 w-full rounded-md bg-white text-black px-3 py-2"
+                value={selectedCustomerType}
+                onChange={(event) =>
+                  setSelectedCustomerType(event.target.value as CustomerFilter)
+                }
+              >
+                <option value="all">All customers</option>
+                <option value="paying">Paying</option>
+                <option value="priority_pass">Priority Pass</option>
+              </select>
+            </label>
+          </div>
+          <p className="mt-3 text-xs text-white/70">
+            Non-paying customers are treated as Priority Pass in analytics.
+          </p>
+        </ResponsiveCard>
+
+        {analyticsLoading ? (
           <LoadingSpinner text="Loading analytics..." />
-        ) : embedUrl ? (
-          <ResponsiveCard className="p-0">
-            <iframe
-              title="Chiroport Analytics"
-              src={embedUrl}
-              className="h-[75vh] w-full rounded-lg"
-              allowFullScreen
-            />
-          </ResponsiveCard>
+        ) : analyticsData ? (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-white/80">
+              <span>
+                Data range:{' '}
+                {analyticsData.filters.date_start &&
+                analyticsData.filters.date_end
+                  ? `${analyticsData.filters.date_start} → ${analyticsData.filters.date_end}`
+                  : 'Latest day'}
+              </span>
+              <span>
+                Customer filter:{' '}
+                {analyticsData.filters.customer_type
+                  ? analyticsData.filters.customer_type === 'paying'
+                    ? 'Paying'
+                    : 'Priority Pass'
+                  : 'All'}
+              </span>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {[
+                {
+                  label: 'Total arrivals',
+                  value: formatNumber(analyticsData.kpis.arrivals_total),
+                },
+                {
+                  label: 'Paying arrivals',
+                  value: formatNumber(analyticsData.kpis.arrivals_paying),
+                },
+                {
+                  label: 'Priority Pass arrivals',
+                  value: formatNumber(analyticsData.kpis.arrivals_non_paying),
+                },
+                {
+                  label: 'Served total',
+                  value: formatNumber(analyticsData.kpis.served_total),
+                },
+                {
+                  label: 'Completed total',
+                  value: formatNumber(analyticsData.kpis.completed_total),
+                },
+                {
+                  label: 'Cancelled total',
+                  value: formatNumber(analyticsData.kpis.cancelled_total),
+                },
+                {
+                  label: 'Completion rate',
+                  value: formatPercent(analyticsData.kpis.completion_rate),
+                },
+                {
+                  label: 'Dropoff rate',
+                  value: formatPercent(analyticsData.kpis.dropoff_rate),
+                },
+                {
+                  label: 'Avg wait (mins)',
+                  value: formatNumber(analyticsData.kpis.wait_avg_minutes, 1),
+                },
+                {
+                  label: 'Avg time in system (mins)',
+                  value: formatNumber(
+                    analyticsData.kpis.time_in_system_avg_minutes,
+                    1
+                  ),
+                },
+                {
+                  label: 'Cancelled before served',
+                  value: formatNumber(
+                    analyticsData.kpis.cancelled_before_served_total
+                  ),
+                },
+              ].map((item) => (
+                <ResponsiveCard key={item.label} className="py-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/60">
+                    {item.label}
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-white">
+                    {item.value}
+                  </p>
+                </ResponsiveCard>
+              ))}
+            </div>
+
+            <ResponsiveCard>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Daily breakdown</h2>
+                <span className="text-xs text-white/60">
+                  {analyticsData.series.length} days
+                </span>
+              </div>
+              {analyticsData.series.length === 0 ? (
+                <p className="mt-4 text-sm text-white/70">
+                  No data available for the selected filters.
+                </p>
+              ) : (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="text-xs uppercase text-white/60">
+                      <tr>
+                        <th className="py-2 pr-4">Date</th>
+                        <th className="py-2 pr-4">Arrivals</th>
+                        <th className="py-2 pr-4">Paying</th>
+                        <th className="py-2 pr-4">Priority Pass</th>
+                        <th className="py-2 pr-4">Served</th>
+                        <th className="py-2 pr-4">Completed</th>
+                        <th className="py-2 pr-4">Cancelled</th>
+                        <th className="py-2 pr-4">Completion %</th>
+                        <th className="py-2 pr-4">Dropoff %</th>
+                        <th className="py-2 pr-4">Avg wait</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-white/80">
+                      {analyticsData.series.map((row) => (
+                        <tr key={row.local_date} className="border-t border-white/10">
+                          <td className="py-2 pr-4">{row.local_date}</td>
+                          <td className="py-2 pr-4">
+                            {formatNumber(row.arrivals_total)}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {formatNumber(row.arrivals_paying)}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {formatNumber(row.arrivals_non_paying)}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {formatNumber(row.served_total)}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {formatNumber(row.completed_total)}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {formatNumber(row.cancelled_total)}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {formatPercent(row.completion_rate)}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {formatPercent(row.dropoff_rate)}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {formatNumber(row.wait_avg_minutes, 1)}m
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </ResponsiveCard>
+          </>
         ) : (
           <ResponsiveCard>
             <p className="text-sm text-white/70">
-              Analytics dashboard is not available yet.
+              Analytics are not available yet.
             </p>
           </ResponsiveCard>
         )}

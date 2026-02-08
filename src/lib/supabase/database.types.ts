@@ -681,6 +681,15 @@ export type Database = {
           status: Database["public"]["Enums"]["queue_status"]
         }[]
       }
+      get_admin_analytics: {
+        Args: {
+          p_location_id?: string | null
+          p_date_start?: string | null
+          p_date_end?: string | null
+          p_customer_type?: string | null
+        }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
       is_employee: { Args: never; Returns: boolean }
       join_queue:
