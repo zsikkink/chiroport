@@ -432,7 +432,9 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen px-4 sm:px-8 py-8">
+    <div className="min-h-screen bg-[#0b1412] text-white font-lato relative overflow-hidden">
+      <div className="pointer-events-none absolute -top-40 -right-32 h-96 w-96 rounded-full bg-emerald-400/20 blur-[120px]" />
+      <div className="pointer-events-none absolute top-40 -left-40 h-96 w-96 rounded-full bg-teal-500/10 blur-[140px]" />
       {!isLocationMenuOpen ? (
         <div className="fixed left-4 top-8 z-50">
           <button
@@ -460,19 +462,32 @@ export default function AnalyticsPage() {
           </button>
         </div>
       ) : null}
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="relative z-10 max-w-7xl mx-auto space-y-6 px-4 sm:px-8 py-10">
         <header className="flex flex-col gap-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h1 className="text-3xl font-libre-baskerville">
-              Analytics · Employee Dashboard
-            </h1>
-            <Button variant="secondary" onClick={handleSignOut}>
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/70">
+                Analytics
+              </p>
+              <h1 className="text-3xl sm:text-4xl font-libre-baskerville">
+                Employee Dashboard
+              </h1>
+              <p className="text-sm text-white/70">
+                Track arrivals, wait times, completion, and dropoff trends across locations.
+              </p>
+            </div>
+            <Button variant="secondary" onClick={handleSignOut} className="self-start">
               Sign Out
             </Button>
           </div>
-          <p className="text-sm text-white/80">
-            Signed in as {currentUser.email} (admin)
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-white/70">
+            <span className="rounded-full bg-white/10 px-3 py-1">
+              Signed in as {currentUser.email} (admin)
+            </span>
+            <span className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-3 py-1 text-emerald-100">
+              Live data
+            </span>
+          </div>
           {uiError ? (
             <p className="text-sm text-red-200">{uiError}</p>
           ) : null}
@@ -481,12 +496,12 @@ export default function AnalyticsPage() {
           ) : null}
         </header>
 
-        <ResponsiveCard>
+        <ResponsiveCard className="border border-white/10 bg-white/[0.06]">
           <div className="grid gap-4 md:grid-cols-3">
             <label className="text-sm">
               Location
               <select
-                className="mt-1 w-full rounded-md bg-white text-black px-3 py-2"
+                className="mt-1 w-full rounded-md bg-white text-black px-3 py-2 shadow-sm"
                 value={selectedLocationId}
                 onChange={(event) => setSelectedLocationId(event.target.value)}
               >
@@ -501,7 +516,7 @@ export default function AnalyticsPage() {
             <label className="text-sm">
               Date range
               <select
-                className="mt-1 w-full rounded-md bg-white text-black px-3 py-2"
+                className="mt-1 w-full rounded-md bg-white text-black px-3 py-2 shadow-sm"
                 value={selectedDatePreset}
                 onChange={(event) =>
                   setSelectedDatePreset(event.target.value as DatePreset)
@@ -517,7 +532,7 @@ export default function AnalyticsPage() {
             <label className="text-sm">
               Customer type
               <select
-                className="mt-1 w-full rounded-md bg-white text-black px-3 py-2"
+                className="mt-1 w-full rounded-md bg-white text-black px-3 py-2 shadow-sm"
                 value={selectedCustomerType}
                 onChange={(event) =>
                   setSelectedCustomerType(event.target.value as CustomerFilter)
@@ -529,7 +544,7 @@ export default function AnalyticsPage() {
               </select>
             </label>
           </div>
-          <p className="mt-3 text-xs text-white/70">
+          <p className="mt-3 text-xs text-white/60">
             Non-paying customers are treated as Priority Pass in analytics.
           </p>
         </ResponsiveCard>
@@ -538,7 +553,7 @@ export default function AnalyticsPage() {
           <LoadingSpinner text="Loading analytics..." />
         ) : analyticsData ? (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-white/80">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-white/70">
               <span>
                 Data range:{' '}
                 {analyticsData.filters.date_start &&
@@ -608,8 +623,11 @@ export default function AnalyticsPage() {
                   ),
                 },
               ].map((item) => (
-                <ResponsiveCard key={item.label} className="py-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-white/60">
+                <ResponsiveCard
+                  key={item.label}
+                  className="border border-white/10 bg-white/[0.06] py-4 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.7)]"
+                >
+                  <p className="text-[0.65rem] uppercase tracking-[0.3em] text-emerald-100/70">
                     {item.label}
                   </p>
                   <p className="mt-2 text-2xl font-semibold text-white">
@@ -619,7 +637,7 @@ export default function AnalyticsPage() {
               ))}
             </div>
 
-            <ResponsiveCard>
+            <ResponsiveCard className="border border-white/10 bg-white/[0.04]">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Daily breakdown</h2>
                 <span className="text-xs text-white/60">
@@ -633,7 +651,7 @@ export default function AnalyticsPage() {
               ) : (
                 <div className="mt-4 overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
-                    <thead className="text-xs uppercase text-white/60">
+                    <thead className="text-[0.65rem] uppercase tracking-[0.25em] text-white/50">
                       <tr>
                         <th className="py-2 pr-4">Date</th>
                         <th className="py-2 pr-4">Arrivals</th>
@@ -649,7 +667,10 @@ export default function AnalyticsPage() {
                     </thead>
                     <tbody className="text-white/80">
                       {analyticsData.series.map((row) => (
-                        <tr key={row.local_date} className="border-t border-white/10">
+                        <tr
+                          key={row.local_date}
+                          className="border-t border-white/10 hover:bg-white/5"
+                        >
                           <td className="py-2 pr-4">{row.local_date}</td>
                           <td className="py-2 pr-4">
                             {formatNumber(row.arrivals_total)}
