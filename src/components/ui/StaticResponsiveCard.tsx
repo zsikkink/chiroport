@@ -29,11 +29,11 @@ export default function StaticResponsiveCard({
   className = ''
 }: StaticResponsiveCardProps) {
   const cardClasses = [
-    'bg-slate-50',
-    'rounded-xl',
+    'bg-white',
+    'rounded-2xl',
     'border',
-    'border-slate-200',
-    'shadow-[0_12px_28px_-20px_rgba(15,23,42,0.18)]',
+    'border-slate-200/80',
+    'shadow-[0_18px_36px_-26px_rgba(15,23,42,0.25)]',
     'overflow-hidden',
     className
   ].filter(Boolean).join(' ');
@@ -41,7 +41,7 @@ export default function StaticResponsiveCard({
   return (
     <div className={cardClasses}>
       {/* Card inner content with responsive padding */}
-      <div className="p-4 sm:p-6">
+      <div className="p-6 sm:p-7">
         {/* Card title with responsive text size (if provided) */}
         {title && <StaticHeading className="mb-3 sm:mb-5">{title}</StaticHeading>}
         {/* Card body content */}

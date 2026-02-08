@@ -22,6 +22,7 @@ export default function ScrollHeader({
   title = 'Chiroport',
   className = ''
 }: ScrollHeaderProps) {
+  const showNav = title.trim().length === 0;
   const router = useRouter();
   const [isScrolled, setIsScrolled] = useState(false);
   const [screenWidth, setScreenWidth] = useState(0);
@@ -126,45 +127,68 @@ export default function ScrollHeader({
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo - Home Button */}
-          <button
-            onClick={handleLogoClick}
-            className="
-              flex items-center justify-center
-              w-12 h-12
-              hover:opacity-80 active:opacity-70
-              transition-opacity duration-200
-              focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-[var(--color-header)]
-              flex-shrink-0
-            "
-            aria-label="Go to home page"
-          >
-            <Image
-              src="/icons/logo.svg"
-              alt="Chiroport Logo"
-              width={24}
-              height={24}
-              className="w-6 h-6"
-            />
-          </button>
-
-          {/* Title - Centered with Dynamic Sizing */}
-          <div className="flex-1 text-center px-4 overflow-hidden">
-            <Title 
-              font="lato"
-              className="font-bold text-white whitespace-nowrap overflow-hidden"
-              style={{
-                fontSize: textStyle.fontSize,
-                lineHeight: textStyle.lineHeight,
-                maxWidth: '100%',
-              }}
+          <div className="flex items-center gap-3">
+            {/* Logo - Home Button */}
+            <button
+              onClick={handleLogoClick}
+              className="
+                flex items-center justify-center
+                w-10 h-10
+                hover:opacity-90 active:opacity-80
+                transition-opacity duration-200
+                focus:outline-none focus:ring-2 focus:ring-white/40 focus:ring-offset-2 focus:ring-offset-[var(--color-header)]
+                flex-shrink-0
+              "
+              aria-label="Go to home page"
             >
-              {title}
-            </Title>
+              <Image
+                src="/icons/logo.svg"
+                alt="Chiroport Logo"
+                width={22}
+                height={22}
+                className="w-5 h-5"
+              />
+            </button>
+            {showNav && (
+              <span className="font-lato text-base sm:text-lg font-semibold text-white tracking-wide">
+                Chiroport
+              </span>
+            )}
           </div>
 
-          {/* Right spacer to balance the logo */}
-          <div className="w-12 h-12 flex-shrink-0" />
+          {showNav ? (
+            <nav className="hidden sm:flex items-center gap-6 text-sm font-semibold text-white/90">
+              <a href="#locations" className="hover:text-white transition-colors duration-200">
+                Locations
+              </a>
+              <a href="#services" className="hover:text-white transition-colors duration-200">
+                Services
+              </a>
+              <a href="#contact" className="hover:text-white transition-colors duration-200">
+                Contact
+              </a>
+            </nav>
+          ) : (
+            <>
+              {/* Title - Centered with Dynamic Sizing */}
+              <div className="flex-1 text-center px-4 overflow-hidden">
+                <Title 
+                  font="lato"
+                  className="font-bold text-white whitespace-nowrap overflow-hidden"
+                  style={{
+                    fontSize: textStyle.fontSize,
+                    lineHeight: textStyle.lineHeight,
+                    maxWidth: '100%',
+                  }}
+                >
+                  {title}
+                </Title>
+              </div>
+
+              {/* Right spacer to balance the logo */}
+              <div className="w-10 h-10 flex-shrink-0" />
+            </>
+          )}
         </div>
       </div>
     </header>
