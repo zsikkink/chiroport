@@ -9,7 +9,7 @@ import type {
   WaitingRow,
   WithEntryId,
 } from '../types';
-import { resolveActionError, sortHistoryEntries, sortWaitingEntries } from '../utils';
+import { resolveActionError, sortHistoryEntries, sortWaitingEntries, upsertEntry } from '../utils';
 
 const supabase = getSupabaseBrowserClient();
 
@@ -299,7 +299,7 @@ export function useEntryActions(options: UseEntryActionsOptions) {
           const row = await queueState.fetchWaitingEntry(entryId);
           if (row) {
             queueState.setWaitingEntries((prev) =>
-              sortWaitingEntries([...prev, row])
+              sortWaitingEntries(upsertEntry(prev, row))
             );
           } else {
             await queueState.refreshQueueData({

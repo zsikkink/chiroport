@@ -45,15 +45,36 @@ export function upsertEntry<T extends { queue_entry_id: string }>(
   rows: T[],
   next: T
 ) {
-  const index = rows.findIndex((row) => row.queue_entry_id === next.queue_entry_id);
-  if (index === -1) {
+  let found = false;
+  let changed = false;
+  const updated: T[] = [];
+
+  rows.forEach((row) => {
+    if (row.queue_entry_id !== next.queue_entry_id) {
+      updated.push(row);
+      return;
+    }
+
+    if (!found) {
+      found = true;
+      if (row === next) {
+        updated.push(row);
+      } else {
+        updated.push(next);
+        changed = true;
+      }
+      return;
+    }
+
+    changed = true;
+  });
+
+  if (!found) {
     return [...rows, next];
   }
-  if (rows[index] === next) {
+  if (!changed) {
     return rows;
   }
-  const updated = rows.slice();
-  updated[index] = next;
   return updated;
 }
 
@@ -61,9 +82,9 @@ export function removeEntry<T extends { queue_entry_id: string }>(
   rows: T[],
   entryId: string
 ) {
-  const index = rows.findIndex((row) => row.queue_entry_id === entryId);
-  if (index === -1) return rows;
-  return [...rows.slice(0, index), ...rows.slice(index + 1)];
+  const updated = rows.filter((row) => row.queue_entry_id !== entryId);
+  if (updated.length === rows.length) return rows;
+  return updated;
 }
 
 export function toChatEntry(entry: {
