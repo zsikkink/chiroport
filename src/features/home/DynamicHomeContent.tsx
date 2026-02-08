@@ -128,7 +128,7 @@ export default function DynamicHomeContent() {
             buttonText="Join the queue" 
           />
         </div>
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
           {['Text updates', 'Walk-ins welcome', 'No account required'].map((label) => (
             <span
               key={label}
