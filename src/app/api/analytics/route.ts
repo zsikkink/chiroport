@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase/server';
+import { logError, logSecurityEvent, debugLog } from '@/server/config';
 
 export const runtime = 'nodejs';
 
@@ -25,12 +26,21 @@ function normalizeCustomerType(input: string | null): CustomerTypeFilter {
 export async function GET(request: NextRequest) {
   const token = getBearerToken(request);
   if (!token) {
+    logSecurityEvent('analytics_missing_bearer', {
+      path: request.nextUrl.pathname,
+      method: request.method,
+    });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const supabase = createSupabaseServerClient();
   const { data: authData, error: authError } = await supabase.auth.getUser(token);
   if (authError || !authData?.user) {
+    logSecurityEvent('analytics_invalid_bearer', {
+      path: request.nextUrl.pathname,
+      method: request.method,
+      error: authError?.message ?? 'unknown',
+    });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -42,10 +52,18 @@ export async function GET(request: NextRequest) {
     .maybeSingle();
 
   if (profileError) {
+    logError(profileError, 'analytics_profile_lookup_failed');
     return NextResponse.json({ error: 'Failed to validate access.' }, { status: 500 });
   }
 
   if (!profile || !profile.is_open || profile.role !== 'admin') {
+    logSecurityEvent('analytics_forbidden', {
+      path: request.nextUrl.pathname,
+      method: request.method,
+      user_id: authData.user.id,
+      role: profile?.role ?? null,
+      is_open: profile?.is_open ?? null,
+    });
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -62,6 +80,14 @@ export async function GET(request: NextRequest) {
   const dateStart = hasDateRange ? dateStartParam : null;
   const dateEnd = hasDateRange ? dateEndParam : null;
 
+  debugLog('analytics_request', {
+    user_id: authData.user.id,
+    location_id: locationId,
+    customer_type: customerType,
+    date_start: dateStart,
+    date_end: dateEnd,
+  });
+
   const { data: analytics, error: analyticsError } = await adminClient.rpc(
     'get_admin_analytics',
     {
@@ -73,6 +99,20 @@ export async function GET(request: NextRequest) {
   );
 
   if (analyticsError) {
+    logError(
+      new Error(analyticsError.message),
+      `analytics_rpc_failed:${analyticsError.code ?? 'unknown'}`
+    );
+    console.error('[ANALYTICS_RPC]', {
+      user_id: authData.user.id,
+      location_id: locationId,
+      customer_type: customerType,
+      date_start: dateStart,
+      date_end: dateEnd,
+      code: analyticsError.code,
+      details: analyticsError.details,
+      hint: analyticsError.hint,
+    });
     return NextResponse.json(
       { error: 'Failed to load analytics.' },
       { status: 500 }

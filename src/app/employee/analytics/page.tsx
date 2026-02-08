@@ -256,6 +256,14 @@ export default function AnalyticsPage() {
         });
         const payload = await response.json().catch(() => null);
         if (!response.ok) {
+          console.error('[Analytics] API error', {
+            status: response.status,
+            payload,
+            locationId: selectedLocationId,
+            customerType: selectedCustomerType,
+            dateStart: dateRange.start,
+            dateEnd: dateRange.end,
+          });
           setAnalyticsError(payload?.error || 'Failed to load analytics.');
           setAnalyticsData(null);
           return;
@@ -263,6 +271,13 @@ export default function AnalyticsPage() {
         setAnalyticsData(payload as AnalyticsResponse);
       } catch (error) {
         if ((error as Error).name !== 'AbortError') {
+          console.error('[Analytics] Network error', {
+            error,
+            locationId: selectedLocationId,
+            customerType: selectedCustomerType,
+            dateStart: dateRange.start,
+            dateEnd: dateRange.end,
+          });
           setAnalyticsError('Failed to load analytics.');
         }
       } finally {
