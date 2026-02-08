@@ -25,7 +25,7 @@
   
   --color-ui-border: #d9e2ee; /* Slightly stronger card borders */
   --color-ui-shadow: rgba(15, 23, 42, 0.08); /* Subtle shadows */
-  --color-ui-background: #f8fafc; /* Slate-50 card backgrounds */
+  --color-ui-background: #eef2f6; /* Slightly deeper surface for contrast */
 
   /* Font variables - dynamically provided by Next.js font loader in layout.tsx */
   --font-sans: var(--font-lato); /* Main body font */
@@ -44,9 +44,9 @@
 /* Dark mode settings - maintain same color scheme for simplicity */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-primary: #1f4fd6;
-    --color-primary-dark: #1b43b8;
-    --color-primary-light: #5b7cff;
+    --color-primary: #56655A;
+    --color-primary-dark: #475549;
+    --color-primary-light: #677569;
     
     --color-text-primary: #0f172a;
     --color-text-secondary: #475569;
@@ -67,7 +67,7 @@
   }
   
   body {
-    background-color: #f1f5f9;
+    background-color: #e9eef4;
     color: var(--color-text-primary);
     font-family: var(--font-sans);
     min-height: 100vh;
