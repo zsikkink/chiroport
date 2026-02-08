@@ -151,7 +151,7 @@ export default function ScrollHeader({
             </button>
             {showNav && (
               <span className="font-lato text-base sm:text-lg font-semibold text-white tracking-wide">
-                Chiroport
+                The Chiroport
               </span>
             )}
           </div>

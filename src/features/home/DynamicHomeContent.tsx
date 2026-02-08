@@ -111,7 +111,7 @@ export default function DynamicHomeContent() {
             fontFamily: 'Libre Baskerville, serif'
           }}
         >
-          Chiroport
+          The Chiroport
         </h1>
         <p className="mt-3 text-lg sm:text-xl text-slate-700 font-lato">
           Airport wellness—adjustments, massage, and stretch therapy in minutes.
