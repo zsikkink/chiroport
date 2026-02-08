@@ -13,7 +13,7 @@ export default function LocationsList({ screenWidth }: LocationsListProps) {
   const router = useRouter();
 
   const handleLocationClick = (airportSlug: string, concourseSlug: string) => {
-    router.push(getLocationRoute(airportSlug, concourseSlug));
+    router.push(getLocationRoute(airportSlug, concourseSlug), { scroll: true });
     // Don't close the dropdown - let user close it manually by clicking Join Queue again
   };
 

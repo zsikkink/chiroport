@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useReducer } from 'react';
+import { useEffect, useLayoutEffect, useReducer } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { AnimatePresence, motion, cubicBezier } from 'framer-motion';
 import 'react-phone-number-input/style.css';
@@ -155,6 +155,14 @@ export default function LocationDetails({
   const massageOptionsTitle = uiOverrides?.massageOptionsTitle ?? 'Select length';
   const joinServiceSummary =
     uiOverrides?.joinServiceSummary ?? 'Service includes stretching, muscle work, and massage.';
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    const rafId = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
+    return () => window.cancelAnimationFrame(rafId);
+  }, [airportCode, locationCode]);
 
   useEffect(() => {
     dispatch({ type: 'RESET', step: initialStep });
