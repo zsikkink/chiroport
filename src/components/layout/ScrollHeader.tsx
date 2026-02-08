@@ -152,7 +152,7 @@ export default function ScrollHeader({
           <div className="flex-1 text-center px-4 overflow-hidden">
             <Title 
               font="lato"
-              className="font-bold text-slate-900 whitespace-nowrap overflow-hidden"
+              className="font-bold text-white whitespace-nowrap overflow-hidden"
               style={{
                 fontSize: textStyle.fontSize,
                 lineHeight: textStyle.lineHeight,

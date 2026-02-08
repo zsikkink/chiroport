@@ -98,11 +98,11 @@ export default function LocationDetails({
   const consentSuffix = (
     <>
       {' '}I agree to the{' '}
-      <a className="underline text-white hover:text-white/80" href="/privacy-policy">
+      <a className="underline text-emerald-700 hover:text-emerald-800" href="/privacy-policy">
         Privacy Policy
       </a>{' '}
       and{' '}
-      <a className="underline text-white hover:text-white/80" href="/terms-and-conditions">
+      <a className="underline text-emerald-700 hover:text-emerald-800" href="/terms-and-conditions">
         Terms &amp; Conditions
       </a>
       .
@@ -471,10 +471,10 @@ export default function LocationDetails({
   return (
     <div className={className}>
       <ResponsiveCard className="mb-4 space-y-6">
-        <BodyText size="lg" className="font-medium text-white">
+        <BodyText size="lg" className="font-medium text-slate-700">
           {locationInfo.customLocation}
         </BodyText>
-        <BodyText size="lg" className="font-medium text-white">
+        <BodyText size="lg" className="font-medium text-slate-700">
           Hours: {locationInfo.customHours}
         </BodyText>
       </ResponsiveCard>

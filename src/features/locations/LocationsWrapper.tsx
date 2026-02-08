@@ -173,7 +173,7 @@ export default function LocationsWrapper({
             flex items-center justify-center
             overflow-hidden
             font-bold
-            hover:bg-blue-100
+            hover:bg-emerald-100
           `}
           style={{
             fontSize: textStyle.fontSize,

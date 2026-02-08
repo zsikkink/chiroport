@@ -25,7 +25,7 @@ export function InputField({
 }: InputFieldProps) {
   return (
     <div>
-      <label className="block text-white text-base font-bold mb-2">
+      <label className="block text-slate-700 text-base font-bold mb-2">
         {label} {required && '*'}
       </label>
       <input
@@ -33,7 +33,7 @@ export function InputField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-white text-black rounded-lg p-4 border-2 border-white focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-500"
+        className="w-full bg-white text-slate-900 rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-100 placeholder-gray-500"
       />
       {error && <p className="text-red-400 text-sm mt-1">{error}</p>}
     </div>
@@ -85,7 +85,7 @@ export function PhoneField({
 
   return (
     <div>
-      <label className="block text-white text-base font-bold mb-2">
+      <label className="block text-slate-700 text-base font-bold mb-2">
         Phone Number *
       </label>
 
@@ -97,7 +97,7 @@ export function PhoneField({
           value={intlDisplay}
           onChange={handlePhoneChange}
           placeholder="+44 20 7123 4567"
-          className="w-full bg-white text-black rounded-lg p-4 border-2 border-white focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-500"
+          className="w-full bg-white text-slate-900 rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-100 placeholder-gray-500"
         />
       ) : (
         // — U.S. formatting —
@@ -106,7 +106,7 @@ export function PhoneField({
           value={formatUSPhone(details.phone || '')}
           onChange={handlePhoneChange}
           placeholder="Phone number"
-          className="w-full bg-white text-black rounded-lg p-4 border-2 border-white focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-500"
+          className="w-full bg-white text-slate-900 rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-100 placeholder-gray-500"
         />
       )}
 
@@ -146,15 +146,15 @@ export function ConsentField({
           />
           <div
             className={`
-            w-5 h-5 rounded border-2 border-white flex items-center justify-center transition-colors duration-200
+            w-5 h-5 rounded border-2 border-slate-300 flex items-center justify-center transition-colors duration-200
             ${isChecked 
-              ? 'bg-white' 
-              : 'bg-transparent group-hover:bg-white/25'
+              ? 'bg-emerald-50' 
+              : 'bg-transparent group-hover:bg-slate-100'
             }
           `}
           >
             {isChecked && (
-              <svg className="w-3 h-3 text-[#56655A]" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-3 h-3 text-emerald-700" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
                   d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -164,7 +164,7 @@ export function ConsentField({
             )}
           </div>
         </div>
-        <span className="ml-3 text-white text-base leading-relaxed">
+        <span className="ml-3 text-slate-700 text-base leading-relaxed">
           {label} *
         </span>
       </label>

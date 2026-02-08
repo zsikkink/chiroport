@@ -42,14 +42,14 @@ export default function AnimatedButton({
         className={`
           relative w-full text-lg font-semibold rounded-lg p-4 border-2 border-white
           transition-all duration-200 overflow-hidden
-          bg-primary hover:bg-[#475549] text-white shadow-lg
+          bg-emerald-100 hover:bg-emerald-200 text-emerald-900 shadow-sm
           min-h-[3rem] flex items-center justify-center
           ${selected && (persistSelection || isAnimating)
             ? 'bg-white text-[#56655A] hover:bg-gray-100'
-            : 'bg-primary hover:bg-[#475549] text-white'}
+            : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900'}
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
           ${className}
-          ${isAnimating ? 'animate-pulse border-white/80' : ''}
+          ${isAnimating ? 'animate-pulse border-emerald-200' : ''}
         `}
         style={
           isAnimating

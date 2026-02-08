@@ -14,7 +14,7 @@ const createDetailsSchema = detailsSchemaFactory;
 
 export const MembershipStep = ({ onYes, onNo }: { onYes: () => void; onNo: () => void }) => (
   <div className="space-y-4 py-4">
-    <BodyText size="2xl" className="font-medium text-white">
+    <BodyText size="2xl" className="font-medium text-slate-800">
       Priority Pass or Lounge Key member?
     </BodyText>
     <YesNoButtons onYes={onYes} onNo={onNo} selected={null} />
@@ -32,11 +32,11 @@ export const JoinStep = ({
 }) => (
   <div className="py-4">
     <BackButton onClick={onBack} />
-    <BodyText size="2xl" className="font-medium text-white mt-4">
+    <BodyText size="2xl" className="font-medium text-slate-800 mt-4">
       {serviceSummary}
     </BodyText>
     <div className="space-y-3 mt-8">
-      <BodyText size="2xl" className="text-white">
+      <BodyText size="2xl" className="text-slate-800">
         Would you like to add spinal & neck adjustments for only $35  — a 50% Discount!
       </BodyText>
       <div className="flex gap-4">
@@ -81,7 +81,7 @@ export const CategoryStep = ({
   massageLabel: string;
 }) => (
   <div className="space-y-6 py-4">
-    <BodyText size="3xl" className="font-bold text-white text-center">
+    <BodyText size="3xl" className="font-bold text-slate-800 text-center">
       Select category
     </BodyText>
     <div className="space-y-3">
@@ -125,7 +125,7 @@ export const MassageOptionsStep = ({
     <div className="relative flex items-center mb-4">
       <BackButton onClick={onBack} />
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <BodyText size="2xl" className="font-bold text-white text-center px-8">
+        <BodyText size="2xl" className="font-bold text-slate-800 text-center px-8">
           {title}
         </BodyText>
       </div>
@@ -190,20 +190,20 @@ export const DetailsStep = ({
       <div className="relative flex items-center mb-6">
         <BackButton onClick={onBack} />
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <BodyText size="3xl" className="font-bold text-white text-center">
+          <BodyText size="3xl" className="font-bold text-slate-800 text-center">
             Enter your details
           </BodyText>
         </div>
       </div>
 
       {submissionError && (
-        <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-4">
-          <BodyText size="base" className="text-white">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+          <BodyText size="base" className="text-red-700">
             ❌ {submissionError}
           </BodyText>
           <button
             onClick={onDismissError}
-            className="text-white/80 text-sm mt-2 underline hover:text-white hover:bg-white/10 px-2 py-1 rounded transition-all duration-200"
+            className="text-slate-600 text-sm mt-2 underline hover:text-slate-800 hover:bg-slate-100 px-2 py-1 rounded transition-all duration-200"
           >
             Dismiss
           </button>
@@ -266,11 +266,11 @@ export const SuccessStep = ({
   return (
     <div className="space-y-6 py-4 text-center">
       <div className="mb-6">
-        <BodyText size="3xl" className="font-bold text-white mb-4">
+        <BodyText size="3xl" className="font-bold text-slate-800 mb-4">
           🎉 You&apos;re in the queue! 🎉
         </BodyText>
         {alreadyInQueue ? (
-          <BodyText size="lg" className="text-white/80">
+          <BodyText size="lg" className="text-slate-600">
             You were already in line, so we kept your place.
           </BodyText>
         ) : null}
@@ -278,14 +278,14 @@ export const SuccessStep = ({
 
       <div className="space-y-4">
         {queuePosition !== null ? (
-          <BodyText size="xl" className="text-white">
+          <BodyText size="xl" className="text-slate-800">
             Your current position: {queuePosition}
           </BodyText>
         ) : null}
-        <BodyText size="xl" className="text-white">
+        <BodyText size="xl" className="text-slate-800">
           We&apos;ll text you when you&apos;re up next.
         </BodyText>
-        <BodyText size="xl" className="text-white break-keep">
+        <BodyText size="xl" className="text-slate-800 break-keep">
           If you enjoy your experience, a gratuity is greatly appreciated!
         </BodyText>
       </div>

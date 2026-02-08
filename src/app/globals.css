@@ -14,9 +14,9 @@
 /* Root CSS variables for theming - accessible throughout the application */
 :root {
   /* Color scheme - modern clinical palette */
-  --color-primary: #1f4fd6; /* Brand blue */
-  --color-primary-dark: #1b43b8; /* Darker blue for hover states */
-  --color-primary-light: #5b7cff; /* Lighter blue for accents */
+  --color-primary: #56655A; /* Brand green */
+  --color-primary-dark: #475549; /* Darker green for hover states */
+  --color-primary-light: #677569; /* Lighter green for accents */
   --color-header: #56655A; /* Original green header */
   
   --color-text-primary: #0f172a; /* Slate-900 */

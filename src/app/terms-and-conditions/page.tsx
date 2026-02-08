@@ -106,7 +106,7 @@ export default function TermsAndConditionsPage() {
                   </StaticBodyText>
                   <a
                     href="mailto:info@thechiroport.com"
-                    className="text-lg text-blue-700 underline underline-offset-4 hover:text-blue-800"
+                    className="text-lg text-emerald-700 underline underline-offset-4 hover:text-emerald-800"
                   >
                     info@thechiroport.com
                   </a>
@@ -118,7 +118,7 @@ export default function TermsAndConditionsPage() {
                   </StaticBodyText>
                   <a
                     href="tel:+16125681224"
-                    className="text-lg text-blue-700 underline underline-offset-4 hover:text-blue-800"
+                    className="text-lg text-emerald-700 underline underline-offset-4 hover:text-emerald-800"
                   >
                     (612) 568-1224
                   </a>
@@ -132,7 +132,7 @@ export default function TermsAndConditionsPage() {
                     href="https://www.thechiroport.com"
                     target="_blank"
                     rel="noreferrer"
-                    className="text-lg text-blue-700 underline underline-offset-4 hover:text-blue-800"
+                    className="text-lg text-emerald-700 underline underline-offset-4 hover:text-emerald-800"
                   >
                     https://www.thechiroport.com
                   </a>
