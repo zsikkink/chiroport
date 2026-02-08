@@ -254,20 +254,49 @@ export default function AnalyticsPage() {
           },
           signal: controller.signal,
         });
-        const payload = await response.json().catch(() => null);
+
+        const rawText = await response.text();
+        let payload: AnalyticsResponse | { error?: string } | null = null;
+        if (rawText) {
+          try {
+            payload = JSON.parse(rawText) as AnalyticsResponse;
+          } catch {
+            payload = null;
+          }
+        }
+
         if (!response.ok) {
           console.error('[Analytics] API error', {
             status: response.status,
             payload,
+            rawText: rawText.slice(0, 500),
             locationId: selectedLocationId,
             customerType: selectedCustomerType,
             dateStart: dateRange.start,
             dateEnd: dateRange.end,
           });
-          setAnalyticsError(payload?.error || 'Failed to load analytics.');
+          const errorMessage =
+            (payload &&
+              typeof payload === 'object' &&
+              'error' in payload &&
+              typeof (payload as { error?: string }).error === 'string' &&
+              (payload as { error?: string }).error) ||
+            'Failed to load analytics.';
+          setAnalyticsError(errorMessage);
           setAnalyticsData(null);
           return;
         }
+
+        if (!payload) {
+          console.error('[Analytics] Empty response payload', {
+            status: response.status,
+            rawText: rawText.slice(0, 500),
+          });
+          setAnalyticsError('Failed to load analytics.');
+          setAnalyticsData(null);
+          return;
+        }
+
         setAnalyticsData(payload as AnalyticsResponse);
       } catch (error) {
         if ((error as Error).name !== 'AbortError') {
