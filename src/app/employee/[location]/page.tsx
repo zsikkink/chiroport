@@ -820,7 +820,7 @@ export default function EmployeeDashboardPage() {
               <button
                 type="button"
                 onClick={handleAnalyticsSelect}
-              className="w-full rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-left text-emerald-800 hover:bg-emerald-100"
+              className="w-full rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-left text-sky-800 hover:bg-sky-100"
               >
                 <p className="text-sm font-semibold">Analytics</p>
               </button>
@@ -837,7 +837,7 @@ export default function EmployeeDashboardPage() {
                     onClick={() => handleLocationSelect(location.id)}
                     className={`w-full rounded-md border px-3 py-2 text-left ${
                       isActive
-                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                        ? 'border-sky-200 bg-sky-50 text-sky-800'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >

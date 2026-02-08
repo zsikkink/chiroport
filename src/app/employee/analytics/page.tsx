@@ -482,7 +482,7 @@ export default function AnalyticsPage() {
             <span className="rounded-full border border-slate-200 bg-white px-3 py-1">
               Signed in as {currentUser.email} (admin)
             </span>
-            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-800">
+            <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sky-800">
               Live data
             </span>
           </div>
@@ -499,7 +499,7 @@ export default function AnalyticsPage() {
             <label className="text-sm">
               Location
               <select
-                className="mt-1 w-full rounded-md border border-slate-200 bg-white text-slate-900 px-3 py-2 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                className="mt-1 w-full rounded-md border border-slate-200 bg-white text-slate-900 px-3 py-2 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-100"
                 value={selectedLocationId}
                 onChange={(event) => setSelectedLocationId(event.target.value)}
               >
@@ -514,7 +514,7 @@ export default function AnalyticsPage() {
             <label className="text-sm">
               Date range
               <select
-                className="mt-1 w-full rounded-md border border-slate-200 bg-white text-slate-900 px-3 py-2 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                className="mt-1 w-full rounded-md border border-slate-200 bg-white text-slate-900 px-3 py-2 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-100"
                 value={selectedDatePreset}
                 onChange={(event) =>
                   setSelectedDatePreset(event.target.value as DatePreset)
@@ -530,7 +530,7 @@ export default function AnalyticsPage() {
             <label className="text-sm">
               Customer type
               <select
-                className="mt-1 w-full rounded-md border border-slate-200 bg-white text-slate-900 px-3 py-2 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                className="mt-1 w-full rounded-md border border-slate-200 bg-white text-slate-900 px-3 py-2 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-100"
                 value={selectedCustomerType}
                 onChange={(event) =>
                   setSelectedCustomerType(event.target.value as CustomerFilter)
@@ -742,7 +742,7 @@ export default function AnalyticsPage() {
                 setIsLocationMenuOpen(false);
                 router.push('/employee/analytics');
               }}
-              className="w-full rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-left text-emerald-800"
+              className="w-full rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-left text-sky-800"
             >
               <p className="text-sm font-semibold">Analytics</p>
             </button>

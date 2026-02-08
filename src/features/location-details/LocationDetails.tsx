@@ -39,20 +39,20 @@ const selectionButtonClass = `
   text-slate-900
   bg-white border-slate-300/90
   transition-colors duration-100
-  hover:bg-slate-100 active:bg-emerald-100
-  focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200
+  hover:bg-slate-100 active:bg-sky-100
+  focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-200
   !shadow-none !ring-0 hover:!shadow-none active:!shadow-none
   hover:!translate-y-0 active:!translate-y-0
 `;
 
 const selectedSelectionButtonClass = `
-  bg-emerald-300 border-emerald-500 text-slate-900
-  hover:bg-emerald-300 active:bg-emerald-300
+  bg-sky-200 border-sky-400 text-slate-900
+  hover:bg-sky-200 active:bg-sky-200
 `;
 
 const selectedSelectionButtonStyle: CSSProperties = {
-  backgroundColor: 'rgb(110 231 183)',
-  borderColor: 'rgb(16 185 129)',
+  backgroundColor: 'rgb(186 230 253)',
+  borderColor: 'rgb(56 189 248)',
   color: 'rgb(15 23 42)',
 };
 
@@ -574,7 +574,7 @@ export default function LocationDetails({
                   bg-[var(--color-header)] text-white
                   transition-colors duration-150
                   hover:bg-[var(--color-primary-dark)]
-                  focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-200
                   disabled:cursor-not-allowed disabled:opacity-60
                   !shadow-none !ring-0 hover:!shadow-none active:!shadow-none
                   hover:!translate-y-0 active:!translate-y-0

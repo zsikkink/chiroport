@@ -5,8 +5,8 @@ import type { CSSProperties, ReactNode } from 'react';
 import type { WizardState } from '@/features/location-details/types';
 
 const selectedCheckboxStyle: CSSProperties = {
-  backgroundColor: 'rgb(110 231 183)',
-  borderColor: 'rgb(16 185 129)',
+  backgroundColor: 'rgb(186 230 253)',
+  borderColor: 'rgb(56 189 248)',
 };
 
 interface InputFieldProps {
@@ -38,7 +38,7 @@ export function InputField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-white text-slate-900 text-lg rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-100 placeholder-gray-500"
+        className="w-full bg-white text-slate-900 text-lg rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-100 placeholder-gray-500"
       />
       {error && <p className="text-red-400 text-lg mt-1">{error}</p>}
     </div>
@@ -102,7 +102,7 @@ export function PhoneField({
           value={intlDisplay}
           onChange={handlePhoneChange}
           placeholder="+44 20 7123 4567"
-          className="w-full bg-white text-slate-900 text-lg rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-100 placeholder-gray-500"
+          className="w-full bg-white text-slate-900 text-lg rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-100 placeholder-gray-500"
         />
       ) : (
         // — U.S. formatting —
@@ -111,7 +111,7 @@ export function PhoneField({
           value={formatUSPhone(details.phone || '')}
           onChange={handlePhoneChange}
           placeholder="Phone number"
-          className="w-full bg-white text-slate-900 text-lg rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-100 placeholder-gray-500"
+          className="w-full bg-white text-slate-900 text-lg rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-100 placeholder-gray-500"
         />
       )}
 
@@ -153,14 +153,14 @@ export function ConsentField({
             className={`
             w-5 h-5 rounded border-2 border-slate-300 flex items-center justify-center transition-colors duration-200
             ${isChecked 
-              ? 'bg-emerald-300 border-emerald-500'
+              ? 'bg-sky-200 border-sky-400'
               : 'bg-transparent group-hover:bg-slate-100'
             }
           `}
             style={isChecked ? selectedCheckboxStyle : undefined}
           >
             {isChecked && (
-              <svg className="w-3 h-3 text-emerald-700" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-3 h-3 text-sky-700" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
                   d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
