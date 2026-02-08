@@ -155,8 +155,10 @@ export default function LocationsWrapper({
     >
       {/* Container with proper overflow handling */}
       <div className="
-        border-2 border-white rounded-lg 
+        border border-slate-200 rounded-xl 
         overflow-hidden 
+        bg-white
+        shadow-[0_12px_32px_-20px_rgba(15,23,42,0.18)]
         transition-all duration-300 ease-in-out
         w-full
       ">
@@ -171,7 +173,7 @@ export default function LocationsWrapper({
             flex items-center justify-center
             overflow-hidden
             font-bold
-            hover:bg-[#475549] hover:bg-opacity-95
+            hover:bg-blue-100
           `}
           style={{
             fontSize: textStyle.fontSize,
@@ -195,7 +197,7 @@ export default function LocationsWrapper({
           className="
             overflow-hidden 
             transition-all duration-300 ease-in-out 
-            bg-primary
+            bg-slate-50
             w-full
           "
         >

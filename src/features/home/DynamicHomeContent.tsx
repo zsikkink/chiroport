@@ -91,7 +91,7 @@ export default function DynamicHomeContent() {
       >
         <h1 
           className="
-            font-bold text-white 
+            font-bold text-slate-900 
             whitespace-nowrap
             text-ellipsis
             w-full

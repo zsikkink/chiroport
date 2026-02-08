@@ -24,7 +24,7 @@ export default function StaticFeatureCards({ className = '' }: StaticFeatureCard
       <StaticResponsiveCard title="Services Include" className="mb-4 sm:mb-6">
         <ul className="list-disc list-inside space-y-2">
           {serviceItems.map((item) => (
-            <li key={item} className="text-xl font-medium text-white flex items-start">
+            <li key={item} className="text-xl font-medium text-slate-700 flex items-start">
               <span className="mr-2">•</span>
               <span>{item}</span>
             </li>
