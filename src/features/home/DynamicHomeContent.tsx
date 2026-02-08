@@ -128,15 +128,6 @@ export default function DynamicHomeContent() {
             buttonText="Join the queue" 
           />
         </div>
-        <div className="flex items-center gap-4 text-sm font-semibold text-emerald-900">
-          <a href="#services" className="hover:text-emerald-800 transition-colors duration-200">
-            View services
-          </a>
-          <span className="text-slate-300">•</span>
-          <a href="#contact" className="hover:text-emerald-800 transition-colors duration-200">
-            Contact
-          </a>
-        </div>
         <div className="flex flex-wrap justify-center gap-2">
           {['Text updates', 'Walk-ins welcome', 'No account required'].map((label) => (
             <span
