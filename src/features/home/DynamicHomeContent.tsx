@@ -126,7 +126,7 @@ export default function DynamicHomeContent() {
           />
         </div>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
-          {['Text updates', 'Walk-ins welcome', 'No account required'].map((label) => (
+          {['Walk-ins welcome', 'No account required', 'Text updates'].map((label) => (
             <span
               key={label}
               className="
