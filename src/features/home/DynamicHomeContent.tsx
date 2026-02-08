@@ -116,9 +116,6 @@ export default function DynamicHomeContent() {
         <p className="mt-3 text-lg sm:text-xl text-slate-700 font-lato">
           Airport wellness—adjustments, massage, and stretch therapy in minutes.
         </p>
-        <p className="mt-2 text-sm sm:text-base text-slate-500 font-lato">
-          Walk-ins welcome • Text updates • Multiple locations
-        </p>
       </div>
       
       {/* Locations wrapper - this will expand and push content below */}
