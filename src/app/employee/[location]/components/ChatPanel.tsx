@@ -73,7 +73,7 @@ export function ChatPanel({
                 <div
                   className={`max-w-[75%] rounded-xl px-3 py-2 text-sm ${
                     message.direction === 'out'
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-blue-50 text-blue-800 border border-blue-100'
                       : 'bg-white text-slate-800 border border-slate-200'
                   }`}
                 >

@@ -24,7 +24,7 @@ export default function StaticLoadingSpinner({
   };
 
   const colorClasses = {
-    white: 'text-white',
+    white: 'text-slate-900',
     primary: 'text-primary',
     gray: 'text-gray-500'
   };

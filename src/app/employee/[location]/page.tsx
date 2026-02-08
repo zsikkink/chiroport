@@ -1143,7 +1143,7 @@ export default function EmployeeDashboardPage() {
           >
             <div className="flex justify-between gap-3">
               <Button
-                className="flex-1 bg-red-600 text-white hover:bg-red-700"
+                className="flex-1 border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
                 onClick={() => void handleConfirmHistoryDecision('canceled')}
                 disabled={
                   busyAction === `cancel:${historyDecisionEntryId}` ||
@@ -1155,7 +1155,7 @@ export default function EmployeeDashboardPage() {
                   : 'Canceled'}
               </Button>
               <Button
-                className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700"
+                className="flex-1 border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                 onClick={() => void handleConfirmHistoryDecision('completed')}
                 disabled={
                   busyAction === `cancel:${historyDecisionEntryId}` ||

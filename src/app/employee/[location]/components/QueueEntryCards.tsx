@@ -96,7 +96,7 @@ export const WaitingEntryCard = memo(function WaitingEntryCard({
           </button>
           <button
             type="button"
-            className="rounded-md bg-emerald-500 p-1 text-white shadow-sm hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md border border-emerald-200 bg-emerald-50 p-1 text-emerald-700 shadow-sm hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={() => onAdvance(entry.queue_entry_id)}
             disabled={isServingBusy || isCancelBusy || isDeleteBusy}
             aria-label="Move to serving"
@@ -223,7 +223,7 @@ export const ServingEntryCard = memo(function ServingEntryCard({
           </button>
           <button
             type="button"
-            className="rounded-md bg-emerald-500 p-1 text-white shadow-sm hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md border border-emerald-200 bg-emerald-50 p-1 text-emerald-700 shadow-sm hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={() => onAdvance(entry.queue_entry_id)}
             disabled={isCompleteBusy || isCancelBusy || isDeleteBusy || isReturnBusy}
             aria-label="Mark completed"

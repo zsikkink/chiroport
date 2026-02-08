@@ -61,7 +61,7 @@ export default class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-primary p-6">
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
           <div className="bg-white rounded-lg p-8 max-w-md w-full text-center">
             <div className="mb-4">
               <div className="text-6xl mb-4">😵</div>
@@ -75,7 +75,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             
             <button
               onClick={() => window.location.reload()}
-              className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-dark transition-colors duration-200 font-semibold"
+              className="bg-blue-100 text-slate-900 px-6 py-3 rounded-lg hover:bg-blue-200 transition-colors duration-200 font-semibold"
             >
               Reload Page
             </button>

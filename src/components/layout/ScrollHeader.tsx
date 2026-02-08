@@ -120,10 +120,8 @@ export default function ScrollHeader({
         ${className}
       `}
       style={{
-        backgroundColor: isScrolled
-          ? 'rgba(255, 255, 255, 0.96)'
-          : 'rgba(255, 255, 255, 0.98)',
-        borderBottom: '1px solid rgba(226, 232, 240, 0.9)',
+        backgroundColor: 'var(--color-header)',
+        borderBottom: 'none',
       }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -136,7 +134,7 @@ export default function ScrollHeader({
               w-12 h-12
               hover:opacity-80 active:opacity-70
               transition-opacity duration-200
-              focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-white
+              focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-[var(--color-header)]
               flex-shrink-0
             "
             aria-label="Go to home page"
