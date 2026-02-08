@@ -486,7 +486,9 @@ export default function LocationDetails({
                   variants={popInTransition}
                   className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4"
                 >
-                  <p className={sectionLabelClass}>{massageOptionsTitle}</p>
+                  <p className={sectionLabelClass}>
+                    {massageOptionsTitle} <span className="text-red-600">*</span>
+                  </p>
                   <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     {MASSAGE_OPTIONS.map((option) => (
                       <SelectionButton
