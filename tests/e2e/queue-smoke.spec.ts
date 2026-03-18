@@ -130,6 +130,48 @@ test.describe('queue smoke', () => {
       });
       expect(servingRes.ok).toBeTruthy();
 
+      const { data: firstServedEntry } = await service
+        .from('queue_entries')
+        .select('status, served_at')
+        .eq('id', entryId2)
+        .maybeSingle();
+      expect(firstServedEntry?.status).toBe('serving');
+      expect(firstServedEntry?.served_at).toBeTruthy();
+      const firstServedAt = firstServedEntry?.served_at;
+
+      const returnRes = await fetch(`${baseUrl}/functions/v1/queue_entry_action`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action: 'return', queueEntryId: entryId2 }),
+      });
+      expect(returnRes.ok).toBeTruthy();
+
+      const { data: returnedEntry } = await service
+        .from('queue_entries')
+        .select('status, served_at')
+        .eq('id', entryId2)
+        .maybeSingle();
+      expect(returnedEntry?.status).toBe('waiting');
+      expect(returnedEntry?.served_at).toBeNull();
+
+      await new Promise((resolve) => setTimeout(resolve, 25));
+
+      const secondServingRes = await fetch(`${baseUrl}/functions/v1/queue_entry_action`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action: 'serving', queueEntryId: entryId2 }),
+      });
+      expect(secondServingRes.ok).toBeTruthy();
+
+      const { data: secondServedEntry } = await service
+        .from('queue_entries')
+        .select('status, served_at')
+        .eq('id', entryId2)
+        .maybeSingle();
+      expect(secondServedEntry?.status).toBe('serving');
+      expect(secondServedEntry?.served_at).toBeTruthy();
+      expect(secondServedEntry?.served_at).not.toBe(firstServedAt);
+
       const completeRes = await fetch(`${baseUrl}/functions/v1/queue_entry_action`, {
         method: 'POST',
         headers,

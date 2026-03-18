@@ -108,6 +108,7 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
         if (existing) {
           updateEntryInLists(entryId, {
             status: record.status,
+            served_at: record.served_at ?? existing.served_at,
             updated_at: record.updated_at ?? existing.updated_at,
           });
         } else {

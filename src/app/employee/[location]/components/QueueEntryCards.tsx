@@ -185,6 +185,9 @@ export const ServingEntryCard = memo(function ServingEntryCard({
   const servingStatus = formatServingSmsStatus(entry.serving_sms_status);
   const serviceLabel = entry.service_label ?? entry.customer_type ?? 'unknown';
   const waitedLabel = formatWaitedLabel(entry.served_at, entry.created_at);
+  const servingSinceLabel = entry.served_at
+    ? `Serving since ${formatTime(entry.served_at)}`
+    : 'Serving start unavailable';
 
   return (
     <div
@@ -257,6 +260,7 @@ export const ServingEntryCard = memo(function ServingEntryCard({
       <p className="text-sm text-black/70">
         {serviceLabel} · {waitedLabel ?? `Joined at ${formatTime(entry.created_at)}`}
       </p>
+      <p className="text-sm text-black/70">{servingSinceLabel}</p>
       <p className="mt-2 text-sm">
         <span className={confirmStatus.className}>
           Confirmation SMS: {confirmStatus.label}
