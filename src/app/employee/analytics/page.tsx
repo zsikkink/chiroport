@@ -136,9 +136,7 @@ type CustomerFilter = 'all' | 'paying' | 'priority_pass';
 type ComparisonMode = 'previous_period' | 'trailing_30_day_average';
 type ComparisonReference = {
   mode: ComparisonMode;
-  shortLabel: string;
   longLabel: string;
-  detail: string;
   chipLabel: string;
 };
 
@@ -319,8 +317,8 @@ function getVisibleCategoryIndexes(totalCount: number, desiredCount = 7) {
 
 function formatResolvedWindowLabel(dateStart: string | null, dateEnd: string | null): string {
   if (!dateStart || !dateEnd) return 'Latest settled day';
-  if (dateStart === dateEnd) return dateStart;
-  return `${dateStart} → ${dateEnd}`;
+  if (dateStart === dateEnd) return formatHumanDate(dateStart);
+  return `${formatHumanDate(dateStart)} – ${formatHumanDate(dateEnd)}`;
 }
 
 function parseIsoDate(value: string) {
@@ -346,6 +344,18 @@ function parseIsoDate(value: string) {
 
 function formatIsoDate(date: Date) {
   return date.toISOString().slice(0, 10);
+}
+
+function formatHumanDate(value: string | null) {
+  if (!value) return '—';
+  const date = parseIsoDate(value);
+  if (!date) return value;
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
 }
 
 function shiftIsoDate(value: string, days: number) {
@@ -514,7 +524,6 @@ type TrendBadgeProps = {
   neutral?: boolean;
   absoluteUnit?: string;
   absoluteDigits?: number;
-  comparisonLabel?: string;
 };
 
 function TrendBadge({
@@ -525,7 +534,6 @@ function TrendBadge({
   neutral = false,
   absoluteUnit,
   absoluteDigits = 1,
-  comparisonLabel = 'previous period',
 }: TrendBadgeProps) {
   if (
     current === null ||
@@ -556,12 +564,12 @@ function TrendBadge({
       : 'text-red-600';
 
   const label = isRate
-    ? `${arrow} ${formatNumber(Math.abs(diff * 100), 1)}% vs ${comparisonLabel}`
+    ? `${arrow} ${formatNumber(Math.abs(diff * 100), 1)}%`
     : absoluteUnit
-      ? `${arrow} ${formatNumber(Math.abs(diff), absoluteDigits)} ${absoluteUnit} vs ${comparisonLabel}`
+      ? `${arrow} ${formatNumber(Math.abs(diff), absoluteDigits)} ${absoluteUnit}`
     : previous === 0
-      ? `${arrow} ${formatNumber(diff, 1)} vs ${comparisonLabel}`
-      : `${arrow} ${Math.abs((diff / Math.abs(previous)) * 100).toFixed(0)}% vs ${comparisonLabel}`;
+      ? `${arrow} ${formatNumber(diff, 1)}`
+      : `${arrow} ${Math.abs((diff / Math.abs(previous)) * 100).toFixed(0)}%`;
 
   return <span className={`text-xs font-medium ${toneClass}`}>{label}</span>;
 }
@@ -1862,23 +1870,13 @@ function getSegmentMetricCellTone(
 }
 
 function getSummaryToneClasses(status: ExecutiveSummary['status']) {
-  if (status === 'urgent') {
+  if (status === 'healthy') {
     return {
-      panel: 'border-rose-300 bg-[linear-gradient(135deg,#fff5f5_0%,#ffe4e6_100%)]',
-    };
-  }
-  if (status === 'attention') {
-    return {
-      panel: 'border-orange-200 bg-[linear-gradient(135deg,#fffaf5_0%,#fff7ed_100%)]',
-    };
-  }
-  if (status === 'watch') {
-    return {
-      panel: 'border-amber-200 bg-[linear-gradient(135deg,#fffaf0_0%,#fff7ed_100%)]',
+      panel: 'border-emerald-200 bg-[linear-gradient(135deg,#f4fff8_0%,#ecfdf5_100%)]',
     };
   }
   return {
-    panel: 'border-emerald-200 bg-[linear-gradient(135deg,#f4fff8_0%,#ecfdf5_100%)]',
+    panel: 'border-rose-300 bg-[linear-gradient(135deg,#fff5f5_0%,#ffe4e6_100%)]',
   };
 }
 
@@ -2799,25 +2797,15 @@ export default function AnalyticsPage() {
     if (usesTrailingThirtyDayAverage) {
       return {
         mode: 'trailing_30_day_average',
-        shortLabel: '30-day average',
         longLabel: 'the trailing 30-day average day',
-        chipLabel: `30-day average: ${comparisonRangeLabel}`,
-        detail:
-          previousDateStart && previousDateEnd
-            ? `Single-day views compare against the average settled day from ${comparisonRangeLabel}.`
-            : 'Single-day views compare against the trailing 30-day average day when available.',
+        chipLabel: `Comparison period: ${comparisonRangeLabel} (30-day average)`,
       };
     }
 
     return {
       mode: 'previous_period',
-      shortLabel: 'previous period',
       longLabel: 'the previous period',
-      chipLabel: `Previous period: ${comparisonRangeLabel}`,
-      detail:
-        previousDateStart && previousDateEnd
-          ? `Comparisons use the immediately preceding settled window: ${comparisonRangeLabel}.`
-          : 'Comparison uses the previous period when available.',
+      chipLabel: `Comparison period: ${comparisonRangeLabel}`,
     };
   }, [analyticsData, storyMode]);
   const sortedLocationComparisonRows = useMemo(
@@ -2898,10 +2886,6 @@ export default function AnalyticsPage() {
       : selectedCustomerType === 'paying'
         ? 'Paying only'
         : 'Priority Pass only';
-  const locationScopeLabel =
-    selectedLocationId === 'all'
-      ? 'All open locations'
-      : selectedLocationOption?.display_name ?? 'Selected location';
   const selectedLocationComparison =
     selectedLocationId === 'all'
       ? null
@@ -3009,7 +2993,38 @@ export default function AnalyticsPage() {
         )[0] ?? null,
     [locationComparisonRows]
   );
-  const summaryTone = getSummaryToneClasses(executiveSummary?.status ?? 'healthy');
+  const summaryToneStatus = useMemo<ExecutiveSummary['status']>(() => {
+    if (!analyticsData) {
+      return executiveSummary?.status ?? 'healthy';
+    }
+
+    if (analyticsData.kpis.arrivals_total === 0) {
+      return 'urgent';
+    }
+
+    const currentAdjustedCompletions = analyticsData.kpis.adjusted_completed_total;
+    const previousAdjustedCompletions =
+      analyticsData.previous_period?.kpis?.adjusted_completed_total ?? null;
+
+    if (
+      currentAdjustedCompletions !== null &&
+      previousAdjustedCompletions !== null &&
+      previousAdjustedCompletions !== undefined
+    ) {
+      const adjustedCompletionsDelta =
+        currentAdjustedCompletions - previousAdjustedCompletions;
+
+      if (adjustedCompletionsDelta > 0.01) {
+        return 'healthy';
+      }
+      if (adjustedCompletionsDelta < -0.01) {
+        return 'urgent';
+      }
+    }
+
+    return executiveSummary?.status ?? 'healthy';
+  }, [analyticsData, executiveSummary?.status]);
+  const summaryTone = getSummaryToneClasses(summaryToneStatus);
   const topSignals = (executiveSummary?.signals ?? []).slice(0, 2);
 
   if (authLoading) {
@@ -3099,19 +3114,16 @@ export default function AnalyticsPage() {
           </button>
         </div>
       ) : null}
-      <div className="relative z-10 mx-auto max-w-7xl space-y-6 px-4 py-10 sm:px-8">
-        <header className="flex flex-col gap-3">
+      <div className="relative z-10 mx-auto max-w-7xl space-y-5 px-4 py-10 sm:px-8">
+        <header className="flex flex-col gap-2.5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-2">
+            <div className="space-y-1">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
                 Analytics
               </p>
               <h1 className="text-3xl sm:text-4xl font-libre-baskerville">
                 Owner Dashboard
               </h1>
-              <p className="max-w-3xl text-sm text-slate-500">
-                Executive view of queue health, location outliers, and where management attention should go first.
-              </p>
             </div>
             <Button variant="secondary" onClick={handleSignOut} className="self-start">
               Sign Out
@@ -3137,11 +3149,8 @@ export default function AnalyticsPage() {
         <ResponsiveCard className="border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
-                Filtered operating view
-              </p>
-              <h2 className="mt-1 text-lg font-semibold text-slate-900">
-                These filters update the summary, KPI strip, location ranking, and trend sections below.
+              <h2 className="text-lg font-semibold text-slate-900">
+                Analytics Filters
               </h2>
             </div>
             {analyticsData ? (
@@ -3155,7 +3164,7 @@ export default function AnalyticsPage() {
             ) : null}
           </div>
 
-          <div className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_1fr_1fr]">
+          <div className="mt-3 grid gap-4 xl:grid-cols-[1.1fr_1fr_1fr]">
             <label className="text-sm">
               Location scope
               <select
@@ -3203,24 +3212,14 @@ export default function AnalyticsPage() {
             </label>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
-              Scope: {locationScopeLabel}
-            </span>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
             <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
               Window: {resolvedWindowLabel}
             </span>
             <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
-              Segment: {customerFilterLabel}
-            </span>
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
-              Comparison: {comparisonReference.chipLabel}
+              {comparisonReference.chipLabel}
             </span>
           </div>
-
-          <p className="mt-3 text-xs text-slate-500">
-            Non-paying customers are treated as Priority Pass in analytics. The latest preset resolves to the latest settled day for the selected scope, then reuses that exact window for cross-location comparison. {comparisonReference.detail}
-          </p>
 
           {analyticsData ? (
             <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
@@ -3307,7 +3306,6 @@ export default function AnalyticsPage() {
                     <TrendBadge
                       current={analyticsData.kpis.completed_total}
                       previous={previousPeriodKpis?.completed_total}
-                      comparisonLabel={comparisonReference.shortLabel}
                     />
                   }
                 />
@@ -3319,7 +3317,6 @@ export default function AnalyticsPage() {
                       current={analyticsData.kpis.adjusted_completed_total}
                       previous={previousPeriodKpis?.adjusted_completed_total}
                       absoluteDigits={2}
-                      comparisonLabel={comparisonReference.shortLabel}
                     />
                   }
                 />
@@ -3332,7 +3329,6 @@ export default function AnalyticsPage() {
                       previous={previousPeriodKpis?.completion_rate}
                       isRate
                       higherIsBetter
-                      comparisonLabel={comparisonReference.shortLabel}
                     />
                   }
                 />
@@ -3349,7 +3345,6 @@ export default function AnalyticsPage() {
                       previous={previousPeriodKpis?.wait_avg_minutes}
                       higherIsBetter={false}
                       absoluteUnit="min"
-                      comparisonLabel={comparisonReference.shortLabel}
                     />
                   }
                 />
@@ -3362,7 +3357,6 @@ export default function AnalyticsPage() {
                       previous={previousPeriodKpis?.utilization_rate}
                       isRate
                       higherIsBetter
-                      comparisonLabel={comparisonReference.shortLabel}
                     />
                   }
                 />
@@ -3380,7 +3374,6 @@ export default function AnalyticsPage() {
                       higherIsBetter={false}
                       absoluteUnit="customers"
                       absoluteDigits={1}
-                      comparisonLabel={comparisonReference.shortLabel}
                     />
                   }
                 />
