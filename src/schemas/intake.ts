@@ -1,4 +1,19 @@
 import { z } from 'zod';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
+
+function isValidIntakePhone(phone: string) {
+  const trimmed = phone.trim();
+  if (!trimmed) return false;
+
+  if (trimmed.startsWith('+')) {
+    const parsed = parsePhoneNumberFromString(trimmed);
+    return parsed?.isValid() ?? false;
+  }
+
+  const digitsOnly = trimmed.replace(/\D/g, '');
+  const parsed = parsePhoneNumberFromString(digitsOnly, 'US');
+  return parsed?.isValid() ?? false;
+}
 
 export const detailsSchemaFactory = ({
   requireEmail,
@@ -10,14 +25,7 @@ export const detailsSchemaFactory = ({
     phone: z
       .string()
       .min(1, 'Phone is required')
-      .refine((phone) => {
-        if (!phone) return false;
-        if (phone.startsWith('+')) {
-          return /^\+\d{7,15}$/.test(phone.replace(/[^\d+]/g, ''));
-        }
-        const digitsOnly = phone.replace(/\D/g, '');
-        return digitsOnly.length === 10;
-      }, 'Invalid phone number'),
+      .refine((phone) => isValidIntakePhone(phone), 'Enter a valid phone number'),
     email: requireEmail ? z.string().email('Invalid email') : z.string().optional(),
     consent: z.boolean().refine((val) => val === true, 'You must consent to treatment to proceed'),
   });

@@ -2,11 +2,13 @@ import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1
 import { sendTwilioSms } from './twilio.ts';
 import { checkRateLimit, getRateLimitConfig } from './rateLimit.ts';
 import { getLocationIdForQueueEntry } from './queue.ts';
+import { buildFinalOutboundSmsBody } from './messages.ts';
 
 type OutboxRow = {
   id: string;
   queue_entry_id: string;
   attempt_count: number;
+  message_type: string;
   to_phone: string;
   body: string;
 };
@@ -137,9 +139,16 @@ export async function sendClaimedMessage(
   }
 
   try {
+    const finalBody = buildFinalOutboundSmsBody({
+      body: message.body,
+      messageType: message.message_type,
+    });
+    if (finalBody !== message.body) {
+      await supabase.from('sms_outbox').update({ body: finalBody }).eq('id', message.id);
+    }
     const { response, payload } = await sendTwilioSms({
       to: message.to_phone,
-      body: message.body,
+      body: finalBody,
     });
 
     if (!response.ok) {
@@ -179,13 +188,24 @@ export async function enqueueAndSendOutboxMessage(
     idempotency_key: string;
   }
 ) {
+  const normalizedBody = buildFinalOutboundSmsBody({
+    body: payload.body,
+    messageType: payload.message_type,
+  });
+
   await supabase
     .from('sms_outbox')
-    .upsert(payload, { onConflict: 'queue_entry_id,message_type', ignoreDuplicates: true });
+    .upsert(
+      {
+        ...payload,
+        body: normalizedBody,
+      },
+      { onConflict: 'queue_entry_id,message_type', ignoreDuplicates: true }
+    );
 
   const { data: row } = await supabase
     .from('sms_outbox')
-    .select('id, queue_entry_id, attempt_count, to_phone, body')
+    .select('id, queue_entry_id, attempt_count, message_type, to_phone, body')
     .eq('idempotency_key', payload.idempotency_key)
     .maybeSingle();
 
@@ -208,7 +228,7 @@ export async function sendOutboxForEntry(
 ) {
   const { data: row } = await supabase
     .from('sms_outbox')
-    .select('id, queue_entry_id, attempt_count, to_phone, body')
+    .select('id, queue_entry_id, attempt_count, message_type, to_phone, body')
     .eq('queue_entry_id', queueEntryId)
     .eq('message_type', messageType)
     .maybeSingle();

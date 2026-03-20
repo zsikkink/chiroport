@@ -268,8 +268,11 @@ serve(async (req) => {
       .eq('id', joinResult.out_queue_id)
       .single();
 
+    const queueLocation = Array.isArray(queueData?.location)
+      ? queueData.location[0]
+      : queueData?.location;
     const locationDisplayName =
-      queueData?.location?.display_name ?? 'The Chiroport';
+      queueLocation?.display_name ?? 'The Chiroport';
 
     let payingQueuePosition = joinResult.out_queue_position;
     if (parsed.data.customerType === 'paying') {
