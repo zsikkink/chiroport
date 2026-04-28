@@ -443,7 +443,7 @@ export default function LocationDetails({
           <section className="space-y-4">
             {isOffersMassage || isMassageOnly ? (
               <div className="space-y-3">
-                <p className="text-left text-lg font-bold text-black">
+                <p className={sectionLabelClass}>
                   Select category <span className="text-red-600">*</span>
                 </p>
                 <div className="grid grid-cols-1 gap-3">
