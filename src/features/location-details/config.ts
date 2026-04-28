@@ -19,7 +19,7 @@ export interface FlowTransitionMap {
   afterMemberNo?: Step;
   afterSpinalDecision?: Step;
   afterTreatmentSelection?: Step;
-  category?: Record<Exclude<VisitCategory, null>, Step>;
+  category?: Partial<Record<Exclude<VisitCategory, null>, Step>>;
 }
 
 export const FLOW_CONFIG: Record<IntakeCategory, FlowDefinition> = {
@@ -32,8 +32,8 @@ export const FLOW_CONFIG: Record<IntakeCategory, FlowDefinition> = {
     steps: ['category', 'join', 'massage_options', 'details', 'success'],
   },
   massage_only: {
-    initialStep: 'massage_options',
-    steps: ['massage_options', 'details', 'success'],
+    initialStep: 'category',
+    steps: ['category', 'massage_options', 'details', 'success'],
   },
 };
 
@@ -54,5 +54,9 @@ export const FLOW_TRANSITIONS: Record<IntakeCategory, FlowTransitionMap> = {
   },
   massage_only: {
     afterTreatmentSelection: 'details',
+    category: {
+      priority_pass: 'details',
+      massage: 'massage_options',
+    },
   },
 };

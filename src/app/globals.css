@@ -32,8 +32,8 @@
   --font-sans: var(--font-lato); /* Main body font */
   --font-logo: var(--font-libre-baskerville); /* Decorative font for logo/headings */
   
-  /* Base font size that respects user preferences */
-  --base-font-size: 1rem; /* 16px default, but scales with user settings */
+  /* Base font size used by fixed-layout UI */
+  --base-font-size: 16px;
   
   /* CSS-only responsive breakpoints */
   --breakpoint-sm: 640px;
@@ -61,10 +61,13 @@
 
 /* Base styles applied using Tailwind's layering system */
 @layer base {
-  /* Global reset with responsive font scaling */
+  /* Global reset with app-controlled font scaling */
   html {
     font-size: clamp(14px, 4vw, 18px); /* Responsive base font size */
     box-sizing: border-box;
+    -webkit-text-size-adjust: none;
+    -moz-text-size-adjust: none;
+    text-size-adjust: none;
   }
   
   body {
@@ -82,6 +85,9 @@
   /* Apply box-sizing to all elements */
   *, *::before, *::after {
     box-sizing: inherit;
+    -webkit-text-size-adjust: none;
+    -moz-text-size-adjust: none;
+    text-size-adjust: none;
   }
   
   /* Ensure headings are responsive */
@@ -134,6 +140,19 @@
     word-break: normal;
     hyphens: none;
     max-width: 100%;
+  }
+
+  .text-size-stable {
+    -webkit-text-size-adjust: none;
+    -moz-text-size-adjust: none;
+    text-size-adjust: none;
+  }
+
+  .legal-content,
+  .legal-content * {
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    hyphens: none !important;
   }
   
   /* Header utilities */

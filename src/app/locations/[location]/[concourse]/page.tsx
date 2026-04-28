@@ -117,7 +117,7 @@ export default async function ConcoursePage({ params }: PageProps) {
       <StaticLayout>
         {/* Location Details Section - Client component */}
         <div className="w-full sm:max-w-3xl mx-auto px-4 sm:px-0 mt-20">
-          <h1 className="mb-4 text-center text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-size-stable mb-4 text-center text-[32px] leading-tight sm:text-[34px] font-bold tracking-tight text-slate-900">
             Check-in Questions
           </h1>
           <LocationDetails

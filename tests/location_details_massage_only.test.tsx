@@ -38,7 +38,7 @@ describe('LocationDetails massage-only intake', () => {
     window.cancelAnimationFrame = jest.fn();
   });
 
-  it('shows massage choices without chiropractor or Priority Pass options', () => {
+  it('starts with Massage and Priority Pass choices without chiropractor options', () => {
     render(
       <LocationDetails
         locationInfo={massageOnlyLocation}
@@ -47,13 +47,18 @@ describe('LocationDetails massage-only intake', () => {
       />
     );
 
-    expect(screen.queryByText('Priority Pass / Lounge Key')).toBeNull();
+    expect(screen.getByRole('button', { name: /Priority Pass \/ Lounge Key/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Massage$/i })).toBeTruthy();
     expect(screen.queryByText('Chiropractor')).toBeNull();
     expect(screen.queryByText(/Priority Pass or Lounge Key member/i)).toBeNull();
-    expect(screen.getByText('15 Minutes')).toBeTruthy();
-    expect(screen.getByText('20 Minutes')).toBeTruthy();
-    expect(screen.getByText('30 Minutes')).toBeTruthy();
-    expect(screen.getByText(/I consent to bodywork services/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /15 minutes/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /20 minutes/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /30 minutes/i })).toBeNull();
+    expect(
+      screen.getByRole('checkbox', {
+        name: /I agree to the Privacy Policy and Terms & Conditions/i,
+      })
+    ).toBeTruthy();
   });
 
   it('submits massage-only visits as paying bodywork with a massage service label', async () => {
@@ -79,7 +84,8 @@ describe('LocationDetails massage-only intake', () => {
       />
     );
 
-    await user.click(screen.getByText('20 Minutes'));
+    await user.click(screen.getByRole('button', { name: /^Massage$/i }));
+    await user.click(screen.getByRole('button', { name: /20 minutes/i }));
     await user.type(screen.getByPlaceholderText('Full name'), 'Massage Guest');
     await user.type(screen.getByPlaceholderText('Phone number'), '6125551212');
     await user.type(screen.getByPlaceholderText('Email address'), 'guest@example.com');
@@ -94,6 +100,51 @@ describe('LocationDetails massage-only intake', () => {
           locationCode: 'massage-studio',
           customerType: 'paying',
           serviceLabel: 'Massage: 20 minutes',
+          consentKey: 'queue_join_consent_bodywork',
+        }),
+      }
+    ));
+  });
+
+  it('submits massage-only Priority Pass visits without requiring duration selection', async () => {
+    const user = userEvent.setup();
+    mockInvoke.mockResolvedValue({
+      data: {
+        queueEntryId: 'entry-2',
+        publicToken: 'token-2',
+        queueId: 'queue-2',
+        status: 'waiting',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      error: null,
+    });
+    mockRpc.mockResolvedValue({ data: [{ queue_entry_id: 'entry-2' }], error: null });
+
+    render(
+      <LocationDetails
+        locationInfo={massageOnlyLocation}
+        airportCode="TST"
+        locationCode="massage-studio"
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /Priority Pass \/ Lounge Key/i }));
+    expect(screen.queryByRole('button', { name: /15 minutes/i })).toBeNull();
+
+    await user.type(screen.getByPlaceholderText('Full name'), 'Priority Guest');
+    await user.type(screen.getByPlaceholderText('Phone number'), '6125553434');
+    await user.type(screen.getByPlaceholderText('Email address'), 'priority@example.com');
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: /join queue/i }));
+
+    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith(
+      'queue_join',
+      {
+        body: expect.objectContaining({
+          airportCode: 'TST',
+          locationCode: 'massage-studio',
+          customerType: 'priority_pass',
+          serviceLabel: 'Priority Pass',
           consentKey: 'queue_join_consent_bodywork',
         }),
       }

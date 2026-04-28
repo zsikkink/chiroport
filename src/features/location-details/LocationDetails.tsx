@@ -30,10 +30,10 @@ const UNDECIDED_TREATMENT = TREATMENTS.find(
   (treatment) => treatment.title === 'Undecided'
 );
 
-const sectionLabelClass = 'text-left text-lg font-bold text-black';
+const sectionLabelClass = 'text-size-stable text-left text-[22px] leading-tight font-bold text-black';
 
 const selectionButtonClass = `
-  w-full rounded-xl border px-4 py-3 text-lg font-semibold
+  text-size-stable w-full rounded-xl border px-4 py-3 text-[22px] leading-tight font-bold
   appearance-none select-none touch-manipulation
   [-webkit-tap-highlight-color:transparent]
   text-slate-900
@@ -77,12 +77,20 @@ interface SelectionButtonProps {
   selected: boolean;
   onClick: () => void;
   className?: string;
+  ariaLabel?: string;
 }
 
-function SelectionButton({ label, selected, onClick, className = '' }: SelectionButtonProps) {
+function SelectionButton({
+  label,
+  selected,
+  onClick,
+  className = '',
+  ariaLabel,
+}: SelectionButtonProps) {
   return (
     <button
       type="button"
+      aria-label={ariaLabel}
       aria-pressed={selected}
       onClick={onClick}
       style={selected ? selectedSelectionButtonStyle : undefined}
@@ -106,7 +114,7 @@ export default function LocationDetails({
   const initialStep: Step = isOffersMassage
     ? 'category'
     : isMassageOnly
-      ? 'massage_options'
+      ? 'category'
       : 'question';
   const [state, dispatch] = useReducer(
     wizardReducer,
@@ -123,9 +131,9 @@ export default function LocationDetails({
   const showEmailField = true;
   const requireEmail = true;
 
-  const consentSuffix = (
+  const consentLabel = (
     <>
-      {' '}I agree to the{' '}
+      I agree to the{' '}
       <a className="underline text-blue-600 hover:text-blue-700" href="/privacy-policy">
         Privacy Policy
       </a>{' '}
@@ -137,28 +145,9 @@ export default function LocationDetails({
     </>
   );
 
-  const consentLabel = isBodyworkVisitor ? (
-    <>
-      I consent to bodywork services from The Chiroport and release The Chiroport and its
-      providers from liability for normal reactions except in cases of negligence. I
-      agree to receive SMS updates about my visit. Msg & data rates may apply. Reply
-      STOP to unsubscribe. Reply HELP for help.
-      {consentSuffix}
-    </>
-  ) : (
-    <>
-      I consent to receiving chiropractic care from The Chiroport. I understand that
-      chiropractic adjustments are generally safe and effective, and I release The
-      Chiroport and its providers from any liability for injuries or effects except
-      those caused by gross negligence. I agree to receive SMS updates about my visit.
-      Msg & data rates may apply. Reply STOP to unsubscribe. Reply HELP for help.
-      {consentSuffix}
-    </>
-  );
-
   const uiOverrides = locationInfo.uiOverrides;
   const massageCategoryLabel = uiOverrides?.massageCategoryLabel ?? 'Massage';
-  const massageOptionsTitle = uiOverrides?.massageOptionsTitle ?? 'Select length';
+  const massageOptionsTitle = uiOverrides?.massageOptionsTitle ?? 'Choose duration';
   const joinServiceSummary =
     uiOverrides?.joinServiceSummary ?? 'Service includes stretching, muscle work, and massage.';
 
@@ -211,6 +200,41 @@ export default function LocationDetails({
     }
   };
 
+  const categoryOptions: Array<{
+    category: Exclude<VisitCategory, null>;
+    label: string;
+    className: string;
+  }> = isMassageOnly
+    ? [
+        {
+          category: 'massage',
+          label: massageCategoryLabel,
+          className: 'min-h-[4.25rem]',
+        },
+        {
+          category: 'priority_pass',
+          label: 'Priority Pass / Lounge Key',
+          className: 'min-h-[4.25rem] leading-snug',
+        },
+      ]
+    : [
+        {
+          category: 'priority_pass',
+          label: 'Priority Pass / Lounge Key',
+          className: 'min-h-[4.25rem] leading-snug',
+        },
+        {
+          category: 'chiropractor',
+          label: 'Chiropractor',
+          className: 'min-h-[4.25rem]',
+        },
+        {
+          category: 'massage',
+          label: massageCategoryLabel,
+          className: 'min-h-[4.25rem]',
+        },
+      ];
+
   const showUpsellQuestion = isOffersMassage
     ? state.visitCategory === 'priority_pass'
     : isMassageOnly
@@ -218,13 +242,20 @@ export default function LocationDetails({
       : state.isMember === true;
 
   const showMassageOptions =
-    isMassageOnly || (isOffersMassage && state.visitCategory === 'massage');
+    (isMassageOnly && state.visitCategory === 'massage') ||
+    (isOffersMassage && state.visitCategory === 'massage');
 
   const missingFlowRequirement = (() => {
     if (isMassageOnly) {
-      return state.selectedTreatment
-        ? null
-        : 'Select a massage option before joining the queue.';
+      if (!state.visitCategory) {
+        return 'Choose Massage or Priority Pass before joining the queue.';
+      }
+
+      if (showMassageOptions && !state.selectedTreatment) {
+        return 'Select a massage option before joining the queue.';
+      }
+
+      return null;
     }
 
     if (isOffersMassage) {
@@ -410,30 +441,21 @@ export default function LocationDetails({
       <ResponsiveCard className="overflow-hidden [&_button]:!shadow-none [&_button:hover]:!shadow-none [&_button:active]:!shadow-none [&_button:hover]:!translate-y-0 [&_button:active]:!translate-y-0 [&_button]:[-webkit-tap-highlight-color:transparent]">
         <div className="space-y-8 py-4">
           <section className="space-y-4">
-            {isOffersMassage ? (
+            {isOffersMassage || isMassageOnly ? (
               <div className="space-y-3">
                 <p className="text-left text-lg font-bold text-black">
                   Select category <span className="text-red-600">*</span>
                 </p>
                 <div className="grid grid-cols-1 gap-3">
-                  <SelectionButton
-                    onClick={() => handleCategorySelect('priority_pass')}
-                    selected={state.visitCategory === 'priority_pass'}
-                    label="Priority Pass / Lounge Key"
-                    className="min-h-[4.25rem] leading-snug"
-                  />
-                  <SelectionButton
-                    onClick={() => handleCategorySelect('chiropractor')}
-                    selected={state.visitCategory === 'chiropractor'}
-                    label="Chiropractor"
-                    className="min-h-[4.25rem]"
-                  />
-                  <SelectionButton
-                    onClick={() => handleCategorySelect('massage')}
-                    selected={state.visitCategory === 'massage'}
-                    label={massageCategoryLabel}
-                    className="min-h-[4.25rem]"
-                  />
+                  {categoryOptions.map((option) => (
+                    <SelectionButton
+                      key={option.category}
+                      onClick={() => handleCategorySelect(option.category)}
+                      selected={state.visitCategory === option.category}
+                      label={option.label}
+                      className={option.className}
+                    />
+                  ))}
                 </div>
               </div>
             ) : !isMassageOnly ? (
@@ -508,13 +530,27 @@ export default function LocationDetails({
                         key={option.title}
                         onClick={() => dispatch({ type: 'SELECT_TREATMENT', treatment: option })}
                         selected={state.selectedTreatment?.title === option.title}
+                        ariaLabel={`${option.title} ${option.price}`}
                         label={
-                          <span className="w-full text-center font-bold text-lg leading-snug">
-                            <span>{option.title}</span>{' '}
-                            <span className="font-normal">{option.price}</span>
-                          </span>
+                          (() => {
+                            const [durationValue = option.title, durationUnit = ''] =
+                              option.title.split(' ');
+                            return (
+                              <span className="text-size-stable flex w-full flex-col items-center justify-center gap-1 text-center">
+                                <span className="text-[22px] font-bold leading-tight">
+                                  {durationValue}
+                                </span>
+                                <span className="text-[22px] font-bold leading-tight">
+                                  {durationUnit}
+                                </span>
+                                <span className="text-[22px] font-normal leading-tight">
+                                  {option.price}
+                                </span>
+                              </span>
+                            );
+                          })()
                         }
-                        className="min-h-[4.25rem]"
+                        className="min-h-[104px] px-2 py-3"
                       />
                     ))}
                   </div>

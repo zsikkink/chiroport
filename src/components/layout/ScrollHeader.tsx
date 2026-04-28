@@ -98,8 +98,8 @@ export default function ScrollHeader({
               />
             </button>
           </div>
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-16">
-            <span className="max-w-full truncate text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-white">
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-14 sm:px-16">
+            <span className="text-size-stable max-w-full truncate text-[20px] leading-tight sm:text-[22px] md:text-[24px] font-semibold tracking-tight text-white">
               {title}
             </span>
           </div>

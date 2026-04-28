@@ -1115,7 +1115,23 @@ export default function EmployeeDashboardPage() {
                     )
                   }
                 />
-                Consent confirmed by customer
+                <span>
+                  I agree to the{' '}
+                  <a
+                    href="/privacy-policy"
+                    className="text-emerald-700 underline underline-offset-2 hover:text-emerald-800"
+                  >
+                    Privacy Policy
+                  </a>{' '}
+                  and{' '}
+                  <a
+                    href="/terms-and-conditions"
+                    className="text-emerald-700 underline underline-offset-2 hover:text-emerald-800"
+                  >
+                    Terms &amp; Conditions
+                  </a>
+                  .
+                </span>
               </label>
             </div>
             <div className="mt-6 flex justify-center gap-3">
