@@ -30,7 +30,7 @@ export function InputField({
 }: InputFieldProps) {
   return (
     <div>
-      <label className="text-size-stable block text-black text-[20px] leading-tight font-bold mb-2">
+      <label className="text-size-stable block text-black text-[18px] leading-tight font-bold mb-2">
         {label} {required && <span className="text-red-600">*</span>}
       </label>
       <input
@@ -38,9 +38,9 @@ export function InputField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="text-size-stable min-h-[64px] w-full bg-white text-slate-900 text-[20px] leading-tight rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-100 placeholder-gray-500"
+        className="text-size-stable min-h-[58px] w-full bg-white text-slate-900 text-[18px] leading-tight rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-100 placeholder-gray-500"
       />
-      {error && <p className="text-size-stable text-red-400 text-[18px] leading-tight mt-1">{error}</p>}
+      {error && <p className="text-size-stable text-red-400 text-[16px] leading-tight mt-1">{error}</p>}
     </div>
   );
 }
@@ -90,7 +90,7 @@ export function PhoneField({
 
   return (
     <div>
-      <label className="text-size-stable block text-black text-[20px] leading-tight font-bold mb-2">
+      <label className="text-size-stable block text-black text-[18px] leading-tight font-bold mb-2">
         Phone Number <span className="text-red-600">*</span>
       </label>
 
@@ -102,7 +102,7 @@ export function PhoneField({
           value={intlDisplay}
           onChange={handlePhoneChange}
           placeholder="+44 20 7123 4567"
-          className="text-size-stable min-h-[64px] w-full bg-white text-slate-900 text-[20px] leading-tight rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-100 placeholder-gray-500"
+          className="text-size-stable min-h-[58px] w-full bg-white text-slate-900 text-[18px] leading-tight rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-100 placeholder-gray-500"
         />
       ) : (
         // — U.S. formatting —
@@ -111,12 +111,12 @@ export function PhoneField({
           value={formatUSPhone(details.phone || '')}
           onChange={handlePhoneChange}
           placeholder="Phone number"
-          className="text-size-stable min-h-[64px] w-full bg-white text-slate-900 text-[20px] leading-tight rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-100 placeholder-gray-500"
+          className="text-size-stable min-h-[58px] w-full bg-white text-slate-900 text-[18px] leading-tight rounded-lg p-4 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-100 placeholder-gray-500"
         />
       )}
 
       {submitAttempted && errors.phone && (
-        <p className="text-size-stable text-red-400 text-[18px] leading-tight mt-1">{errors.phone[0]}</p>
+        <p className="text-size-stable text-red-400 text-[16px] leading-tight mt-1">{errors.phone[0]}</p>
       )}
     </div>
   );
@@ -170,12 +170,12 @@ export function ConsentField({
             )}
           </div>
         </div>
-        <span className="text-size-stable ml-3 text-slate-700 text-[18px] leading-relaxed">
+        <span className="text-size-stable ml-3 text-slate-700 text-[16px] leading-relaxed">
           {label} <span className="text-red-600">*</span>
         </span>
       </label>
       {submitAttempted && errors.consent && (
-        <p className="text-size-stable text-red-400 text-[18px] leading-tight mt-2">{errors.consent[0]}</p>
+        <p className="text-size-stable text-red-400 text-[16px] leading-tight mt-2">{errors.consent[0]}</p>
       )}
     </div>
   );

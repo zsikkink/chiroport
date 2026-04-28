@@ -51,9 +51,9 @@ describe('LocationDetails massage-only intake', () => {
     expect(screen.getByRole('button', { name: /^Massage$/i })).toBeTruthy();
     expect(screen.queryByText('Chiropractor')).toBeNull();
     expect(screen.queryByText(/Priority Pass or Lounge Key member/i)).toBeNull();
-    expect(screen.queryByRole('button', { name: /15 minutes/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /20 minutes/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /30 minutes/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /15 mins/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /20 mins/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /30 mins/i })).toBeNull();
     expect(
       screen.getByRole('checkbox', {
         name: /I agree to the Privacy Policy and Terms & Conditions/i,
@@ -85,7 +85,7 @@ describe('LocationDetails massage-only intake', () => {
     );
 
     await user.click(screen.getByRole('button', { name: /^Massage$/i }));
-    await user.click(screen.getByRole('button', { name: /20 minutes/i }));
+    await user.click(screen.getByRole('button', { name: /20 mins/i }));
     await user.type(screen.getByPlaceholderText('Full name'), 'Massage Guest');
     await user.type(screen.getByPlaceholderText('Phone number'), '6125551212');
     await user.type(screen.getByPlaceholderText('Email address'), 'guest@example.com');
@@ -129,7 +129,7 @@ describe('LocationDetails massage-only intake', () => {
     );
 
     await user.click(screen.getByRole('button', { name: /Priority Pass \/ Lounge Key/i }));
-    expect(screen.queryByRole('button', { name: /15 minutes/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /15 mins/i })).toBeNull();
 
     await user.type(screen.getByPlaceholderText('Full name'), 'Priority Guest');
     await user.type(screen.getByPlaceholderText('Phone number'), '6125553434');

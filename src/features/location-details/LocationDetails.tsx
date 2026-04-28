@@ -30,10 +30,10 @@ const UNDECIDED_TREATMENT = TREATMENTS.find(
   (treatment) => treatment.title === 'Undecided'
 );
 
-const sectionLabelClass = 'text-size-stable text-left text-[22px] leading-tight font-bold text-black';
+const sectionLabelClass = 'text-size-stable text-left text-[20px] leading-tight font-bold text-black';
 
 const selectionButtonClass = `
-  text-size-stable w-full rounded-xl border px-4 py-3 text-[22px] leading-tight font-bold
+  text-size-stable w-full rounded-xl border px-4 py-3 text-[20px] leading-tight font-bold
   appearance-none select-none touch-manipulation
   [-webkit-tap-highlight-color:transparent]
   text-slate-900
@@ -530,20 +530,22 @@ export default function LocationDetails({
                         key={option.title}
                         onClick={() => dispatch({ type: 'SELECT_TREATMENT', treatment: option })}
                         selected={state.selectedTreatment?.title === option.title}
-                        ariaLabel={`${option.title} ${option.price}`}
+                        ariaLabel={`${option.title.replace('Minutes', 'mins')} ${option.price}`}
                         label={
                           (() => {
                             const [durationValue = option.title, durationUnit = ''] =
                               option.title.split(' ');
+                            const durationUnitLabel =
+                              durationUnit.toLowerCase() === 'minutes' ? 'mins' : durationUnit;
                             return (
                               <span className="text-size-stable flex w-full flex-col items-center justify-center gap-1 text-center">
-                                <span className="text-[22px] font-bold leading-tight">
+                                <span className="text-[20px] font-bold leading-none">
                                   {durationValue}
                                 </span>
-                                <span className="text-[22px] font-bold leading-tight">
-                                  {durationUnit}
+                                <span className="text-[18px] font-bold leading-tight">
+                                  {durationUnitLabel}
                                 </span>
-                                <span className="text-[22px] font-normal leading-tight">
+                                <span className="text-[18px] font-normal leading-tight">
                                   {option.price}
                                 </span>
                               </span>
