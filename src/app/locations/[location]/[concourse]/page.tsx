@@ -48,12 +48,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
+  const isMassageOnly = concourseInfo.locationInfo.intakeCategory === 'massage_only';
+  const description = isMassageOnly
+    ? `Walk-in massage services at ${airport.name} Airport ${concourseInfo.displayName}. Join the queue for quick, professional bodywork while you travel.`
+    : `Walk-in chiropractic services at ${airport.name} Airport ${concourseInfo.displayName}. Join the queue for quick, professional wellness care while you travel.`;
+  const openGraphDescription = isMassageOnly
+    ? `Walk-in massage services at ${airport.name} Airport ${concourseInfo.displayName}`
+    : `Walk-in chiropractic services at ${airport.name} Airport ${concourseInfo.displayName}`;
+
   return {
     title: `${airport.name} ${concourseInfo.displayName} | Chiroport`,
-    description: `Walk-in chiropractic services at ${airport.name} Airport ${concourseInfo.displayName}. Join the queue for quick, professional wellness care while you travel.`,
+    description,
     openGraph: {
       title: `${airport.name} ${concourseInfo.displayName} | Chiroport`,
-      description: `Walk-in chiropractic services at ${airport.name} Airport ${concourseInfo.displayName}`,
+      description: openGraphDescription,
       images: [
         {
           url: concourseInfo.locationInfo.imageUrl,

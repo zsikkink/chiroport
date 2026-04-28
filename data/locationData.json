@@ -135,6 +135,21 @@
           }
         },
         {
+          "name": "massage-lounge-on-c",
+          "slug": "massage-lounge-on-c",
+          "displayName": "Massage Lounge on C",
+          "locationInfo": {
+            "gate": "C-12",
+            "landmark": "Delta SkyClub",
+            "airportCode": "MSP",
+            "imageUrl": "/images/stores/msp-c.webp",
+            "customLocation": "Located near Gate C12 and across from Delta SkyClub.",
+            "customHours": "7am - 8pm CT",
+            "displayName": "Massage Lounge on C",
+            "intakeCategory": "massage_only"
+          }
+        },
+        {
           "name": "concourse-f",
           "slug": "concourse-f",
           "displayName": "Concourse F",

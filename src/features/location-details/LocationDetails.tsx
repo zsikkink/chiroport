@@ -102,7 +102,12 @@ export default function LocationDetails({
   const supabase = getSupabaseBrowserClient();
   const intakeCategory: IntakeCategory = locationInfo.intakeCategory ?? 'standard';
   const isOffersMassage = intakeCategory === 'offers_massage';
-  const initialStep: Step = isOffersMassage ? 'category' : 'question';
+  const isMassageOnly = intakeCategory === 'massage_only';
+  const initialStep: Step = isOffersMassage
+    ? 'category'
+    : isMassageOnly
+      ? 'massage_options'
+      : 'question';
   const [state, dispatch] = useReducer(
     wizardReducer,
     initialStep,
@@ -110,6 +115,7 @@ export default function LocationDetails({
   );
 
   const isBodyworkVisitor =
+    isMassageOnly ||
     state.isMember === true ||
     state.visitCategory === 'massage' ||
     state.visitCategory === 'priority_pass';
@@ -207,11 +213,20 @@ export default function LocationDetails({
 
   const showUpsellQuestion = isOffersMassage
     ? state.visitCategory === 'priority_pass'
-    : state.isMember === true;
+    : isMassageOnly
+      ? false
+      : state.isMember === true;
 
-  const showMassageOptions = isOffersMassage && state.visitCategory === 'massage';
+  const showMassageOptions =
+    isMassageOnly || (isOffersMassage && state.visitCategory === 'massage');
 
   const missingFlowRequirement = (() => {
+    if (isMassageOnly) {
+      return state.selectedTreatment
+        ? null
+        : 'Select a massage option before joining the queue.';
+    }
+
     if (isOffersMassage) {
       if (!state.visitCategory) {
         return 'Select a category before joining the queue.';
@@ -287,17 +302,15 @@ export default function LocationDetails({
         ? `Massage: ${massageSelection.toLowerCase()}`
         : 'Massage';
 
-      const serviceLabel = wantsAdjustments
-        ? 'Priority Pass + Adjustments'
-        : isPriorityPass
-          ? 'Priority Pass'
-          : intakeCategory === 'offers_massage'
-            ? state.visitCategory === 'chiropractor'
-              ? 'Chiropractor'
-              : state.visitCategory === 'massage'
-                ? massageLabel
-                : 'Paying'
-            : 'Paying';
+      const serviceLabel = (() => {
+        if (wantsAdjustments) return 'Priority Pass + Adjustments';
+        if (isPriorityPass) return 'Priority Pass';
+        if (isMassageOnly) return massageLabel;
+        if (!isOffersMassage) return 'Paying';
+        if (state.visitCategory === 'chiropractor') return 'Chiropractor';
+        if (state.visitCategory === 'massage') return massageLabel;
+        return 'Paying';
+      })();
 
       const consentKey = isBodyworkVisitor
         ? 'queue_join_consent_bodywork'
@@ -423,7 +436,7 @@ export default function LocationDetails({
                   />
                 </div>
               </div>
-            ) : (
+            ) : !isMassageOnly ? (
               <div className="space-y-3">
                 <BodyText size="lg" className="text-black font-extrabold">
                   Priority Pass or Lounge Key member? <span className="text-red-600">*</span>
@@ -441,7 +454,7 @@ export default function LocationDetails({
                   />
                 </div>
               </div>
-            )}
+            ) : null}
 
             <AnimatePresence initial={false}>
               {showUpsellQuestion ? (

@@ -1,6 +1,6 @@
 import locationJson from '../../data/locationData.json';
 
-export type IntakeCategory = 'standard' | 'offers_massage';
+export type IntakeCategory = 'standard' | 'offers_massage' | 'massage_only';
 
 export interface UiOverrides {
   massageCategoryLabel?: string;

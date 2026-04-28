@@ -31,6 +31,10 @@ export const FLOW_CONFIG: Record<IntakeCategory, FlowDefinition> = {
     initialStep: 'category',
     steps: ['category', 'join', 'massage_options', 'details', 'success'],
   },
+  massage_only: {
+    initialStep: 'massage_options',
+    steps: ['massage_options', 'details', 'success'],
+  },
 };
 
 export const FLOW_TRANSITIONS: Record<IntakeCategory, FlowTransitionMap> = {
@@ -47,5 +51,8 @@ export const FLOW_TRANSITIONS: Record<IntakeCategory, FlowTransitionMap> = {
       chiropractor: 'details',
       massage: 'massage_options',
     },
+  },
+  massage_only: {
+    afterTreatmentSelection: 'details',
   },
 };
