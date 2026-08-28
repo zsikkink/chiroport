@@ -2,23 +2,21 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase/server';
 import { logError, logSecurityEvent, debugLog } from '@/server/config';
+import {
+  applyComparisonBaseline,
+  buildTrailingAverageBaselineKpis,
+  getTrailingThirtyDayWindow,
+  normalizeAnalyticsResponse,
+  type AnalyticsDashboardPayload,
+  type AnalyticsResponse,
+  type DailyRepeatShareRow,
+  type LocationAnalyticsInput,
+  type SegmentAnalyticsPair,
+} from '@/app/employee/analytics/dashboardModel';
 
 export const runtime = 'nodejs';
 
 type CustomerTypeFilter = 'paying' | 'priority_pass' | null;
-
-type AnalyticsResponsePayload = {
-  filters?: {
-    date_start?: string | null;
-    date_end?: string | null;
-  };
-  kpis?: Record<string, unknown>;
-  previous_period?: {
-    date_start?: string | null;
-    date_end?: string | null;
-    kpis?: Record<string, unknown> | null;
-  } | null | undefined;
-};
 
 type ScopedLocation = {
   id: string;
@@ -563,10 +561,10 @@ async function deriveOperationalKpis(
 }
 
 function withOperationalKpis(
-  analytics: AnalyticsResponsePayload,
+  analytics: AnalyticsResponse,
   currentKpis: OperationalKpis,
   previousKpis: OperationalKpis | null
-): AnalyticsResponsePayload {
+): AnalyticsResponse {
   const previousPeriod = analytics.previous_period;
 
   return {
@@ -593,6 +591,282 @@ function withOperationalKpis(
                 : previousPeriod.kpis ?? null,
             }
           : null,
+  };
+}
+
+type AnalyticsScope = {
+  locationId: string | null;
+  customerType: CustomerTypeFilter;
+  dateStart: string | null;
+  dateEnd: string | null;
+  includeOperationalKpis: boolean;
+};
+
+async function loadAnalyticsScope(
+  adminClient: ReturnType<typeof createSupabaseServiceClient>,
+  scope: AnalyticsScope
+) {
+  const { data, error } = await adminClient.rpc('get_admin_analytics', {
+    ...(scope.locationId ? { p_location_id: scope.locationId } : {}),
+    ...(scope.dateStart ? { p_date_start: scope.dateStart } : {}),
+    ...(scope.dateEnd ? { p_date_end: scope.dateEnd } : {}),
+    ...(scope.customerType
+      ? { p_customer_type: scope.customerType }
+      : {}),
+  });
+
+  if (error) {
+    throw new Error(`Analytics query failed: ${error.message}`);
+  }
+
+  let analytics = normalizeAnalyticsResponse(
+    data as Partial<AnalyticsResponse>
+  );
+
+  if (!scope.includeOperationalKpis) {
+    return analytics;
+  }
+
+  try {
+    const current = await deriveOperationalKpis(adminClient, {
+      locationId: scope.locationId,
+      customerType: scope.customerType,
+      dateStart: analytics.filters.date_start,
+      dateEnd: analytics.filters.date_end,
+    });
+    const previous =
+      analytics.previous_period?.date_start &&
+      analytics.previous_period.date_end
+        ? await deriveOperationalKpis(adminClient, {
+            locationId: scope.locationId,
+            customerType: scope.customerType,
+            dateStart: analytics.previous_period.date_start,
+            dateEnd: analytics.previous_period.date_end,
+          })
+        : null;
+    analytics = withOperationalKpis(analytics, current, previous);
+  } catch (error) {
+    logError(error as Error, 'analytics_operational_kpis_failed');
+    analytics = withOperationalKpis(
+      analytics,
+      {
+        average_queue_length: null,
+        utilization_rate: null,
+        adjusted_completed_total: null,
+      },
+      null
+    );
+  }
+
+  return analytics;
+}
+
+async function loadDailyRepeatShare(
+  adminClient: ReturnType<typeof createSupabaseServiceClient>,
+  locationId: string | null,
+  dateStart: string | null,
+  dateEnd: string | null
+): Promise<DailyRepeatShareRow[]> {
+  if (!dateStart || !dateEnd) return [];
+  const { data, error } = await adminClient.rpc(
+    'get_admin_daily_repeat_share',
+    {
+      ...(locationId ? { p_location_id: locationId } : {}),
+      p_date_start: dateStart,
+      p_date_end: dateEnd,
+    }
+  );
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row) => {
+    const arrivalsTotal = Number(row.arrivals_total ?? 0);
+    const repeatTotal = Number(row.repeat_total ?? 0);
+    const classifiedTotal = Number(row.classified_total ?? 0);
+    return {
+      local_date: row.local_date,
+      arrivals_total: arrivalsTotal,
+      repeat_total: repeatTotal,
+      repeat_share:
+        classifiedTotal > 0 ? repeatTotal / classifiedTotal : null,
+      classified_total: classifiedTotal,
+    };
+  });
+}
+
+async function loadAnalyticsDashboard(
+  adminClient: ReturnType<typeof createSupabaseServiceClient>,
+  scope: Omit<AnalyticsScope, 'includeOperationalKpis'>
+): Promise<AnalyticsDashboardPayload> {
+  const primary = await loadAnalyticsScope(adminClient, {
+    ...scope,
+    includeOperationalKpis: true,
+  });
+  const resolvedStart = primary.filters.date_start;
+  const resolvedEnd = primary.filters.date_end;
+  const trailingWindow = getTrailingThirtyDayWindow(
+    resolvedStart,
+    resolvedEnd
+  );
+
+  const { data: locations, error: locationsError } = await adminClient
+    .from('locations')
+    .select('id,display_name,airport_code,code')
+    .eq('is_open', true)
+    .order('airport_code', { ascending: true })
+    .order('code', { ascending: true });
+  if (locationsError) throw new Error(locationsError.message);
+
+  const primaryBaselinePromise = trailingWindow
+    ? loadAnalyticsScope(adminClient, {
+        ...scope,
+        dateStart: trailingWindow.start,
+        dateEnd: trailingWindow.end,
+        includeOperationalKpis: true,
+      })
+    : Promise.resolve(null);
+
+  const segmentPromise =
+    scope.customerType === null
+      ? Promise.allSettled([
+          loadAnalyticsScope(adminClient, {
+            locationId: scope.locationId,
+            customerType: 'paying',
+            dateStart: resolvedStart,
+            dateEnd: resolvedEnd,
+            includeOperationalKpis: false,
+          }),
+          loadAnalyticsScope(adminClient, {
+            locationId: scope.locationId,
+            customerType: 'priority_pass',
+            dateStart: resolvedStart,
+            dateEnd: resolvedEnd,
+            includeOperationalKpis: false,
+          }),
+        ])
+      : Promise.resolve(null);
+
+  const locationPromise = Promise.allSettled(
+    (locations ?? []).map(async (location) => {
+      const current = await loadAnalyticsScope(adminClient, {
+        locationId: location.id,
+        customerType: scope.customerType,
+        dateStart: resolvedStart,
+        dateEnd: resolvedEnd,
+        includeOperationalKpis: true,
+      });
+      const baseline = trailingWindow
+        ? await loadAnalyticsScope(adminClient, {
+            locationId: location.id,
+            customerType: scope.customerType,
+            dateStart: trailingWindow.start,
+            dateEnd: trailingWindow.end,
+            includeOperationalKpis: true,
+          })
+        : null;
+      const baselineKpis = baseline
+        ? buildTrailingAverageBaselineKpis(baseline)
+        : null;
+      return {
+        location,
+        current,
+        withBaseline:
+          trailingWindow && baselineKpis
+            ? applyComparisonBaseline(current, {
+                date_start: trailingWindow.start,
+                date_end: trailingWindow.end,
+                kpis: baselineKpis,
+              })
+            : current,
+        baselineApplied: Boolean(trailingWindow && baselineKpis),
+      };
+    })
+  );
+
+  const dailyRepeatPromise =
+    scope.customerType === null
+      ? loadDailyRepeatShare(
+          adminClient,
+          scope.locationId,
+          resolvedStart,
+          resolvedEnd
+        )
+      : Promise.resolve([]);
+
+  const [primaryBaselineResult, segmentResults, locationResults, dailyResult] =
+    await Promise.all([
+      Promise.allSettled([primaryBaselinePromise]),
+      segmentPromise,
+      locationPromise,
+      Promise.allSettled([dailyRepeatPromise]),
+    ]);
+
+  const successfulLocations = locationResults.flatMap((result) =>
+    result.status === 'fulfilled' ? [result.value] : []
+  );
+  const allLocationBaselinesReady =
+    trailingWindow !== null &&
+    successfulLocations.length === (locations ?? []).length &&
+    successfulLocations.every((result) => result.baselineApplied);
+
+  const primaryBaseline = primaryBaselineResult[0];
+  const primaryBaselineKpis =
+    primaryBaseline?.status === 'fulfilled' && primaryBaseline.value
+      ? buildTrailingAverageBaselineKpis(primaryBaseline.value)
+      : null;
+  const useTrailingBaseline = Boolean(
+    trailingWindow && primaryBaselineKpis && allLocationBaselinesReady
+  );
+  const analytics =
+    useTrailingBaseline && trailingWindow && primaryBaselineKpis
+      ? applyComparisonBaseline(primary, {
+          date_start: trailingWindow.start,
+          date_end: trailingWindow.end,
+          kpis: primaryBaselineKpis,
+        })
+      : primary;
+
+  const locationAnalytics: LocationAnalyticsInput[] = successfulLocations.map(
+    (result) => ({
+      location: result.location,
+      analytics: useTrailingBaseline ? result.withBaseline : result.current,
+    })
+  );
+
+  let segmentAnalytics: SegmentAnalyticsPair | null = null;
+  let segmentWarning: string | null = null;
+  if (segmentResults) {
+    const paying = segmentResults[0];
+    const priority = segmentResults[1];
+    if (paying?.status === 'fulfilled' && priority?.status === 'fulfilled') {
+      segmentAnalytics = { paying: paying.value, priority: priority.value };
+    } else {
+      segmentWarning =
+        'Paying versus non-paying comparison could not be loaded for this view.';
+    }
+  }
+
+  const dailyRepeatResult = dailyResult[0];
+  const dailyRepeatRows =
+    dailyRepeatResult?.status === 'fulfilled' ? dailyRepeatResult.value : [];
+
+  return {
+    analytics,
+    location_analytics: locationAnalytics,
+    segment_analytics: segmentAnalytics,
+    daily_repeat_share_rows: dailyRepeatRows,
+    warnings: {
+      comparison:
+        locationAnalytics.length < (locations ?? []).length
+          ? 'Some location comparisons could not be loaded.'
+          : trailingWindow && !useTrailingBaseline
+            ? 'Trailing 30-day baselines were unavailable for this single-day comparison, so the dashboard fell back to the previous period.'
+            : null,
+      segment: segmentWarning,
+      daily_repeat:
+        dailyRepeatResult?.status === 'rejected'
+          ? 'Daily repeat-share values could not be loaded.'
+          : null,
+    },
   };
 }
 
@@ -669,80 +943,20 @@ export async function GET(request: NextRequest) {
       date_end: dateEnd,
     });
 
-    const { data: analytics, error: analyticsError } = await adminClient.rpc(
-      'get_admin_analytics',
-      {
-        p_location_id: locationId,
-        p_date_start: dateStart,
-        p_date_end: dateEnd,
-        p_customer_type: customerType,
-      }
-    );
-
-    if (analyticsError) {
-      logError(
-        new Error(analyticsError.message),
-        `analytics_rpc_failed:${analyticsError.code ?? 'unknown'}`
-      );
-      console.error('[ANALYTICS_RPC]', {
-        user_id: authData.user.id,
-        location_id: locationId,
-        customer_type: customerType,
-        date_start: dateStart,
-        date_end: dateEnd,
-        code: analyticsError.code,
-        details: analyticsError.details,
-        hint: analyticsError.hint,
-      });
-      return NextResponse.json(
-        { error: 'Failed to load analytics.' },
-        { status: 500 }
-      );
-    }
-
-    let responsePayload = analytics as AnalyticsResponsePayload;
-
-    if (includeOperationalKpis && responsePayload && typeof responsePayload === 'object') {
-      try {
-        const currentDerivedKpis = await deriveOperationalKpis(adminClient, {
+    const responsePayload = searchParams.get('dashboard') === '1'
+      ? await loadAnalyticsDashboard(adminClient, {
           locationId,
           customerType,
-          dateStart: responsePayload.filters?.date_start,
-          dateEnd: responsePayload.filters?.date_end,
+          dateStart,
+          dateEnd,
+        })
+      : await loadAnalyticsScope(adminClient, {
+          locationId,
+          customerType,
+          dateStart,
+          dateEnd,
+          includeOperationalKpis,
         });
-
-        const previousDerivedKpis =
-          responsePayload.previous_period?.date_start &&
-          responsePayload.previous_period?.date_end
-            ? await deriveOperationalKpis(adminClient, {
-                locationId,
-                customerType,
-                dateStart: responsePayload.previous_period.date_start,
-                dateEnd: responsePayload.previous_period.date_end,
-              })
-            : null;
-
-        responsePayload = withOperationalKpis(
-          responsePayload,
-          currentDerivedKpis,
-          previousDerivedKpis
-        );
-      } catch (derivedMetricsError) {
-        logError(
-          derivedMetricsError as Error,
-          'analytics_operational_kpis_failed'
-        );
-        responsePayload = withOperationalKpis(
-          responsePayload,
-          {
-            average_queue_length: null,
-            utilization_rate: null,
-            adjusted_completed_total: null,
-          },
-          null
-        );
-      }
-    }
 
     return NextResponse.json(responsePayload, {
       status: 200,

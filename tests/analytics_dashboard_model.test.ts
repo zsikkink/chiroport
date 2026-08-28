@@ -1,11 +1,15 @@
 import {
+  applyComparisonBaseline,
   buildChainComparisonSummary,
   buildSegmentComparisonModel,
   buildTrailingAverageBaselineKpis,
   buildExecutiveSummary,
   buildLocationComparisonRows,
+  getTrailingThirtyDayWindow,
   getStoryMode,
+  normalizeAnalyticsResponse,
   sortLocationComparisonRows,
+  type AnalyticsDashboardPayload,
   type AnalyticsResponse,
   type LocationOption,
 } from '@/app/employee/analytics/dashboardModel';
@@ -104,6 +108,49 @@ function makeAnalyticsResponse(overrides?: AnalyticsResponseOverrides): Analytic
 }
 
 describe('analytics dashboard model', () => {
+  it('normalizes the canonical dashboard payload at its server boundary', () => {
+    const base = makeAnalyticsResponse();
+    const analytics = normalizeAnalyticsResponse({
+      filters: {
+        location_id: null,
+        date_start: '2026-03-16',
+        date_end: '2026-03-16',
+        customer_type: null,
+      },
+      kpis: { ...base.kpis, arrivals_total: 7 },
+    });
+    const payload: AnalyticsDashboardPayload = {
+      analytics,
+      location_analytics: [],
+      segment_analytics: null,
+      daily_repeat_share_rows: [],
+      warnings: {
+        comparison: null,
+        segment: null,
+        daily_repeat: null,
+      },
+    };
+
+    expect(payload.analytics.kpis.arrivals_total).toBe(7);
+    expect(payload.analytics.series).toEqual([]);
+    expect(payload.analytics.hourly_series).toEqual([]);
+    expect(payload.analytics.previous_period).toBeNull();
+  });
+
+  it('uses a prior 30-day window only for single-day comparisons', () => {
+    expect(getTrailingThirtyDayWindow('2026-03-16', '2026-03-16')).toEqual({
+      start: '2026-02-14',
+      end: '2026-03-15',
+    });
+    expect(getTrailingThirtyDayWindow('2026-03-10', '2026-03-16')).toBeNull();
+
+    const current = makeAnalyticsResponse();
+    const baseline = makeAnalyticsResponse().previous_period;
+    expect(applyComparisonBaseline(current, baseline).previous_period).toBe(
+      baseline
+    );
+  });
+
   it('selects the correct story mode from the resolved window', () => {
     expect(
       getStoryMode({

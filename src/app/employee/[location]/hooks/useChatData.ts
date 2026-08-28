@@ -28,21 +28,17 @@ export function useChatData(options: UseChatDataOptions) {
   const loadChatMessages = useCallback(async (entry: ChatEntry) => {
     setChatLoading(true);
     setChatError('');
-    const hasPhone = Boolean(entry.phone_e164);
-
     const [outbox, inbound] = await Promise.all([
       supabase
         .from('sms_outbox')
         .select('id, body, status, created_at, sent_at, message_type')
         .eq('queue_entry_id', entry.queue_entry_id)
         .order('created_at', { ascending: true }),
-      hasPhone
-        ? supabase
-            .from('sms_inbound')
-            .select('id, body, received_at')
-            .eq('from_phone', entry.phone_e164 as string)
-            .order('received_at', { ascending: true })
-        : Promise.resolve({ data: [], error: null }),
+      supabase
+        .from('sms_inbound')
+        .select('id, body, received_at')
+        .eq('queue_entry_id', entry.queue_entry_id)
+        .order('received_at', { ascending: true }),
     ]);
 
     if (outbox.error || inbound.error) {
@@ -124,6 +120,12 @@ export function useChatData(options: UseChatDataOptions) {
     setChatDraft('');
   }, []);
 
+  const reloadActiveChat = useCallback(async () => {
+    const activeEntry = chatEntryRef.current;
+    if (!activeEntry) return;
+    await loadChatMessages(activeEntry);
+  }, [loadChatMessages]);
+
   const handleSendMessage = useCallback(async () => {
     if (!chatEntry) return;
     if (!chatDraft.trim()) return;
@@ -164,5 +166,6 @@ export function useChatData(options: UseChatDataOptions) {
     closeChat,
     handleSendMessage,
     loadChatMessages,
+    reloadActiveChat,
   };
 }

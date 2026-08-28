@@ -1,4 +1,4 @@
-import { parsePhoneNumberFromString } from 'npm:libphonenumber-js@1.12.8';
+import { parsePhoneNumberFromString } from 'npm:libphonenumber-js';
 
 export function normalizePhoneToE164(phone: string): string | null {
   if (!phone) return null;

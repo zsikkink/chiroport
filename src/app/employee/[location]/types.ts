@@ -1,4 +1,5 @@
 import type { Database } from '@/lib/supabase/database.types';
+import type { OfferingCode } from '@/domain/services/catalog';
 
 export type EmployeeProfile = {
   role: Database['public']['Enums']['employee_role'];
@@ -56,22 +57,13 @@ export type EditFormState = {
   fullName: string;
   email: string;
   phone: string;
-  serviceLabel: string;
-  customerType: 'paying' | 'priority_pass';
+  offeringCode: OfferingCode;
 };
 
 export type CreateFormState = {
   fullName: string;
   email: string;
   phone: string;
-  serviceLabel: string;
-  customerType: 'paying' | 'priority_pass';
+  offeringCode: OfferingCode;
   consent: boolean;
-};
-
-export type EntrySnapshot = {
-  entryId: string;
-  waiting?: WithEntryId<WaitingRow>;
-  serving?: WithEntryId<ServingRow>;
-  history?: WithEntryId<HistoryRow>;
 };

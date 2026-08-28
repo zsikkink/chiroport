@@ -10,6 +10,15 @@ export type TestEnv = {
 
 let loaded = false;
 
+function isLocalSupabaseUrl(value: string) {
+  try {
+    const hostname = new URL(value).hostname;
+    return hostname === '127.0.0.1' || hostname === 'localhost';
+  } catch {
+    return false;
+  }
+}
+
 function loadEnvLocal() {
   if (loaded) return;
   loaded = true;
@@ -33,6 +42,12 @@ export function getTestEnv(): TestEnv | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) return null;
+  if (
+    !isLocalSupabaseUrl(url) &&
+    process.env.CHIROPORT_ALLOW_REMOTE_TESTS !== '1'
+  ) {
+    return null;
+  }
   const env: TestEnv = { url, anonKey };
   if (process.env.SUPABASE_SECRET_KEY) {
     env.serviceKey = process.env.SUPABASE_SECRET_KEY;

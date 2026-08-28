@@ -139,17 +139,19 @@ export default function EmployeeDashboardPage() {
       return;
     }
     const matchedOption =
+      TREATMENT_OPTIONS.find((option) => option.code === editEntry.offering_code) ??
       TREATMENT_OPTIONS.find((option) => option.label === editEntry.service_label) ??
-      TREATMENT_OPTIONS.find(
-        (option) => option.customerType === (editEntry.customer_type ?? 'priority_pass')
+      TREATMENT_OPTIONS.find((option) =>
+        editEntry.customer_type === 'priority_pass'
+          ? option.code === 'priority_pass'
+          : option.code === 'chiropractic'
       ) ??
       TREATMENT_OPTIONS[0];
     setEditForm({
       fullName: editEntry.full_name ?? '',
       email: editEntry.email ?? '',
       phone: editEntry.phone_e164 ?? '',
-      serviceLabel: matchedOption?.label ?? editEntry.service_label ?? 'Paying',
-      customerType: matchedOption?.customerType ?? (editEntry.customer_type ?? 'priority_pass'),
+      offeringCode: matchedOption?.code ?? 'chiropractic',
     });
   }, [editEntry]);
 
@@ -300,6 +302,7 @@ export default function EmployeeDashboardPage() {
     handleSendMessage,
     setChatMessages,
     setUnreadEntryIds,
+    reloadActiveChat,
   } = useChatData({ invokeEmployeeFunction });
 
   useRealtimeSubscriptions(
@@ -317,11 +320,13 @@ export default function EmployeeDashboardPage() {
       fetchWaitingEntry,
       fetchServingEntry,
       fetchHistoryEntry,
+      refreshQueueData: queueData.refreshQueueData,
     },
     {
       chatEntryRef,
       setChatMessages,
       setUnreadEntryIds,
+      reloadActiveChat,
     }
   );
 
@@ -343,7 +348,6 @@ export default function EmployeeDashboardPage() {
     setActionError,
     queueState: queueData,
     invokeEmployeeFunction,
-    getFunctionHeaders,
   });
 
   const handleDeleteWithChat = useCallback(
@@ -395,15 +399,14 @@ export default function EmployeeDashboardPage() {
 
   const handleOpenCreateEntry = useCallback(() => {
     const option = TREATMENT_OPTIONS[0] ?? {
+      code: 'chiropractic' as const,
       label: 'Paying',
-      customerType: 'paying' as const,
     };
     setCreateForm({
       fullName: '',
       email: '',
       phone: '',
-      serviceLabel: option.label,
-      customerType: option.customerType,
+      offeringCode: option.code,
       consent: false,
     });
     setCreateEntryOpen(true);
@@ -974,25 +977,23 @@ export default function EmployeeDashboardPage() {
                 Treatment
                 <select
                   className="mt-1 w-full rounded-md bg-white text-black px-3 py-2"
-                  value={editForm.serviceLabel}
+                  value={editForm.offeringCode}
                   onChange={(event) => {
-                    const selectedLabel = event.target.value;
                     const option = TREATMENT_OPTIONS.find(
-                      (item) => item.label === selectedLabel
+                      (item) => item.code === event.target.value
                     );
                     setEditForm((prev) =>
-                      prev
+                      prev && option
                         ? {
                             ...prev,
-                            serviceLabel: selectedLabel,
-                            customerType: option?.customerType ?? prev.customerType,
+                            offeringCode: option.code,
                           }
                         : prev
                     );
                   }}
                 >
                   {TREATMENT_OPTIONS.map((option) => (
-                    <option key={option.label} value={option.label}>
+                    <option key={option.code} value={option.code}>
                       {option.label}
                     </option>
                   ))}
@@ -1081,25 +1082,23 @@ export default function EmployeeDashboardPage() {
                 Treatment
                 <select
                   className="mt-1 w-full rounded-md bg-white text-black px-3 py-2"
-                  value={createForm.serviceLabel}
+                  value={createForm.offeringCode}
                   onChange={(event) => {
-                    const selectedLabel = event.target.value;
                     const option = TREATMENT_OPTIONS.find(
-                      (item) => item.label === selectedLabel
+                      (item) => item.code === event.target.value
                     );
                     setCreateForm((prev) =>
-                      prev
+                      prev && option
                         ? {
                             ...prev,
-                            serviceLabel: selectedLabel,
-                            customerType: option?.customerType ?? prev.customerType,
+                            offeringCode: option.code,
                           }
                         : prev
                     );
                   }}
                 >
                   {TREATMENT_OPTIONS.map((option) => (
-                    <option key={option.label} value={option.label}>
+                    <option key={option.code} value={option.code}>
                       {option.label}
                     </option>
                   ))}

@@ -82,6 +82,33 @@ export type AnalyticsResponse = {
   previous_period: AnalyticsPreviousPeriod | null;
 };
 
+export type SegmentAnalyticsPair = {
+  paying: AnalyticsResponse | null;
+  priority: AnalyticsResponse | null;
+};
+
+export type DailyRepeatShareRow = {
+  local_date: string;
+  arrivals_total: number;
+  repeat_total: number | null;
+  repeat_share: number | null;
+  classified_total: number | null;
+};
+
+export type AnalyticsDashboardWarnings = {
+  comparison: string | null;
+  segment: string | null;
+  daily_repeat: string | null;
+};
+
+export type AnalyticsDashboardPayload = {
+  analytics: AnalyticsResponse;
+  location_analytics: LocationAnalyticsInput[];
+  segment_analytics: SegmentAnalyticsPair | null;
+  daily_repeat_share_rows: DailyRepeatShareRow[];
+  warnings: AnalyticsDashboardWarnings;
+};
+
 export type StoryMode = 'single_day' | 'multi_day' | 'long_range';
 export type SortDirection = 'asc' | 'desc';
 export type LocationSortKey =
@@ -208,10 +235,72 @@ export type ChainComparisonSummary = {
   before_service_loss_rate: number | null;
 };
 
-type LocationAnalyticsInput = {
+export type LocationAnalyticsInput = {
   location: LocationOption;
   analytics: AnalyticsResponse | null;
 };
+
+export const EMPTY_ANALYTICS_KPIS: AnalyticsKpis = {
+  arrivals_total: 0,
+  arrivals_paying: 0,
+  arrivals_non_paying: 0,
+  served_total: 0,
+  completed_total: 0,
+  adjusted_completed_total: null,
+  cancelled_total: 0,
+  cancelled_before_served_total: 0,
+  completion_rate: null,
+  dropoff_rate: null,
+  average_queue_length: null,
+  utilization_rate: null,
+  wait_avg_minutes: null,
+  time_in_system_avg_minutes: null,
+  new_customers_rate: null,
+  repeat_customers_rate: null,
+};
+
+export function normalizeAnalyticsResponse(
+  candidate: Partial<AnalyticsResponse>
+): AnalyticsResponse {
+  return {
+    filters: candidate.filters ?? {
+      location_id: null,
+      date_start: null,
+      date_end: null,
+      customer_type: null,
+    },
+    kpis: {
+      ...EMPTY_ANALYTICS_KPIS,
+      ...(candidate.kpis ?? {}),
+    },
+    series: Array.isArray(candidate.series) ? candidate.series : [],
+    hourly_series: Array.isArray(candidate.hourly_series)
+      ? candidate.hourly_series
+      : [],
+    previous_period:
+      candidate.previous_period && typeof candidate.previous_period === 'object'
+        ? candidate.previous_period
+        : null,
+  };
+}
+
+export function getTrailingThirtyDayWindow(
+  dateStart: string | null,
+  dateEnd: string | null
+) {
+  if (!dateStart || !dateEnd || dateStart !== dateEnd) return null;
+  const end = shiftIsoDate(dateStart, -1);
+  if (!end) return null;
+  const start = shiftIsoDate(end, -29);
+  return start ? { start, end } : null;
+}
+
+export function applyComparisonBaseline(
+  analytics: AnalyticsResponse,
+  previousPeriod: AnalyticsPreviousPeriod | null
+): AnalyticsResponse {
+  return { ...analytics, previous_period: previousPeriod };
+}
 
 export const WAIT_TARGET_MINUTES = 15;
 const WAIT_ALERT_MINUTES = 18;

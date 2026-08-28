@@ -1,6 +1,11 @@
-import { findConcourse, getLocationRoute } from '@/lib';
+import { airportLocations, findAirport, findConcourse, getLocationRoute } from '@/lib';
 
 describe('location data', () => {
+  it('does not publish the closed DFW location', () => {
+    expect(findAirport('dallas')).toBeNull();
+    expect(airportLocations.some((airport) => airport.code === 'DFW')).toBe(false);
+  });
+
   it('keeps MSP Concourse C on standard intake without the massage category', () => {
     const concourse = findConcourse('minneapolis', 'concourse-c');
 

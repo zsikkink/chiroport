@@ -1,62 +1,28 @@
-import type { IntakeCategory } from '@/data/locationData';
-import type { Step, TreatmentOption, VisitCategory } from './types';
+import type { TreatmentOption } from './types';
+import { OFFERING_CODES } from '@/domain/services/catalog';
 
 export { TREATMENTS } from '@/domain/services/catalog';
 
 export const MASSAGE_OPTIONS: readonly TreatmentOption[] = [
-  { title: '15 Minutes', price: '$55', time: '', description: '' },
-  { title: '20 Minutes', price: '$65', time: '', description: '' },
-  { title: '30 Minutes', price: '$85', time: '', description: '' },
+  {
+    offeringCode: OFFERING_CODES.MASSAGE_15,
+    title: '15 Minutes',
+    price: '$55',
+    time: '',
+    description: '',
+  },
+  {
+    offeringCode: OFFERING_CODES.MASSAGE_20,
+    title: '20 Minutes',
+    price: '$65',
+    time: '',
+    description: '',
+  },
+  {
+    offeringCode: OFFERING_CODES.MASSAGE_30,
+    title: '30 Minutes',
+    price: '$85',
+    time: '',
+    description: '',
+  },
 ] as const;
-
-export interface FlowDefinition {
-  initialStep: Step;
-  steps: Step[];
-}
-
-export interface FlowTransitionMap {
-  afterMemberYes?: Step;
-  afterMemberNo?: Step;
-  afterSpinalDecision?: Step;
-  afterTreatmentSelection?: Step;
-  category?: Partial<Record<Exclude<VisitCategory, null>, Step>>;
-}
-
-export const FLOW_CONFIG: Record<IntakeCategory, FlowDefinition> = {
-  standard: {
-    initialStep: 'question',
-    steps: ['question', 'join', 'nonmember', 'details', 'success'],
-  },
-  offers_massage: {
-    initialStep: 'category',
-    steps: ['category', 'join', 'massage_options', 'details', 'success'],
-  },
-  massage_only: {
-    initialStep: 'category',
-    steps: ['category', 'massage_options', 'details', 'success'],
-  },
-};
-
-export const FLOW_TRANSITIONS: Record<IntakeCategory, FlowTransitionMap> = {
-  standard: {
-    afterMemberYes: 'join',
-    afterMemberNo: 'details',
-    afterSpinalDecision: 'details',
-    afterTreatmentSelection: 'details',
-  },
-  offers_massage: {
-    afterTreatmentSelection: 'details',
-    category: {
-      priority_pass: 'join',
-      chiropractor: 'details',
-      massage: 'massage_options',
-    },
-  },
-  massage_only: {
-    afterTreatmentSelection: 'details',
-    category: {
-      priority_pass: 'details',
-      massage: 'massage_options',
-    },
-  },
-};

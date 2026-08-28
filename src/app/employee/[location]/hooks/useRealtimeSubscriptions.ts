@@ -3,6 +3,11 @@ import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { Database } from '@/lib/supabase/database.types';
 import type { ChatEntry, ChatMessage, HistoryRow, ServingRow, WaitingRow, WithEntryId } from '../types';
 import {
+  initialRealtimeRecoveryState,
+  transitionRealtimeRecovery,
+  type RealtimeRecoveryState,
+} from './realtimeRecovery';
+import {
   removeEntry,
   sortHistoryEntries,
   sortServingEntries,
@@ -27,12 +32,14 @@ type QueueState = {
   fetchWaitingEntry: (entryId: string) => Promise<WithEntryId<WaitingRow> | null>;
   fetchServingEntry: (entryId: string) => Promise<WithEntryId<ServingRow> | null>;
   fetchHistoryEntry: (entryId: string) => Promise<WithEntryId<HistoryRow> | null>;
+  refreshQueueData: (options?: { showLoading?: boolean; reason?: string }) => Promise<void>;
 };
 
 type ChatState = {
   chatEntryRef: React.MutableRefObject<ChatEntry | null>;
   setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   setUnreadEntryIds: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  reloadActiveChat: () => Promise<void>;
 };
 
 export function useRealtimeSubscriptions(queueState: QueueState, chatState: ChatState) {
@@ -50,11 +57,41 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
     fetchWaitingEntry,
     fetchServingEntry,
     fetchHistoryEntry,
+    refreshQueueData,
   } = queueState;
-  const { chatEntryRef, setChatMessages, setUnreadEntryIds } = chatState;
+  const { chatEntryRef, setChatMessages, setUnreadEntryIds, reloadActiveChat } = chatState;
 
   const queueSubCountRef = useRef(0);
   const smsSubCountRef = useRef(0);
+  const queueRecoveryRef = useRef<RealtimeRecoveryState>({
+    ...initialRealtimeRecoveryState,
+  });
+  const inboundRecoveryRef = useRef<RealtimeRecoveryState>({
+    ...initialRealtimeRecoveryState,
+  });
+  const outboxRecoveryRef = useRef<RealtimeRecoveryState>({
+    ...initialRealtimeRecoveryState,
+  });
+
+  const handleSubscriptionStatus = useCallback(
+    (
+      recoveryRef: React.MutableRefObject<RealtimeRecoveryState>,
+      status: string,
+      source: string
+    ) => {
+      const transition = transitionRealtimeRecovery(recoveryRef.current, status);
+      recoveryRef.current = transition.state;
+      if (!transition.shouldRefresh) return;
+      void Promise.all([
+        refreshQueueData({
+          showLoading: false,
+          reason: `realtime-reconnected-${source}`,
+        }),
+        reloadActiveChat(),
+      ]);
+    },
+    [refreshQueueData, reloadActiveChat]
+  );
 
   const handleQueueEntryChange = useCallback(
     async (payload: {
@@ -189,12 +226,14 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
           void handleQueueEntryChange(payload);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        handleSubscriptionStatus(queueRecoveryRef, status, 'queue');
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queueId, debugEnabled, handleQueueEntryChange]);
+  }, [queueId, debugEnabled, handleQueueEntryChange, handleSubscriptionStatus]);
 
   useEffect(() => {
     smsSubCountRef.current += 1;
@@ -214,25 +253,22 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
         },
         (payload) => {
           const row = payload.new as {
+            queue_entry_id?: string | null;
             from_phone?: string;
             body?: string;
             received_at?: string;
             id?: string;
           };
-          if (!row?.from_phone || !row.received_at) return;
+          if (!row?.queue_entry_id || !row.received_at) return;
           const receivedAt = row.received_at;
-          const fromPhone = row.from_phone;
+          const entryId = row.queue_entry_id;
           const body = row.body ?? '';
 
           const shouldUpdate = (entry: {
-            phone_e164: string | null;
-            created_at?: string | null;
+            queue_entry_id: string;
             last_inbound_at?: string | null;
           }) => {
-            if (!entry.phone_e164 || entry.phone_e164 !== fromPhone) return false;
-            if (entry.created_at && toEpoch(receivedAt) < toEpoch(entry.created_at)) {
-              return false;
-            }
+            if (entry.queue_entry_id !== entryId) return false;
             if (entry.last_inbound_at && toEpoch(receivedAt) <= toEpoch(entry.last_inbound_at)) {
               return false;
             }
@@ -242,8 +278,6 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
           const updateInbound = <
             T extends {
               queue_entry_id: string;
-              phone_e164: string | null;
-              created_at?: string | null;
               last_inbound_at?: string | null;
               last_inbound_body?: string | null;
             }
@@ -301,7 +335,7 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
               return next;
             });
           }
-          if (activeChat?.phone_e164 === fromPhone) {
+          if (activeChat?.queue_entry_id === entryId) {
             setChatMessages((prev) => [
               ...prev,
               {
@@ -314,7 +348,9 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        handleSubscriptionStatus(inboundRecoveryRef, status, 'inbound-sms');
+      });
 
     const outboxChannel = supabase
       .channel('sms_outbox_updates')
@@ -380,7 +416,9 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        handleSubscriptionStatus(outboxRecoveryRef, status, 'outbound-sms');
+      });
 
     return () => {
       supabase.removeChannel(inboundChannel);
@@ -390,6 +428,9 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
     chatEntryRef,
     debugEnabled,
     historyRef,
+    handleSubscriptionStatus,
+    reloadActiveChat,
+    refreshQueueData,
     servingRef,
     setChatMessages,
     setHistoryEntries,

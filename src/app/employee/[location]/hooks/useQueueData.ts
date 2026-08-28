@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import type { EntrySnapshot, HistoryRow, ServingRow, WaitingRow, WithEntryId } from '../types';
+import type { HistoryRow, ServingRow, WaitingRow, WithEntryId } from '../types';
 import {
   formatSupabaseError,
   hasQueueEntryId,
@@ -165,47 +165,19 @@ export function useQueueData(options: UseQueueDataOptions) {
     setHistoryEntries((prev) => removeEntry(prev, entryId));
   }, []);
 
-  const captureEntrySnapshot = useCallback((entryId: string): EntrySnapshot => {
-    const waiting = waitingRef.current.find((row) => row.queue_entry_id === entryId);
-    const serving = servingRef.current.find((row) => row.queue_entry_id === entryId);
-    const history = historyRef.current.find((row) => row.queue_entry_id === entryId);
-    const snapshot: EntrySnapshot = { entryId };
-    if (waiting) snapshot.waiting = { ...waiting };
-    if (serving) snapshot.serving = { ...serving };
-    if (history) snapshot.history = { ...history };
-    return snapshot;
-  }, []);
-
-  const restoreEntrySnapshot = useCallback((snapshot: EntrySnapshot | null) => {
-    if (!snapshot) return;
-    if (snapshot.waiting) {
-      setWaitingEntries((prev) =>
-        sortWaitingEntries(upsertEntry(prev, snapshot.waiting!))
-      );
-    } else {
-      setWaitingEntries((prev) => removeEntry(prev, snapshot.entryId));
-    }
-    if (snapshot.serving) {
-      setServingEntries((prev) =>
-        sortServingEntries(upsertEntry(prev, snapshot.serving!))
-      );
-    } else {
-      setServingEntries((prev) => removeEntry(prev, snapshot.entryId));
-    }
-    if (snapshot.history) {
-      setHistoryEntries((prev) =>
-        sortHistoryEntries(upsertEntry(prev, snapshot.history!))
-      );
-    } else {
-      setHistoryEntries((prev) => removeEntry(prev, snapshot.entryId));
-    }
+  const findEntry = useCallback((entryId: string) => {
+    return (
+      waitingRef.current.find((row) => row.queue_entry_id === entryId) ??
+      servingRef.current.find((row) => row.queue_entry_id === entryId) ??
+      historyRef.current.find((row) => row.queue_entry_id === entryId) ??
+      null
+    );
   }, []);
 
   const applyOptimisticServing = useCallback(
     (entryId: string) => {
-      const snapshot = captureEntrySnapshot(entryId);
-      const base = snapshot.waiting ?? snapshot.serving ?? snapshot.history ?? null;
-      if (!base) return snapshot;
+      const base = findEntry(entryId);
+      if (!base) return;
       const nowIso = new Date().toISOString();
       const servingEntry = {
         ...(base as ServingRow),
@@ -218,16 +190,14 @@ export function useQueueData(options: UseQueueDataOptions) {
       );
       setWaitingEntries((prev) => removeEntry(prev, entryId));
       setHistoryEntries((prev) => removeEntry(prev, entryId));
-      return snapshot;
     },
-    [captureEntrySnapshot]
+    [findEntry]
   );
 
   const applyOptimisticHistory = useCallback(
     (entryId: string, status: 'completed' | 'cancelled') => {
-      const snapshot = captureEntrySnapshot(entryId);
-      const base = snapshot.waiting ?? snapshot.serving ?? snapshot.history ?? null;
-      if (!base) return snapshot;
+      const base = findEntry(entryId);
+      if (!base) return;
       const nowIso = new Date().toISOString();
       const historyEntry = {
         ...(base as HistoryRow),
@@ -240,16 +210,14 @@ export function useQueueData(options: UseQueueDataOptions) {
       );
       setWaitingEntries((prev) => removeEntry(prev, entryId));
       setServingEntries((prev) => removeEntry(prev, entryId));
-      return snapshot;
     },
-    [captureEntrySnapshot]
+    [findEntry]
   );
 
   const applyOptimisticWaiting = useCallback(
     (entryId: string) => {
-      const snapshot = captureEntrySnapshot(entryId);
-      const base = snapshot.waiting ?? snapshot.serving ?? snapshot.history ?? null;
-      if (!base) return snapshot;
+      const base = findEntry(entryId);
+      if (!base) return;
       const nowIso = new Date().toISOString();
       const waitingEntry = {
         ...(base as WaitingRow),
@@ -261,29 +229,18 @@ export function useQueueData(options: UseQueueDataOptions) {
       );
       setServingEntries((prev) => removeEntry(prev, entryId));
       setHistoryEntries((prev) => removeEntry(prev, entryId));
-      return snapshot;
     },
-    [captureEntrySnapshot]
+    [findEntry]
   );
 
   const applyOptimisticRemoval = useCallback(
     (entryId: string) => {
-      const snapshot = captureEntrySnapshot(entryId);
+      if (!findEntry(entryId)) return;
       setWaitingEntries((prev) => removeEntry(prev, entryId));
       setServingEntries((prev) => removeEntry(prev, entryId));
       setHistoryEntries((prev) => removeEntry(prev, entryId));
-      return snapshot;
     },
-    [captureEntrySnapshot]
-  );
-
-  const applyOptimisticEdit = useCallback(
-    (entryId: string, updates: Partial<WaitingRow & ServingRow & HistoryRow>) => {
-      const snapshot = captureEntrySnapshot(entryId);
-      updateEntryInLists(entryId, updates);
-      return snapshot;
-    },
-    [captureEntrySnapshot, updateEntryInLists]
+    [findEntry]
   );
 
   const fetchWaitingEntry = useCallback(async (entryId: string) => {
@@ -334,13 +291,10 @@ export function useQueueData(options: UseQueueDataOptions) {
     historyRef,
     updateEntryInLists,
     removeEntryFromLists,
-    captureEntrySnapshot,
-    restoreEntrySnapshot,
     applyOptimisticServing,
     applyOptimisticHistory,
     applyOptimisticWaiting,
     applyOptimisticRemoval,
-    applyOptimisticEdit,
     fetchWaitingEntry,
     fetchServingEntry,
     fetchHistoryEntry,

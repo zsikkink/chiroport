@@ -14,11 +14,10 @@ type Payload = {
   fullName?: string;
   email?: string;
   phone?: string;
+  offeringCode?: string;
+  // Kept during the rolling deployment so an older employee UI can still edit.
   serviceLabel?: string;
-  customerType?: 'paying' | 'priority_pass';
 };
-
-const ALLOWED_CUSTOMER_TYPES = new Set(['paying', 'priority_pass']);
 
 serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -62,20 +61,12 @@ serve(async (req) => {
     });
   }
 
-  const serviceLabel = payload.serviceLabel?.trim();
-  if (!serviceLabel) {
+  const requestedOfferingCode = payload.offeringCode?.trim();
+  const legacyServiceLabel = payload.serviceLabel?.trim();
+  if (!requestedOfferingCode && !legacyServiceLabel) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Service label is required' }), {
-      status: 400,
-      headers,
-    });
-  }
-
-  if (!payload.customerType || !ALLOWED_CUSTOMER_TYPES.has(payload.customerType)) {
-    const headers = new Headers();
-    withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Customer type is invalid' }), {
+    return new Response(JSON.stringify({ error: 'Service offering is required' }), {
       status: 400,
       headers,
     });
@@ -139,154 +130,68 @@ serve(async (req) => {
     }
   }
 
-  const { data: entry, error: entryError } = await service
-    .from('queue_entries')
-    .select('id, customer_id, queue_id, customer_type, status, service_label, customer:customers(full_name,email,phone_e164)')
-    .eq('id', payload.queueEntryId)
-    .maybeSingle();
-
-  if (entryError) {
-    console.error('update_queue_entry lookup failed', {
-      error: entryError,
-      queueEntryId: payload.queueEntryId,
-    });
-    const headers = new Headers();
-    withCorsHeaders(headers, origin, path);
-    return new Response(
-      JSON.stringify({ error: entryError.message || 'Failed to load queue entry' }),
-      { status: 500, headers }
-    );
-  }
-
-  if (!entry?.id || !entry.customer_id || !entry.queue_id) {
-    const headers = new Headers();
-    withCorsHeaders(headers, origin, path);
-    return new Response(
-      JSON.stringify({ error: 'Queue entry not found' }),
-      { status: 404, headers }
-    );
-  }
-
   const fullName = payload.fullName?.trim() || null;
   const email = payload.email?.trim().toLowerCase() || null;
-
-  const existingCustomer =
-    typeof entry?.customer === 'object' && entry?.customer
-      ? (entry.customer as {
-          full_name?: string | null;
-          email?: string | null;
-          phone_e164?: string | null;
-        })
-      : null;
-
-  const noCustomerChanges =
-    (existingCustomer?.full_name ?? null) === fullName &&
-    (existingCustomer?.email ?? null) === email &&
-    (existingCustomer?.phone_e164 ?? null) === phoneE164;
-
-  const noQueueChanges =
-    (entry.service_label ?? null) === serviceLabel &&
-    entry.customer_type === payload.customerType;
-
-  if (noCustomerChanges && noQueueChanges) {
-    const headers = new Headers();
-    withCorsHeaders(headers, origin, path);
-    return new Response(
-      JSON.stringify({ error: 'No changes to apply' }),
-      { status: 409, headers }
-    );
-  }
-
-  const { error: customerError } = await service
-    .from('customers')
-    .update({
-      full_name: fullName,
-      email,
-      phone_e164: phoneE164,
-    })
-    .eq('id', entry.customer_id);
-
-  if (customerError) {
-    console.error('update_queue_entry customer update failed', {
-      error: customerError,
-      customerId: entry.customer_id,
-    });
-    const headers = new Headers();
-    withCorsHeaders(headers, origin, path);
-    return new Response(
-      JSON.stringify({
-        error:
-          customerError.code === '23505'
-            ? 'Phone number already in use.'
-            : customerError.message || 'Failed to update customer',
-      }),
-      { status: 400, headers }
-    );
-  }
-
-  const updates: Record<string, unknown> = {
-    service_label: serviceLabel,
-    customer_type: payload.customerType,
-  };
-
-  if (entry.status === 'waiting' && payload.customerType !== entry.customer_type) {
-    const { data: sortKeyData, error: sortKeyError } = await service.rpc(
-      'next_sort_key',
-      {
-        p_queue_id: entry.queue_id,
-        p_customer_type: payload.customerType,
-      }
-    );
-
-    if (sortKeyError) {
-      console.error('update_queue_entry sort_key lookup failed', {
-        error: sortKeyError,
-        queueEntryId: entry.id,
-      });
+  let offeringCode = requestedOfferingCode;
+  if (!offeringCode && legacyServiceLabel) {
+    const { data: legacyOffering, error: legacyOfferingError } = await service
+      .from('service_offerings')
+      .select('code')
+      .eq('display_label', legacyServiceLabel)
+      .eq('is_active', true)
+      .maybeSingle();
+    if (legacyOfferingError || !legacyOffering?.code) {
       const headers = new Headers();
       withCorsHeaders(headers, origin, path);
-      return new Response(
-        JSON.stringify({ error: 'Unable to reorder queue entry' }),
-        { status: 500, headers }
-      );
+      return new Response(JSON.stringify({ error: 'Service offering is invalid' }), {
+        status: 400,
+        headers,
+      });
     }
-
-    updates.sort_key = Number(sortKeyData ?? 0);
+    offeringCode = legacyOffering.code;
   }
 
-  const { data: updated, error: updateError } = await service
-    .from('queue_entries')
-    .update(updates)
-    .eq('id', entry.id)
-    .select('id')
-    .maybeSingle();
+  const { data: updatedRows, error: updateError } = await service.rpc(
+    'staff_edit_queue_entry',
+    {
+      p_entry_id: payload.queueEntryId,
+      p_actor_user_id: userId,
+      p_full_name: fullName,
+      p_email: email,
+      p_phone_e164: phoneE164,
+      p_offering_code: offeringCode ?? '',
+    }
+  );
 
-  if (updateError || !updated) {
-    console.error('update_queue_entry queue update failed', {
+  if (updateError || !updatedRows?.length) {
+    console.error('update_queue_entry command failed', {
       error: updateError,
-      queueEntryId: entry.id,
+      queueEntryId: payload.queueEntryId,
     });
+    const message = updateError?.message || 'Queue entry was not updated';
+    const status = message.includes('not found')
+      ? 404
+      : message.includes('No changes')
+        ? 409
+        : message.includes('invalid') ||
+            message.includes('required') ||
+            updateError?.code === '23505'
+          ? 400
+          : 500;
+    const publicMessage = updateError?.code === '23505'
+      ? 'Phone number already in use.'
+      : message;
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(
-      JSON.stringify({ error: updateError?.message || 'No changes applied' }),
-      { status: updateError ? 500 : 409, headers }
-    );
+    return new Response(JSON.stringify({ error: publicMessage }), {
+      status,
+      headers,
+    });
   }
-
-  await service.from('queue_events').insert({
-    queue_entry_id: entry.id,
-    actor_user_id: userId,
-    event_type: 'edited_by_staff',
-    payload: {
-      service_label: serviceLabel,
-      customer_type: payload.customerType,
-    },
-  });
 
   const headers = new Headers();
   withCorsHeaders(headers, origin, path);
-  return new Response(JSON.stringify({ success: true }), {
+  return new Response(JSON.stringify({ success: true, entry: updatedRows[0] }), {
     status: 200,
     headers,
   });

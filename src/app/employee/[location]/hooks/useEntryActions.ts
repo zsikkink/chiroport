@@ -1,31 +1,22 @@
 import { useCallback, useState } from 'react';
-import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import type { OfferingCode } from '@/domain/services/catalog';
 import type {
   CreateFormState,
-  EntrySnapshot,
-  HistoryRow,
   LocationOption,
-  ServingRow,
   WaitingRow,
   WithEntryId,
 } from '../types';
-import { resolveActionError, sortHistoryEntries, sortWaitingEntries, upsertEntry } from '../utils';
-
-const supabase = getSupabaseBrowserClient();
+import { resolveActionError, sortWaitingEntries, upsertEntry } from '../utils';
 
 type QueueState = {
-  applyOptimisticServing: (entryId: string) => EntrySnapshot | null;
-  applyOptimisticHistory: (entryId: string, status: 'completed' | 'cancelled') => EntrySnapshot | null;
-  applyOptimisticWaiting: (entryId: string) => EntrySnapshot | null;
-  applyOptimisticRemoval: (entryId: string) => EntrySnapshot | null;
-  applyOptimisticEdit: (entryId: string, updates: Partial<WaitingRow & ServingRow & HistoryRow>) => EntrySnapshot | null;
-  restoreEntrySnapshot: (snapshot: EntrySnapshot | null) => void;
+  applyOptimisticServing: (entryId: string) => void;
+  applyOptimisticHistory: (entryId: string, status: 'completed' | 'cancelled') => void;
+  applyOptimisticWaiting: (entryId: string) => void;
+  applyOptimisticRemoval: (entryId: string) => void;
   removeEntryFromLists: (entryId: string) => void;
   fetchWaitingEntry: (entryId: string) => Promise<WithEntryId<WaitingRow> | null>;
-  fetchHistoryEntry: (entryId: string) => Promise<WithEntryId<HistoryRow> | null>;
   refreshQueueData: (options?: { showLoading?: boolean; reason?: string }) => Promise<void>;
   setWaitingEntries: React.Dispatch<React.SetStateAction<WithEntryId<WaitingRow>[]>>;
-  setHistoryEntries: React.Dispatch<React.SetStateAction<WithEntryId<HistoryRow>[]>>;
 };
 
 type UseEntryActionsOptions = {
@@ -35,7 +26,6 @@ type UseEntryActionsOptions = {
   setActionError: (message: string) => void;
   queueState: QueueState;
   invokeEmployeeFunction: (name: string, body: Record<string, unknown>) => Promise<Record<string, unknown>>;
-  getFunctionHeaders: () => Promise<Record<string, string>>;
 };
 
 type CreateEntryArgs = {
@@ -49,8 +39,7 @@ type EditEntryArgs = {
     fullName: string;
     email: string;
     phone: string;
-    serviceLabel: string;
-    customerType: 'paying' | 'priority_pass';
+    offeringCode: OfferingCode;
   };
 };
 
@@ -67,7 +56,6 @@ export function useEntryActions(options: UseEntryActionsOptions) {
     setActionError,
     queueState,
     invokeEmployeeFunction,
-    getFunctionHeaders,
   } = options;
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
@@ -114,14 +102,17 @@ export function useEntryActions(options: UseEntryActionsOptions) {
   const runOptimisticAction = useCallback(
     async (
       key: string,
-      optimistic: () => EntrySnapshot | null,
+      optimistic: () => void,
       action: () => Promise<void>,
       context?: Record<string, unknown>
     ) => {
-      const snapshot = optimistic();
+      optimistic();
       const success = await runAction(key, action, context);
       if (!success) {
-        queueState.restoreEntrySnapshot(snapshot);
+        await queueState.refreshQueueData({
+          showLoading: false,
+          reason: `reconcile-failed-${key}`,
+        });
       }
       return success;
     },
@@ -257,35 +248,18 @@ export function useEntryActions(options: UseEntryActionsOptions) {
         return false;
       }
 
-      const consentKey =
-        form.serviceLabel === 'Chiropractor'
-          ? 'queue_join_consent_chiropractic'
-          : 'queue_join_consent_bodywork';
-
       const success = await runAction(
         'create-entry',
         async () => {
-          const headers = await getFunctionHeaders();
-          const { data, error } = await supabase.functions.invoke('queue_join', {
-            body: {
-              airportCode: selectedLocation.airport_code,
-              locationCode: selectedLocation.code,
-              name: form.fullName.trim(),
-              phone: form.phone.trim(),
-              email: form.email.trim(),
-              consent: true,
-              customerType: form.customerType,
-              serviceLabel: form.serviceLabel,
-              consentKey,
-            },
-            headers,
+          const parsed = await invokeEmployeeFunction('queue_join', {
+            airportCode: selectedLocation.airport_code,
+            locationCode: selectedLocation.code,
+            name: form.fullName.trim(),
+            phone: form.phone.trim(),
+            email: form.email.trim(),
+            consent: true,
+            offeringCode: form.offeringCode,
           });
-
-          if (error) throw error;
-          const parsed =
-            typeof data === 'string'
-              ? (JSON.parse(data) as Record<string, unknown>)
-              : data;
           if (!parsed || (parsed as { error?: string }).error) {
             throw new Error(
               (parsed as { error?: string })?.error || 'Failed to create entry'
@@ -314,7 +288,7 @@ export function useEntryActions(options: UseEntryActionsOptions) {
       return success;
     },
     [
-      getFunctionHeaders,
+      invokeEmployeeFunction,
       queueState,
       runAction,
       setActionError,
@@ -323,43 +297,29 @@ export function useEntryActions(options: UseEntryActionsOptions) {
 
   const handleEditSubmit = useCallback(
     async ({ entryId, form }: EditEntryArgs) => {
-      const optimisticUpdates = {
-        full_name: form.fullName.trim() || null,
-        email: form.email.trim().toLowerCase() || null,
-        phone_e164: form.phone.trim() || null,
-        service_label: form.serviceLabel,
-        customer_type: form.customerType,
-      };
-      const success = await runOptimisticAction(
+      const success = await runAction(
         `edit:${entryId}`,
-        () => queueState.applyOptimisticEdit(entryId, optimisticUpdates),
         async () => {
           await invokeEmployeeFunction('update_queue_entry', {
             queueEntryId: entryId,
             fullName: form.fullName,
             email: form.email,
             phone: form.phone,
-            serviceLabel: form.serviceLabel,
-            customerType: form.customerType,
+            offeringCode: form.offeringCode,
           });
         },
         { entryId }
       );
 
       if (success) {
-        const updated = await queueState.fetchHistoryEntry(entryId);
-        if (updated) {
-          queueState.setHistoryEntries((prev) =>
-            sortHistoryEntries([
-              ...prev.filter((row) => row.queue_entry_id !== entryId),
-              updated,
-            ])
-          );
-        }
+        await queueState.refreshQueueData({
+          showLoading: false,
+          reason: 'edit-entry',
+        });
       }
       return success;
     },
-    [invokeEmployeeFunction, queueState, runOptimisticAction]
+    [invokeEmployeeFunction, queueState, runAction]
   );
 
   return {

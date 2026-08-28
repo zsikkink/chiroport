@@ -7,13 +7,29 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.1"
-  }
   public: {
     Tables: {
+      api_rate_limits: {
+        Row: {
+          bucket: string
+          count: number
+          reset_at: string
+          updated_at: string
+        }
+        Insert: {
+          bucket: string
+          count?: number
+          reset_at: string
+          updated_at?: string
+        }
+        Update: {
+          bucket?: string
+          count?: number
+          reset_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       consent_versions: {
         Row: {
           created_at: string
@@ -44,6 +60,33 @@ export type Database = {
           terms_url?: string | null
           text?: string
           version?: string
+        }
+        Relationships: []
+      }
+      customer_contact_snapshots: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: number
+          phone_e164: string
+          snapshot_key: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: never
+          phone_e164: string
+          snapshot_key?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: never
+          phone_e164?: string
+          snapshot_key?: string | null
         }
         Relationships: []
       }
@@ -183,6 +226,155 @@ export type Database = {
         }
         Relationships: []
       }
+      queue_daily_stats: {
+        Row: {
+          arrival_counts_by_hour: Json | null
+          arrivals_paying: number
+          arrivals_per_hour: number | null
+          arrivals_priority: number
+          arrivals_total: number
+          cancelled_before_served_total: number
+          cancelled_total: number
+          completed_total: number
+          completion_rate_paying: number | null
+          completion_rate_priority: number | null
+          created_at: string
+          id: string
+          interarrival_avg_seconds: number | null
+          interarrival_stddev_seconds: number | null
+          local_date: string
+          location_id: string
+          open_minutes: number | null
+          served_total: number
+          service_arrivals: Json | null
+          service_avg_minutes: number | null
+          service_cancelled: Json | null
+          service_completed: Json | null
+          service_service_count: Json | null
+          service_service_total_minutes: Json | null
+          service_stddev_minutes: number | null
+          service_time_in_system_count: Json | null
+          service_time_in_system_total_minutes: Json | null
+          service_wait_count: Json | null
+          service_wait_total_minutes: Json | null
+          sla_wait_over_20_rate: number | null
+          throughput_per_hour: number | null
+          time_in_system_avg_minutes: number | null
+          time_in_system_median_minutes: number | null
+          time_in_system_p90_minutes: number | null
+          time_in_system_p95_minutes: number | null
+          timezone: string
+          wait_avg_minutes: number | null
+          wait_avg_minutes_paying: number | null
+          wait_avg_minutes_priority: number | null
+          wait_max_minutes_paying: number | null
+          wait_max_minutes_priority: number | null
+          wait_median_minutes: number | null
+          wait_p90_minutes: number | null
+          wait_p95_minutes: number | null
+        }
+        Insert: {
+          arrival_counts_by_hour?: Json | null
+          arrivals_paying?: number
+          arrivals_per_hour?: number | null
+          arrivals_priority?: number
+          arrivals_total?: number
+          cancelled_before_served_total?: number
+          cancelled_total?: number
+          completed_total?: number
+          completion_rate_paying?: number | null
+          completion_rate_priority?: number | null
+          created_at?: string
+          id?: string
+          interarrival_avg_seconds?: number | null
+          interarrival_stddev_seconds?: number | null
+          local_date: string
+          location_id: string
+          open_minutes?: number | null
+          served_total?: number
+          service_arrivals?: Json | null
+          service_avg_minutes?: number | null
+          service_cancelled?: Json | null
+          service_completed?: Json | null
+          service_service_count?: Json | null
+          service_service_total_minutes?: Json | null
+          service_stddev_minutes?: number | null
+          service_time_in_system_count?: Json | null
+          service_time_in_system_total_minutes?: Json | null
+          service_wait_count?: Json | null
+          service_wait_total_minutes?: Json | null
+          sla_wait_over_20_rate?: number | null
+          throughput_per_hour?: number | null
+          time_in_system_avg_minutes?: number | null
+          time_in_system_median_minutes?: number | null
+          time_in_system_p90_minutes?: number | null
+          time_in_system_p95_minutes?: number | null
+          timezone: string
+          wait_avg_minutes?: number | null
+          wait_avg_minutes_paying?: number | null
+          wait_avg_minutes_priority?: number | null
+          wait_max_minutes_paying?: number | null
+          wait_max_minutes_priority?: number | null
+          wait_median_minutes?: number | null
+          wait_p90_minutes?: number | null
+          wait_p95_minutes?: number | null
+        }
+        Update: {
+          arrival_counts_by_hour?: Json | null
+          arrivals_paying?: number
+          arrivals_per_hour?: number | null
+          arrivals_priority?: number
+          arrivals_total?: number
+          cancelled_before_served_total?: number
+          cancelled_total?: number
+          completed_total?: number
+          completion_rate_paying?: number | null
+          completion_rate_priority?: number | null
+          created_at?: string
+          id?: string
+          interarrival_avg_seconds?: number | null
+          interarrival_stddev_seconds?: number | null
+          local_date?: string
+          location_id?: string
+          open_minutes?: number | null
+          served_total?: number
+          service_arrivals?: Json | null
+          service_avg_minutes?: number | null
+          service_cancelled?: Json | null
+          service_completed?: Json | null
+          service_service_count?: Json | null
+          service_service_total_minutes?: Json | null
+          service_stddev_minutes?: number | null
+          service_time_in_system_count?: Json | null
+          service_time_in_system_total_minutes?: Json | null
+          service_wait_count?: Json | null
+          service_wait_total_minutes?: Json | null
+          sla_wait_over_20_rate?: number | null
+          throughput_per_hour?: number | null
+          time_in_system_avg_minutes?: number | null
+          time_in_system_median_minutes?: number | null
+          time_in_system_p90_minutes?: number | null
+          time_in_system_p95_minutes?: number | null
+          timezone?: string
+          wait_avg_minutes?: number | null
+          wait_avg_minutes_paying?: number | null
+          wait_avg_minutes_priority?: number | null
+          wait_max_minutes_paying?: number | null
+          wait_max_minutes_priority?: number | null
+          wait_median_minutes?: number | null
+          wait_p90_minutes?: number | null
+          wait_p95_minutes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queue_daily_stats_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       queue_entries: {
         Row: {
           cancelled_at: string | null
@@ -193,7 +385,9 @@ export type Database = {
           customer_id: string
           customer_type: Database["public"]["Enums"]["customer_type"]
           id: string
+          next_notified_at: string | null
           no_show_at: string | null
+          offering_code: string | null
           public_token: string
           queue_id: string
           served_at: string | null
@@ -211,7 +405,9 @@ export type Database = {
           customer_id: string
           customer_type: Database["public"]["Enums"]["customer_type"]
           id?: string
+          next_notified_at?: string | null
           no_show_at?: string | null
+          offering_code?: string | null
           public_token?: string
           queue_id: string
           served_at?: string | null
@@ -229,7 +425,9 @@ export type Database = {
           customer_id?: string
           customer_type?: Database["public"]["Enums"]["customer_type"]
           id?: string
+          next_notified_at?: string | null
           no_show_at?: string | null
+          offering_code?: string | null
           public_token?: string
           queue_id?: string
           served_at?: string | null
@@ -254,10 +452,127 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "queue_entries_offering_code_fkey"
+            columns: ["offering_code"]
+            isOneToOne: false
+            referencedRelation: "service_offerings"
+            referencedColumns: ["code"]
+          },
+          {
             foreignKeyName: "queue_entries_queue_id_fkey"
             columns: ["queue_id"]
             isOneToOne: false
             referencedRelation: "queues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      queue_entries_archive: {
+        Row: {
+          archived_at: string
+          cancelled_at: string | null
+          completed_at: string | null
+          created_at: string
+          customer_id: string
+          customer_type: Database["public"]["Enums"]["customer_type"]
+          id: string
+          local_date: string
+          location_id: string
+          no_show_at: string | null
+          offering_code: string | null
+          public_token: string
+          queue_id: string
+          served_at: string | null
+          service_label: string
+          status: Database["public"]["Enums"]["queue_status"]
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at: string
+          customer_id: string
+          customer_type: Database["public"]["Enums"]["customer_type"]
+          id: string
+          local_date: string
+          location_id: string
+          no_show_at?: string | null
+          offering_code?: string | null
+          public_token: string
+          queue_id: string
+          served_at?: string | null
+          service_label?: string
+          status: Database["public"]["Enums"]["queue_status"]
+          timezone: string
+          updated_at: string
+        }
+        Update: {
+          archived_at?: string
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string
+          customer_type?: Database["public"]["Enums"]["customer_type"]
+          id?: string
+          local_date?: string
+          location_id?: string
+          no_show_at?: string | null
+          offering_code?: string | null
+          public_token?: string
+          queue_id?: string
+          served_at?: string | null
+          service_label?: string
+          status?: Database["public"]["Enums"]["queue_status"]
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      queue_entries_legal_archive: {
+        Row: {
+          consent_accepted_at: string
+          consent_key: string | null
+          consent_version: string | null
+          consent_version_id: string | null
+          contact_snapshot_id: number
+          customer_id: string
+          queue_entry_created_at: string
+          queue_entry_id: string
+          queue_id: string
+          recorded_at: string
+        }
+        Insert: {
+          consent_accepted_at: string
+          consent_key?: string | null
+          consent_version?: string | null
+          consent_version_id?: string | null
+          contact_snapshot_id: number
+          customer_id: string
+          queue_entry_created_at: string
+          queue_entry_id: string
+          queue_id: string
+          recorded_at?: string
+        }
+        Update: {
+          consent_accepted_at?: string
+          consent_key?: string | null
+          consent_version?: string | null
+          consent_version_id?: string | null
+          contact_snapshot_id?: number
+          customer_id?: string
+          queue_entry_created_at?: string
+          queue_entry_id?: string
+          queue_id?: string
+          recorded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queue_entries_legal_archive_contact_snapshot_id_fkey"
+            columns: ["contact_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "customer_contact_snapshots"
             referencedColumns: ["id"]
           },
         ]
@@ -321,6 +636,239 @@ export type Database = {
           },
         ]
       }
+      queue_monthly_stats: {
+        Row: {
+          arrival_counts_by_hour: Json | null
+          arrivals_paying: number
+          arrivals_per_hour: number | null
+          arrivals_priority: number
+          arrivals_total: number
+          cancelled_before_served_total: number
+          cancelled_total: number
+          completed_total: number
+          completion_rate_paying: number | null
+          completion_rate_priority: number | null
+          created_at: string
+          days_covered: number
+          id: string
+          interarrival_avg_seconds: number | null
+          interarrival_count: number
+          interarrival_stddev_seconds: number | null
+          location_id: string | null
+          month_start: string
+          open_minutes_total: number | null
+          served_total: number
+          service_arrivals: Json | null
+          service_avg_minutes: number | null
+          service_cancelled: Json | null
+          service_completed: Json | null
+          service_count: number
+          service_median_minutes: number | null
+          service_p90_minutes: number | null
+          service_p95_minutes: number | null
+          service_service_count: Json | null
+          service_service_total_minutes: Json | null
+          service_stddev_minutes: number | null
+          service_time_in_system_count: Json | null
+          service_time_in_system_total_minutes: Json | null
+          service_wait_count: Json | null
+          service_wait_total_minutes: Json | null
+          sla_wait_over_20_rate: number | null
+          throughput_per_hour: number | null
+          time_in_system_avg_minutes: number | null
+          time_in_system_count: number
+          time_in_system_median_minutes: number | null
+          time_in_system_p90_minutes: number | null
+          time_in_system_p95_minutes: number | null
+          timezone: string
+          wait_avg_minutes: number | null
+          wait_avg_minutes_paying: number | null
+          wait_avg_minutes_priority: number | null
+          wait_count: number
+          wait_max_minutes_paying: number | null
+          wait_max_minutes_priority: number | null
+          wait_median_minutes: number | null
+          wait_p90_minutes: number | null
+          wait_p95_minutes: number | null
+        }
+        Insert: {
+          arrival_counts_by_hour?: Json | null
+          arrivals_paying?: number
+          arrivals_per_hour?: number | null
+          arrivals_priority?: number
+          arrivals_total?: number
+          cancelled_before_served_total?: number
+          cancelled_total?: number
+          completed_total?: number
+          completion_rate_paying?: number | null
+          completion_rate_priority?: number | null
+          created_at?: string
+          days_covered?: number
+          id?: string
+          interarrival_avg_seconds?: number | null
+          interarrival_count?: number
+          interarrival_stddev_seconds?: number | null
+          location_id?: string | null
+          month_start: string
+          open_minutes_total?: number | null
+          served_total?: number
+          service_arrivals?: Json | null
+          service_avg_minutes?: number | null
+          service_cancelled?: Json | null
+          service_completed?: Json | null
+          service_count?: number
+          service_median_minutes?: number | null
+          service_p90_minutes?: number | null
+          service_p95_minutes?: number | null
+          service_service_count?: Json | null
+          service_service_total_minutes?: Json | null
+          service_stddev_minutes?: number | null
+          service_time_in_system_count?: Json | null
+          service_time_in_system_total_minutes?: Json | null
+          service_wait_count?: Json | null
+          service_wait_total_minutes?: Json | null
+          sla_wait_over_20_rate?: number | null
+          throughput_per_hour?: number | null
+          time_in_system_avg_minutes?: number | null
+          time_in_system_count?: number
+          time_in_system_median_minutes?: number | null
+          time_in_system_p90_minutes?: number | null
+          time_in_system_p95_minutes?: number | null
+          timezone: string
+          wait_avg_minutes?: number | null
+          wait_avg_minutes_paying?: number | null
+          wait_avg_minutes_priority?: number | null
+          wait_count?: number
+          wait_max_minutes_paying?: number | null
+          wait_max_minutes_priority?: number | null
+          wait_median_minutes?: number | null
+          wait_p90_minutes?: number | null
+          wait_p95_minutes?: number | null
+        }
+        Update: {
+          arrival_counts_by_hour?: Json | null
+          arrivals_paying?: number
+          arrivals_per_hour?: number | null
+          arrivals_priority?: number
+          arrivals_total?: number
+          cancelled_before_served_total?: number
+          cancelled_total?: number
+          completed_total?: number
+          completion_rate_paying?: number | null
+          completion_rate_priority?: number | null
+          created_at?: string
+          days_covered?: number
+          id?: string
+          interarrival_avg_seconds?: number | null
+          interarrival_count?: number
+          interarrival_stddev_seconds?: number | null
+          location_id?: string | null
+          month_start?: string
+          open_minutes_total?: number | null
+          served_total?: number
+          service_arrivals?: Json | null
+          service_avg_minutes?: number | null
+          service_cancelled?: Json | null
+          service_completed?: Json | null
+          service_count?: number
+          service_median_minutes?: number | null
+          service_p90_minutes?: number | null
+          service_p95_minutes?: number | null
+          service_service_count?: Json | null
+          service_service_total_minutes?: Json | null
+          service_stddev_minutes?: number | null
+          service_time_in_system_count?: Json | null
+          service_time_in_system_total_minutes?: Json | null
+          service_wait_count?: Json | null
+          service_wait_total_minutes?: Json | null
+          sla_wait_over_20_rate?: number | null
+          throughput_per_hour?: number | null
+          time_in_system_avg_minutes?: number | null
+          time_in_system_count?: number
+          time_in_system_median_minutes?: number | null
+          time_in_system_p90_minutes?: number | null
+          time_in_system_p95_minutes?: number | null
+          timezone?: string
+          wait_avg_minutes?: number | null
+          wait_avg_minutes_paying?: number | null
+          wait_avg_minutes_priority?: number | null
+          wait_count?: number
+          wait_max_minutes_paying?: number | null
+          wait_max_minutes_priority?: number | null
+          wait_median_minutes?: number | null
+          wait_p90_minutes?: number | null
+          wait_p95_minutes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queue_monthly_stats_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      queue_rollup_anomalies: {
+        Row: {
+          detail: Json | null
+          detected_at: string
+          id: string
+          location_id: string | null
+          metric: string
+          metric_value: number | null
+          period_start: string
+          rollup_level: string
+        }
+        Insert: {
+          detail?: Json | null
+          detected_at?: string
+          id?: string
+          location_id?: string | null
+          metric: string
+          metric_value?: number | null
+          period_start: string
+          rollup_level: string
+        }
+        Update: {
+          detail?: Json | null
+          detected_at?: string
+          id?: string
+          location_id?: string | null
+          metric?: string
+          metric_value?: number | null
+          period_start?: string
+          rollup_level?: string
+        }
+        Relationships: []
+      }
+      queue_rollup_settings: {
+        Row: {
+          archive_retention_days: number
+          created_at: string
+          daily_stats_retention_days: number
+          id: boolean
+          monthly_rollup_lag_days: number
+          updated_at: string
+        }
+        Insert: {
+          archive_retention_days?: number
+          created_at?: string
+          daily_stats_retention_days?: number
+          id?: boolean
+          monthly_rollup_lag_days?: number
+          updated_at?: string
+        }
+        Update: {
+          archive_retention_days?: number
+          created_at?: string
+          daily_stats_retention_days?: number
+          id?: boolean
+          monthly_rollup_lag_days?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       queues: {
         Row: {
           code: string
@@ -359,12 +907,43 @@ export type Database = {
           },
         ]
       }
+      service_offerings: {
+        Row: {
+          code: string
+          consent_key: string
+          created_at: string
+          customer_type: Database["public"]["Enums"]["customer_type"]
+          display_label: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          consent_key: string
+          created_at?: string
+          customer_type: Database["public"]["Enums"]["customer_type"]
+          display_label: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          consent_key?: string
+          created_at?: string
+          customer_type?: Database["public"]["Enums"]["customer_type"]
+          display_label?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sms_inbound: {
         Row: {
           body: string
           from_phone: string
           id: string
           provider_message_id: string | null
+          queue_entry_id: string | null
           raw: Json | null
           received_at: string
           to_phone: string
@@ -374,6 +953,7 @@ export type Database = {
           from_phone: string
           id?: string
           provider_message_id?: string | null
+          queue_entry_id?: string | null
           raw?: Json | null
           received_at?: string
           to_phone: string
@@ -383,9 +963,63 @@ export type Database = {
           from_phone?: string
           id?: string
           provider_message_id?: string | null
+          queue_entry_id?: string | null
           raw?: Json | null
           received_at?: string
           to_phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_inbound_queue_entry_id_fkey"
+            columns: ["queue_entry_id"]
+            isOneToOne: false
+            referencedRelation: "employee_queue_history_view"
+            referencedColumns: ["queue_entry_id"]
+          },
+          {
+            foreignKeyName: "sms_inbound_queue_entry_id_fkey"
+            columns: ["queue_entry_id"]
+            isOneToOne: false
+            referencedRelation: "employee_queue_serving_view"
+            referencedColumns: ["queue_entry_id"]
+          },
+          {
+            foreignKeyName: "sms_inbound_queue_entry_id_fkey"
+            columns: ["queue_entry_id"]
+            isOneToOne: false
+            referencedRelation: "employee_queue_waiting_view"
+            referencedColumns: ["queue_entry_id"]
+          },
+          {
+            foreignKeyName: "sms_inbound_queue_entry_id_fkey"
+            columns: ["queue_entry_id"]
+            isOneToOne: false
+            referencedRelation: "queue_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_opt_outs: {
+        Row: {
+          created_at: string
+          id: string
+          opted_out_at: string
+          phone_e164: string
+          source: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          opted_out_at?: string
+          phone_e164: string
+          source?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          opted_out_at?: string
+          phone_e164?: string
+          source?: string | null
         }
         Relationships: []
       }
@@ -489,6 +1123,7 @@ export type Database = {
           location_id: string | null
           location_timezone: string | null
           next_sms_status: string | null
+          offering_code: string | null
           phone_e164: string | null
           queue_entry_id: string | null
           queue_id: string | null
@@ -505,6 +1140,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queue_entries_offering_code_fkey"
+            columns: ["offering_code"]
+            isOneToOne: false
+            referencedRelation: "service_offerings"
+            referencedColumns: ["code"]
           },
           {
             foreignKeyName: "queue_entries_queue_id_fkey"
@@ -536,11 +1178,12 @@ export type Database = {
           location_id: string | null
           location_timezone: string | null
           next_sms_status: string | null
+          offering_code: string | null
           phone_e164: string | null
           queue_entry_id: string | null
           queue_id: string | null
-          service_label: string | null
           served_at: string | null
+          service_label: string | null
           serving_sms_status: string | null
           sort_key: number | null
           status: Database["public"]["Enums"]["queue_status"] | null
@@ -553,6 +1196,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queue_entries_offering_code_fkey"
+            columns: ["offering_code"]
+            isOneToOne: false
+            referencedRelation: "service_offerings"
+            referencedColumns: ["code"]
           },
           {
             foreignKeyName: "queue_entries_queue_id_fkey"
@@ -584,6 +1234,7 @@ export type Database = {
           location_id: string | null
           location_timezone: string | null
           next_sms_status: string | null
+          offering_code: string | null
           phone_e164: string | null
           queue_entry_id: string | null
           queue_id: string | null
@@ -603,6 +1254,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "queue_entries_offering_code_fkey"
+            columns: ["offering_code"]
+            isOneToOne: false
+            referencedRelation: "service_offerings"
+            referencedColumns: ["code"]
+          },
+          {
             foreignKeyName: "queue_entries_queue_id_fkey"
             columns: ["queue_id"]
             isOneToOne: false
@@ -618,6 +1276,45 @@ export type Database = {
           },
         ]
       }
+      queue_entries_history: {
+        Row: {
+          cancelled_at: string | null
+          completed_at: string | null
+          created_at: string | null
+          customer_id: string | null
+          customer_type: Database["public"]["Enums"]["customer_type"] | null
+          id: string | null
+          local_date: string | null
+          location_id: string | null
+          no_show_at: string | null
+          offering_code: string | null
+          public_token: string | null
+          queue_id: string | null
+          served_at: string | null
+          service_label: string | null
+          status: Database["public"]["Enums"]["queue_status"] | null
+          timezone: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
+      queue_entries_legal_history: {
+        Row: {
+          consent_accepted_at: string | null
+          consent_key: string | null
+          consent_version: string | null
+          consent_version_id: string | null
+          customer_id: string | null
+          email: string | null
+          full_name: string | null
+          phone_e164: string | null
+          queue_entry_created_at: string | null
+          queue_entry_id: string | null
+          queue_id: string | null
+          recorded_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       advance_queue: {
@@ -628,12 +1325,39 @@ export type Database = {
           out_served_at: string
         }[]
       }
+      backfill_queue_daily_stats: {
+        Args: { p_end: string; p_start: string }
+        Returns: undefined
+      }
+      backfill_queue_rollups: {
+        Args: { p_end: string; p_start: string }
+        Returns: undefined
+      }
       cancel_visit: {
         Args: { p_public_token: string }
         Returns: {
           out_cancelled_at: string
           out_queue_entry_id: string
           out_status: Database["public"]["Enums"]["queue_status"]
+        }[]
+      }
+      check_rate_limit: {
+        Args: { p_bucket: string; p_limit: number; p_window_seconds: number }
+        Returns: {
+          allowed: boolean
+          remaining: number
+          reset_at: string
+        }[]
+      }
+      check_rate_limits: {
+        Args: { p_rules: Json }
+        Returns: {
+          allowed: boolean
+          bucket_key: string
+          limit_count: number
+          remaining: number
+          reset_at: string
+          window_seconds: number
         }[]
       }
       claim_sms_outbox: {
@@ -666,6 +1390,37 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      customer_cancel_queue_entry: {
+        Args: { p_enqueue_ack?: boolean; p_entry_id: string; p_source: string }
+        Returns: {
+          out_cancelled_at: string
+          out_outbox_id: string
+          out_queue_entry_id: string
+          out_status: Database["public"]["Enums"]["queue_status"]
+        }[]
+      }
+      get_admin_analytics: {
+        Args: {
+          p_customer_type?: string
+          p_date_end?: string
+          p_date_start?: string
+          p_location_id?: string
+        }
+        Returns: Json
+      }
+      get_admin_daily_repeat_share: {
+        Args: {
+          p_date_end?: string
+          p_date_start?: string
+          p_location_id?: string
+        }
+        Returns: {
+          arrivals_total: number
+          classified_total: number
+          local_date: string
+          repeat_total: number
+        }[]
+      }
       get_visit: {
         Args: { p_public_token: string }
         Returns: {
@@ -680,15 +1435,6 @@ export type Database = {
           served_at: string
           status: Database["public"]["Enums"]["queue_status"]
         }[]
-      }
-      get_admin_analytics: {
-        Args: {
-          p_location_id?: string | null
-          p_date_start?: string | null
-          p_date_end?: string | null
-          p_customer_type?: string | null
-        }
-        Returns: Json
       }
       is_admin: { Args: never; Returns: boolean }
       is_employee: { Args: never; Returns: boolean }
@@ -732,6 +1478,51 @@ export type Database = {
               out_status: Database["public"]["Enums"]["queue_status"]
             }[]
           }
+      join_queue_with_offering: {
+        Args: {
+          p_airport_code: string
+          p_email: string
+          p_full_name: string
+          p_location_code: string
+          p_offering_code: string
+          p_phone_e164: string
+        }
+        Returns: {
+          out_created_at: string
+          out_public_token: string
+          out_queue_entry_id: string
+          out_queue_id: string
+          out_queue_position: number
+          out_status: Database["public"]["Enums"]["queue_status"]
+        }[]
+      }
+      jsonb_sum: { Args: { a: Json; b: Json }; Returns: Json }
+      jsonb_sum_agg: { Args: { p_values: Json[] }; Returns: Json }
+      next_sort_key: {
+        Args: {
+          p_customer_type: Database["public"]["Enums"]["customer_type"]
+          p_queue_id: string
+        }
+        Returns: number
+      }
+      queue_rollup_sanity_check: { Args: { p_since?: string }; Returns: number }
+      rebuild_queue_monthly_stats: {
+        Args: { p_end: string; p_start: string }
+        Returns: undefined
+      }
+      record_sms_inbound: {
+        Args: {
+          p_body: string
+          p_from_phone: string
+          p_provider_message_id: string
+          p_raw: Json
+          p_to_phone: string
+        }
+        Returns: {
+          out_queue_entry_id: string
+          out_sms_inbound_id: string
+        }[]
+      }
       reorder_entry: {
         Args: {
           p_after_entry_id?: string
@@ -741,6 +1532,44 @@ export type Database = {
         Returns: {
           out_queue_entry_id: string
           out_sort_key: number
+        }[]
+      }
+      rollup_queue_daily_stats: {
+        Args: { p_reference?: string }
+        Returns: undefined
+      }
+      rollup_queue_monthly_stats: { Args: never; Returns: undefined }
+      staff_edit_queue_entry: {
+        Args: {
+          p_actor_user_id: string
+          p_email: string
+          p_entry_id: string
+          p_full_name: string
+          p_offering_code: string
+          p_phone_e164: string
+        }
+        Returns: {
+          out_customer_id: string
+          out_customer_type: Database["public"]["Enums"]["customer_type"]
+          out_offering_code: string
+          out_queue_entry_id: string
+          out_queue_id: string
+          out_service_label: string
+        }[]
+      }
+      staff_queue_entry_action: {
+        Args: {
+          p_action: string
+          p_actor_user_id?: string
+          p_entry_id: string
+          p_target_location_id?: string
+        }
+        Returns: {
+          out_customer_id: string
+          out_customer_type: Database["public"]["Enums"]["customer_type"]
+          out_queue_entry_id: string
+          out_queue_id: string
+          out_status: Database["public"]["Enums"]["queue_status"]
         }[]
       }
     }

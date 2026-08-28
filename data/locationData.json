@@ -23,28 +23,6 @@
       ]
     },
     {
-      "name": "Dallas",
-      "code": "DFW",
-      "slug": "dallas",
-      "concourses": [
-        {
-          "name": "concourse-a",
-          "slug": "concourse-a",
-          "displayName": "Concourse A",
-          "locationInfo": {
-            "gate": "A29",
-            "landmark": "California Pizza Kitchen",
-            "airportCode": "DFW",
-            "imageUrl": "/images/stores/dfw-a.webp",
-            "customLocation": "Located between Gate A29 and California Pizza Kitchen.",
-            "customHours": "7am - 7pm CT",
-            "displayName": "Concourse A",
-            "intakeCategory": "offers_massage"
-          }
-        }
-      ]
-    },
-    {
       "name": "Houston",
       "code": "HOU",
       "slug": "houston",

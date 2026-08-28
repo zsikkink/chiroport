@@ -9,14 +9,18 @@ import { toLocationSlug } from '@/lib/locationSlug';
 import {
   WAIT_TARGET_MINUTES,
   buildSegmentComparisonModel,
-  buildTrailingAverageBaselineKpis,
   buildExecutiveSummary,
   buildLocationComparisonRows,
   getStoryMode,
   sortLocationComparisonRows,
+  type AnalyticsDashboardPayload,
+  type AnalyticsResponse,
+  type AnalyticsSeriesRow,
+  type DailyRepeatShareRow,
   type ExecutiveSummary,
   type LocationComparisonRow,
   type LocationSortKey,
+  type SegmentAnalyticsPair,
   type SegmentComparisonModel,
   type SortDirection,
 } from './dashboardModel';
@@ -31,96 +35,7 @@ type LocationOption = {
   display_name: string;
   airport_code: string;
   code: string;
-};
-
-type AnalyticsFilters = {
-  location_id: string | null;
-  date_start: string | null;
-  date_end: string | null;
-  customer_type: 'paying' | 'priority_pass' | null;
-};
-
-type AnalyticsKpis = {
-  arrivals_total: number;
-  arrivals_paying: number;
-  arrivals_non_paying: number;
-  served_total: number;
-  completed_total: number;
-  adjusted_completed_total: number | null;
-  cancelled_total: number;
-  cancelled_before_served_total: number;
-  completion_rate: number | null;
-  dropoff_rate: number | null;
-  average_queue_length: number | null;
-  utilization_rate: number | null;
-  wait_avg_minutes: number | null;
-  time_in_system_avg_minutes: number | null;
-  new_customers_total?: number | null;
-  repeat_customers_total?: number | null;
-  classified_customers_total?: number | null;
-  new_customers_rate: number | null;
-  repeat_customers_rate: number | null;
-};
-
-type AnalyticsSeriesRow = {
-  local_date: string;
-  arrivals_total: number;
-  arrivals_paying: number;
-  arrivals_non_paying: number;
-  served_total: number;
-  completed_total: number;
-  cancelled_total: number;
-  cancelled_before_served_total: number;
-  completion_rate: number | null;
-  dropoff_rate: number | null;
-  wait_avg_minutes: number | null;
-  time_in_system_avg_minutes: number | null;
-};
-
-type AnalyticsHourlyRow = {
-  hour_of_day: number;
-  arrivals_total: number;
-  served_total: number;
-  wait_avg_minutes: number | null;
-};
-
-type AnalyticsPreviousKpis = {
-  arrivals_total: number;
-  completion_rate: number | null;
-  dropoff_rate: number | null;
-  average_queue_length: number | null;
-  utilization_rate: number | null;
-  wait_avg_minutes: number | null;
-  completed_total: number;
-  adjusted_completed_total: number | null;
-  cancelled_total: number;
-};
-
-type AnalyticsPreviousPeriod = {
-  date_start: string | null;
-  date_end: string | null;
-  kpis: AnalyticsPreviousKpis | null;
-};
-
-type AnalyticsResponse = {
-  filters: AnalyticsFilters;
-  kpis: AnalyticsKpis;
-  series: AnalyticsSeriesRow[];
-  hourly_series: AnalyticsHourlyRow[];
-  previous_period: AnalyticsPreviousPeriod | null;
-};
-
-type SegmentAnalyticsPair = {
-  paying: AnalyticsResponse | null;
-  priority: AnalyticsResponse | null;
-};
-
-type DailyRepeatShareRow = {
-  local_date: string;
-  arrivals_total: number;
-  repeat_total: number | null;
-  repeat_share: number | null;
-  classified_total: number | null;
+  is_open: boolean;
 };
 
 type DatePreset =
@@ -342,10 +257,6 @@ function parseIsoDate(value: string) {
   return new Date(Date.UTC(year, month - 1, day));
 }
 
-function formatIsoDate(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
 function formatHumanDate(value: string | null) {
   if (!value) return '—';
   const date = parseIsoDate(value);
@@ -358,24 +269,6 @@ function formatHumanDate(value: string | null) {
   }).format(date);
 }
 
-function shiftIsoDate(value: string, days: number) {
-  const date = parseIsoDate(value);
-  if (!date) return null;
-  date.setUTCDate(date.getUTCDate() + days);
-  return formatIsoDate(date);
-}
-
-function buildDateSequence(dateStart: string | null, dateEnd: string | null, maxDays = 120) {
-  const totalDays = getDateSpanInDays(dateStart, dateEnd);
-  if (!dateStart || !dateEnd || !totalDays || totalDays <= 0 || totalDays > maxDays) {
-    return null;
-  }
-
-  return Array.from({ length: totalDays }, (_, index) => shiftIsoDate(dateStart, index)).filter(
-    (value): value is string => Boolean(value)
-  );
-}
-
 function getDateSpanInDays(dateStart: string | null, dateEnd: string | null) {
   if (!dateStart || !dateEnd) return null;
   const start = parseIsoDate(dateStart);
@@ -384,33 +277,6 @@ function getDateSpanInDays(dateStart: string | null, dateEnd: string | null) {
   const diff = end.getTime() - start.getTime();
   if (Number.isNaN(diff)) return null;
   return Math.max(1, Math.round(diff / 86400000) + 1);
-}
-
-function getTrailingThirtyDayWindow(dateStart: string | null, dateEnd: string | null) {
-  if (!dateStart || !dateEnd || dateStart !== dateEnd) {
-    return null;
-  }
-
-  const baselineEnd = shiftIsoDate(dateStart, -1);
-  if (!baselineEnd) return null;
-
-  const baselineStart = shiftIsoDate(baselineEnd, -29);
-  if (!baselineStart) return null;
-
-  return {
-    start: baselineStart,
-    end: baselineEnd,
-  };
-}
-
-function applyComparisonBaseline(
-  analytics: AnalyticsResponse,
-  previousPeriod: AnalyticsPreviousPeriod | null
-) {
-  return {
-    ...analytics,
-    previous_period: previousPeriod,
-  };
 }
 
 function clampNumber(value: number, min: number, max: number): number {
@@ -463,29 +329,6 @@ function buildLinePath(
   });
 
   return path;
-}
-
-function resolveRepeatCount(kpis: AnalyticsKpis) {
-  if (
-    kpis.repeat_customers_total !== null &&
-    kpis.repeat_customers_total !== undefined &&
-    !Number.isNaN(kpis.repeat_customers_total)
-  ) {
-    return kpis.repeat_customers_total;
-  }
-
-  if (
-    kpis.repeat_customers_rate === null ||
-    kpis.repeat_customers_rate === undefined ||
-    Number.isNaN(kpis.repeat_customers_rate) ||
-    kpis.classified_customers_total === null ||
-    kpis.classified_customers_total === undefined ||
-    Number.isNaN(kpis.classified_customers_total)
-  ) {
-    return null;
-  }
-
-  return kpis.repeat_customers_rate * kpis.classified_customers_total;
 }
 
 function buildTopRoundedRectPath(
@@ -2075,66 +1918,23 @@ function LocationComparisonTable({
   );
 }
 
-const EMPTY_KPIS: AnalyticsKpis = {
-  arrivals_total: 0,
-  arrivals_paying: 0,
-  arrivals_non_paying: 0,
-  served_total: 0,
-  completed_total: 0,
-  adjusted_completed_total: null,
-  cancelled_total: 0,
-  cancelled_before_served_total: 0,
-  completion_rate: null,
-  dropoff_rate: null,
-  average_queue_length: null,
-  utilization_rate: null,
-  wait_avg_minutes: null,
-  time_in_system_avg_minutes: null,
-  new_customers_rate: null,
-  repeat_customers_rate: null,
-};
-
-type AnalyticsFetchOptions = {
+type AnalyticsDashboardFetchOptions = {
   accessToken: string;
   signal: AbortSignal;
   locationId: string;
   customerType: CustomerFilter;
   dateStart: string | null;
   dateEnd: string | null;
-  includeOperationalKpis?: boolean;
 };
 
-function normalizeAnalyticsResponse(candidate: Partial<AnalyticsResponse>): AnalyticsResponse {
-  return {
-    filters: candidate.filters ?? {
-      location_id: null,
-      date_start: null,
-      date_end: null,
-      customer_type: null,
-    },
-    kpis: {
-      ...EMPTY_KPIS,
-      ...(candidate.kpis ?? {}),
-    },
-    series: Array.isArray(candidate.series) ? (candidate.series as AnalyticsSeriesRow[]) : [],
-    hourly_series: Array.isArray(candidate.hourly_series)
-      ? (candidate.hourly_series as AnalyticsHourlyRow[])
-      : [],
-    previous_period:
-      candidate.previous_period && typeof candidate.previous_period === 'object'
-        ? (candidate.previous_period as AnalyticsPreviousPeriod)
-        : null,
-  };
-}
-
-function buildAnalyticsUrl(
+function buildAnalyticsDashboardUrl(
   locationId: string,
   customerType: CustomerFilter,
   dateStart: string | null,
-  dateEnd: string | null,
-  includeOperationalKpis = false
+  dateEnd: string | null
 ) {
   const params = new URLSearchParams();
+  params.set('dashboard', '1');
   if (locationId !== 'all') {
     params.set('locationId', locationId);
   }
@@ -2145,29 +1945,23 @@ function buildAnalyticsUrl(
     params.set('dateStart', dateStart);
     params.set('dateEnd', dateEnd);
   }
-  if (includeOperationalKpis) {
-    params.set('includeOperationalKpis', '1');
-  }
-
-  return params.size ? `/api/analytics?${params.toString()}` : '/api/analytics';
+  return `/api/analytics?${params.toString()}`;
 }
 
-async function fetchAnalyticsResponse({
+async function fetchAnalyticsDashboard({
   accessToken,
   signal,
   locationId,
   customerType,
   dateStart,
   dateEnd,
-  includeOperationalKpis = false,
-}: AnalyticsFetchOptions) {
+}: AnalyticsDashboardFetchOptions) {
   const response = await fetch(
-    buildAnalyticsUrl(
+    buildAnalyticsDashboardUrl(
       locationId,
       customerType,
       dateStart,
-      dateEnd,
-      includeOperationalKpis
+      dateEnd
     ),
     {
       headers: {
@@ -2178,10 +1972,10 @@ async function fetchAnalyticsResponse({
   );
 
   const rawText = await response.text();
-  let payload: AnalyticsResponse | { error?: string } | null = null;
+  let payload: AnalyticsDashboardPayload | { error?: string } | null = null;
   if (rawText) {
     try {
-      payload = JSON.parse(rawText) as AnalyticsResponse;
+      payload = JSON.parse(rawText) as AnalyticsDashboardPayload;
     } catch {
       payload = null;
     }
@@ -2198,11 +1992,11 @@ async function fetchAnalyticsResponse({
     throw new Error(errorMessage);
   }
 
-  if (!payload || typeof payload !== 'object' || !('kpis' in payload)) {
+  if (!payload || typeof payload !== 'object' || !('analytics' in payload)) {
     throw new Error('Failed to load analytics.');
   }
 
-  return normalizeAnalyticsResponse(payload as Partial<AnalyticsResponse>);
+  return payload as AnalyticsDashboardPayload;
 }
 
 const supabase = getSupabaseBrowserClient();
@@ -2249,6 +2043,14 @@ export default function AnalyticsPage() {
       slug: toLocationSlug(location.airport_code, location.code),
     }));
   }, [locations]);
+  const activeLocationOptions = useMemo(
+    () => locationOptions.filter((location) => location.is_open),
+    [locationOptions]
+  );
+  const closedLocationOptions = useMemo(
+    () => locationOptions.filter((location) => !location.is_open),
+    [locationOptions]
+  );
 
   const loadProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
@@ -2276,8 +2078,7 @@ export default function AnalyticsPage() {
   const loadLocations = useCallback(async () => {
     const { data, error } = await supabase
       .from('locations')
-      .select('id,display_name,airport_code,code')
-      .eq('is_open', true)
+      .select('id,display_name,airport_code,code,is_open')
       .order('airport_code', { ascending: true })
       .order('code', { ascending: true });
 
@@ -2331,236 +2132,36 @@ export default function AnalyticsPage() {
 
     const loadAnalytics = async () => {
       setAnalyticsLoading(true);
+      setDailyRepeatShareLoading(true);
       setAnalyticsError('');
       setComparisonError('');
       setSegmentComparisonError('');
-      setSegmentAnalytics(null);
+      setDailyRepeatShareError('');
 
       try {
-        const primaryAnalytics = await fetchAnalyticsResponse({
+        const dashboard = await fetchAnalyticsDashboard({
           accessToken: session.access_token,
           signal: controller.signal,
           locationId: selectedLocationId,
           customerType: selectedCustomerType,
           dateStart: dateRange.start,
           dateEnd: dateRange.end,
-          includeOperationalKpis: true,
         });
 
         if (controller.signal.aborted) return;
 
-        const trailingBaselineWindow = getTrailingThirtyDayWindow(
-          primaryAnalytics.filters.date_start,
-          primaryAnalytics.filters.date_end
-        );
-
-        let baselineReadyForComparison =
-          trailingBaselineWindow !== null;
-        let primaryAnalyticsWithResolvedBaseline = primaryAnalytics;
-        const shouldLoadSegmentComparison = selectedCustomerType === 'all';
-
-        const segmentComparisonPromise = shouldLoadSegmentComparison
-          ? Promise.allSettled([
-              fetchAnalyticsResponse({
-                accessToken: session.access_token,
-                signal: controller.signal,
-                locationId: selectedLocationId,
-                customerType: 'paying',
-                dateStart: primaryAnalytics.filters.date_start,
-                dateEnd: primaryAnalytics.filters.date_end,
-              }),
-              fetchAnalyticsResponse({
-                accessToken: session.access_token,
-                signal: controller.signal,
-                locationId: selectedLocationId,
-                customerType: 'priority_pass',
-                dateStart: primaryAnalytics.filters.date_start,
-                dateEnd: primaryAnalytics.filters.date_end,
-              }),
-            ])
-          : null;
-
-        const applySegmentComparisonResults = (
-          results: PromiseSettledResult<AnalyticsResponse>[] | null
-        ) => {
-          if (!results || !shouldLoadSegmentComparison) {
-            setSegmentAnalytics(null);
-            return;
-          }
-
-          const payingResult = results[0];
-          const priorityResult = results[1];
-
-          if (
-            payingResult?.status === 'fulfilled' &&
-            priorityResult?.status === 'fulfilled'
-          ) {
-            setSegmentAnalytics({
-              paying: payingResult.value,
-              priority: priorityResult.value,
-            });
-            return;
-          }
-
-          setSegmentAnalytics(null);
-          setSegmentComparisonError(
-            'Paying versus non-paying comparison could not be loaded for this view.'
-          );
-        };
-
-        if (trailingBaselineWindow) {
-          try {
-            const trailingBaselineAnalytics = await fetchAnalyticsResponse({
-              accessToken: session.access_token,
-              signal: controller.signal,
-              locationId: selectedLocationId,
-              customerType: selectedCustomerType,
-              dateStart: trailingBaselineWindow.start,
-              dateEnd: trailingBaselineWindow.end,
-              includeOperationalKpis: true,
-            });
-
-            if (controller.signal.aborted) return;
-
-            const trailingBaselineKpis = buildTrailingAverageBaselineKpis(
-              trailingBaselineAnalytics
-            );
-            if (trailingBaselineKpis) {
-              primaryAnalyticsWithResolvedBaseline = applyComparisonBaseline(
-                primaryAnalytics,
-                {
-                  date_start: trailingBaselineWindow.start,
-                  date_end: trailingBaselineWindow.end,
-                  kpis: trailingBaselineKpis,
-                }
-              );
-            } else {
-              baselineReadyForComparison = false;
-            }
-          } catch (error) {
-            if ((error as Error).name === 'AbortError') {
-              throw error;
-            }
-            baselineReadyForComparison = false;
-            console.warn('[Analytics] Trailing 30-day baseline unavailable for primary scope', {
-              error,
-              locationId: selectedLocationId,
-              customerType: selectedCustomerType,
-              dateStart: trailingBaselineWindow.start,
-              dateEnd: trailingBaselineWindow.end,
-            });
-          }
-        }
-
-        if (!locationOptions.length) {
-          const segmentResults = segmentComparisonPromise
-            ? await segmentComparisonPromise
-            : null;
-
-          if (controller.signal.aborted) return;
-
-          setAnalyticsData(primaryAnalyticsWithResolvedBaseline);
-          setLocationComparisonRows([]);
-          applySegmentComparisonResults(segmentResults);
-          return;
-        }
-
-        const [comparisonResults, segmentResults] = await Promise.all([
-          Promise.allSettled(
-            locationOptions.map(async (location) => {
-              const currentAnalytics = await fetchAnalyticsResponse({
-                accessToken: session.access_token,
-                signal: controller.signal,
-                locationId: location.id,
-                customerType: selectedCustomerType,
-                includeOperationalKpis: true,
-                dateStart: primaryAnalytics.filters.date_start,
-                dateEnd: primaryAnalytics.filters.date_end,
-              });
-
-              let analyticsWithResolvedBaseline = currentAnalytics;
-              let baselineApplied = false;
-
-              if (trailingBaselineWindow && baselineReadyForComparison) {
-                const trailingBaselineAnalytics = await fetchAnalyticsResponse({
-                  accessToken: session.access_token,
-                  signal: controller.signal,
-                  locationId: location.id,
-                  customerType: selectedCustomerType,
-                  dateStart: trailingBaselineWindow.start,
-                  dateEnd: trailingBaselineWindow.end,
-                  includeOperationalKpis: true,
-                });
-                const trailingBaselineKpis = buildTrailingAverageBaselineKpis(
-                  trailingBaselineAnalytics
-                );
-
-                if (trailingBaselineKpis) {
-                  analyticsWithResolvedBaseline = applyComparisonBaseline(
-                    currentAnalytics,
-                    {
-                      date_start: trailingBaselineWindow.start,
-                      date_end: trailingBaselineWindow.end,
-                      kpis: trailingBaselineKpis,
-                    }
-                  );
-                  baselineApplied = true;
-                }
-              }
-
-              return {
-                location,
-                currentAnalytics,
-                analyticsWithResolvedBaseline,
-                baselineApplied,
-              };
-            })
-          ),
-          segmentComparisonPromise ?? Promise.resolve(null),
-        ]);
-
-        if (controller.signal.aborted) return;
-
-        const successfulComparisons = comparisonResults.flatMap((result) =>
-          result.status === 'fulfilled' ? [result.value] : []
-        );
-        const failedComparisons = comparisonResults.filter(
-          (result) => result.status === 'rejected'
-        );
-
-        const canUseTrailingBaselineEverywhere =
-          trailingBaselineWindow !== null &&
-          baselineReadyForComparison &&
-          successfulComparisons.length === locationOptions.length &&
-          successfulComparisons.every((result) => result.baselineApplied);
-
-        setAnalyticsData(
-          canUseTrailingBaselineEverywhere
-            ? primaryAnalyticsWithResolvedBaseline
-            : primaryAnalytics
-        );
-
+        setAnalyticsData(dashboard.analytics);
         setLocationComparisonRows(
-          buildLocationComparisonRows(
-            successfulComparisons.map((result) => ({
-              location: result.location,
-              analytics: canUseTrailingBaselineEverywhere
-                ? result.analyticsWithResolvedBaseline
-                : result.currentAnalytics,
-            }))
-          )
+          buildLocationComparisonRows(dashboard.location_analytics)
         );
-        if (failedComparisons.length > 0) {
-          setComparisonError('Some location comparisons could not be loaded.');
-        } else if (trailingBaselineWindow && !canUseTrailingBaselineEverywhere) {
-          setComparisonError(
-            'Trailing 30-day baselines were unavailable for this single-day comparison, so the dashboard fell back to the previous period.'
-          );
-        }
-        applySegmentComparisonResults(segmentResults);
+        setSegmentAnalytics(dashboard.segment_analytics);
+        setDailyRepeatShareRows(dashboard.daily_repeat_share_rows);
+        setComparisonError(dashboard.warnings.comparison ?? '');
+        setSegmentComparisonError(dashboard.warnings.segment ?? '');
+        setDailyRepeatShareError(dashboard.warnings.daily_repeat ?? '');
       } catch (error) {
         if ((error as Error).name !== 'AbortError') {
-          console.error('[Analytics] Network error', {
+          console.error('[Analytics] Dashboard request failed', {
             error,
             locationId: selectedLocationId,
             customerType: selectedCustomerType,
@@ -2573,10 +2174,12 @@ export default function AnalyticsPage() {
           setAnalyticsData(null);
           setLocationComparisonRows([]);
           setSegmentAnalytics(null);
+          setDailyRepeatShareRows([]);
         }
       } finally {
         if (!controller.signal.aborted) {
           setAnalyticsLoading(false);
+          setDailyRepeatShareLoading(false);
         }
       }
     };
@@ -2593,124 +2196,8 @@ export default function AnalyticsPage() {
     selectedCustomerType,
     selectedLocationId,
     session?.access_token,
-    locationOptions,
   ]);
 
-  useEffect(() => {
-    if (
-      !isAdmin ||
-      !session?.access_token ||
-      !analyticsData ||
-      selectedCustomerType !== 'all'
-    ) {
-      setDailyRepeatShareRows([]);
-      setDailyRepeatShareError('');
-      setDailyRepeatShareLoading(false);
-      return;
-    }
-
-    const dateStart = analyticsData.filters.date_start;
-    const dateEnd = analyticsData.filters.date_end;
-    if (!dateStart || !dateEnd) {
-      setDailyRepeatShareRows([]);
-      setDailyRepeatShareError('');
-      setDailyRepeatShareLoading(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    const activeDates = analyticsData.series.map((row) => row.local_date);
-    const fullWindowDates = buildDateSequence(dateStart, dateEnd);
-    const targetDates = fullWindowDates ?? activeDates;
-
-    const loadDailyRepeatShare = async () => {
-      setDailyRepeatShareLoading(true);
-      setDailyRepeatShareError('');
-
-      try {
-        const settledVisitDates = new Set(activeDates);
-        const fetchDates = targetDates.filter((date) => settledVisitDates.has(date));
-        const results = await Promise.allSettled(
-          fetchDates.map((date) =>
-            fetchAnalyticsResponse({
-              accessToken: session.access_token,
-              signal: controller.signal,
-              locationId: selectedLocationId,
-              customerType: 'all',
-              dateStart: date,
-              dateEnd: date,
-            })
-          )
-        );
-
-        if (controller.signal.aborted) return;
-
-        const rowsByDate = new Map<string, DailyRepeatShareRow>();
-        results.forEach((result, index) => {
-          const date = fetchDates[index];
-          if (!date) return;
-
-          if (result.status === 'fulfilled') {
-            const repeatTotal = resolveRepeatCount(result.value.kpis);
-            rowsByDate.set(date, {
-              local_date: date,
-              arrivals_total: result.value.kpis.arrivals_total,
-              repeat_total: repeatTotal,
-              repeat_share:
-                repeatTotal !== null && result.value.kpis.arrivals_total > 0
-                  ? repeatTotal / result.value.kpis.arrivals_total
-                  : null,
-              classified_total: result.value.kpis.classified_customers_total ?? null,
-            });
-          }
-        });
-
-        setDailyRepeatShareRows(
-          targetDates.map((date) => {
-            return (
-              rowsByDate.get(date) ?? {
-                local_date: date,
-                arrivals_total: 0,
-                repeat_total: null,
-                repeat_share: null,
-                classified_total: null,
-              }
-            );
-          })
-        );
-
-        if (results.some((result) => result.status === 'rejected')) {
-          setDailyRepeatShareError('Some daily repeat-share values could not be loaded.');
-        }
-      } catch (error) {
-        if ((error as Error).name === 'AbortError') {
-          return;
-        }
-        setDailyRepeatShareRows([]);
-        setDailyRepeatShareError(
-          error instanceof Error
-            ? error.message
-            : 'Failed to load repeat-share trend.'
-        );
-      } finally {
-        if (!controller.signal.aborted) {
-          setDailyRepeatShareLoading(false);
-        }
-      }
-    };
-
-    loadDailyRepeatShare();
-
-    return () => {
-      controller.abort();
-    };
-  }, [
-    analyticsData,
-    isAdmin,
-    selectedCustomerType,
-    selectedLocationId,
-    session?.access_token,
-  ]);
 
   const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2734,7 +2221,7 @@ export default function AnalyticsPage() {
   const handleLocationSelect = useCallback(
     (locationId: string) => {
       const selected = locationOptions.find(
-        (location) => location.id === locationId
+        (location) => location.id === locationId && location.is_open
       );
       if (!selected) return;
       setIsLocationMenuOpen(false);
@@ -2774,10 +2261,13 @@ export default function AnalyticsPage() {
       locationOptions.find((location) => location.id === selectedLocationId) ?? null,
     [locationOptions, selectedLocationId]
   );
+  const selectedLocationIsClosed = selectedLocationOption?.is_open === false;
   const scopeLabel =
     selectedLocationId === 'all'
-      ? 'Chain-wide performance'
-      : selectedLocationOption?.display_name ?? 'Selected location';
+      ? 'Active-location performance'
+      : selectedLocationOption
+        ? `${selectedLocationOption.display_name}${selectedLocationIsClosed ? ' (closed)' : ''}`
+        : 'Selected location';
   const resolvedWindowLabel = formatResolvedWindowLabel(
     analyticsData?.filters.date_start ?? null,
     analyticsData?.filters.date_end ?? null
@@ -3137,8 +2627,8 @@ export default function AnalyticsPage() {
               Settled outcomes only
             </span>
             <span className="rounded-full border border-slate-200 bg-white px-3 py-1">
-              {locationOptions.length > 0
-                ? `${locationOptions.length}-location chain comparison`
+              {activeLocationOptions.length > 0
+                ? `${activeLocationOptions.length}-location active chain comparison`
                 : 'Chain comparison'}
             </span>
           </div>
@@ -3172,12 +2662,23 @@ export default function AnalyticsPage() {
                 value={selectedLocationId}
                 onChange={(event) => setSelectedLocationId(event.target.value)}
               >
-                <option value="all">All locations</option>
-                {locationOptions.map((location) => (
-                  <option key={location.id} value={location.id}>
-                    {location.display_name}
-                  </option>
-                ))}
+                <option value="all">All active locations</option>
+                <optgroup label="Active locations">
+                  {activeLocationOptions.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.display_name}
+                    </option>
+                  ))}
+                </optgroup>
+                {closedLocationOptions.length > 0 ? (
+                  <optgroup label="Closed locations — historical">
+                    {closedLocationOptions.map((location) => (
+                      <option key={location.id} value={location.id}>
+                        {location.display_name} (Closed)
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
               </select>
             </label>
             <label className="text-sm">
@@ -3220,6 +2721,15 @@ export default function AnalyticsPage() {
               {comparisonReference.chipLabel}
             </span>
           </div>
+
+          {selectedLocationIsClosed ? (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <p className="font-semibold">Closed location — historical reporting only</p>
+              <p className="mt-1 text-xs leading-5 text-amber-800">
+                This location is excluded from active-location totals and comparisons. Its settled history remains available for past-period reporting.
+              </p>
+            </div>
+          ) : null}
 
           {analyticsData ? (
             <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
@@ -3397,7 +2907,7 @@ export default function AnalyticsPage() {
                     Chain operating table
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Compare locations early so owners can see the biggest exception before drilling into deeper cause analysis.
+                    Compare active locations early so owners can see the biggest exception before drilling into deeper cause analysis.
                   </p>
                 </div>
                 <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600">
@@ -3873,10 +3383,10 @@ export default function AnalyticsPage() {
             >
               <p className="text-sm font-semibold">Analytics</p>
             </button>
-            {locationOptions.length === 0 ? (
+            {activeLocationOptions.length === 0 ? (
               <p className="text-sm text-slate-500">No locations available.</p>
             ) : (
-              locationOptions.map((location) => (
+              activeLocationOptions.map((location) => (
                 <button
                   key={location.id}
                   type="button"

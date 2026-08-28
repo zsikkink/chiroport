@@ -5,7 +5,7 @@ Customer-facing and employee-facing web app for managing chiropractic queues in 
 ## Key Features
 - **Customer intake + queue join** by location/concourses.
 - **Employee dashboard** for queue management and SMS workflows.
-- **Multi-airport support** (ATL, DFW, HOU, LAS, MSP) driven by JSON location data.
+- **Multi-airport support** (ATL, HOU, LAS, MSP) driven by JSON location data.
 - **Supabase Realtime** updates for queue entries and SMS inbox/outbox.
 - **Twilio SMS** integration for customer communication.
 
@@ -76,12 +76,16 @@ npm run start        # Start production server
 npm run lint         # ESLint
 npm run type-check   # TypeScript
 npm test             # Jest
+npm run verify       # App checks, Jest, production build, Edge types
 npm run db:migrate   # supabase db push
-npm run db:types     # supabase gen types
+npm run db:types     # Regenerate local Supabase contract after schema changes
+npm run db:types:check # Fail when the committed database contract has drifted
 npm run rate-limit:smoke  # Rate-limit smoke test
 npm run queue:clear  # Clear queue entries (destructive)
 npm run queue:clear:smoke # Smoke test queue:clear guardrails
 ```
+
+Important queue, authorization, SMS, offering, location, analytics, and verification invariants are documented in [docs/system-architecture.md](docs/system-architecture.md).
 
 ## Locations & Images
 - Location data lives in `data/locationData.json`.

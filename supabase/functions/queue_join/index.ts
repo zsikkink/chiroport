@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { z } from 'npm:zod@3.23.8';
+import { z } from 'npm:zod';
 import { withCorsHeaders, buildCorsHeaders } from '../_shared/cors.ts';
 import { createServiceRoleClient } from '../_shared/supabaseClient.ts';
 import { normalizePhoneToE164 } from '../_shared/phone.ts';
@@ -8,12 +8,8 @@ import {
   checkRateLimit,
   getRateLimitConfig,
 } from '../_shared/rateLimit.ts';
-import {
-  MESSAGE_TYPES,
-  buildPayingConfirmation,
-  buildPriorityPassConfirmation,
-} from '../_shared/messages.ts';
-import { enqueueAndSendOutboxMessage } from '../_shared/outbox.ts';
+import { MESSAGE_TYPES } from '../_shared/messages.ts';
+import { sendOutboxForEntry } from '../_shared/outbox.ts';
 
 function getClientIp(req: Request) {
   const forwardedFor = req.headers.get('x-forwarded-for');
@@ -35,7 +31,9 @@ const joinSchema = z.object({
   phone: z.string().min(1),
   email: z.string().email(),
   consent: z.boolean(),
-  customerType: z.enum(['paying', 'priority_pass']),
+  offeringCode: z.string().min(1).optional(),
+  // Legacy fields remain optional for a rolling web/Edge deployment.
+  customerType: z.enum(['paying', 'priority_pass']).optional(),
   serviceLabel: z.string().min(1).optional(),
   consentVersionId: z.string().uuid().optional(),
   consentKey: z
@@ -144,113 +142,50 @@ serve(async (req) => {
   }
 
   try {
-    let consentVersionId = parsed.data.consentVersionId;
-    const serviceLabel =
-      parsed.data.serviceLabel?.trim() ||
-      (parsed.data.customerType === 'priority_pass' ? 'Priority Pass' : 'Paying');
-
-    if (!consentVersionId) {
-      if (!parsed.data.consentKey) {
+    let offeringCode = parsed.data.offeringCode?.trim();
+    if (!offeringCode) {
+      const legacyLabel = parsed.data.serviceLabel?.trim();
+      if (!legacyLabel) {
         const headers = new Headers();
         withCorsHeaders(headers, origin, path);
-        return new Response(JSON.stringify({ error: 'Consent version is required' }), {
+        return new Response(JSON.stringify({ error: 'Service offering is required' }), {
           status: 400,
           headers,
         });
       }
 
-      const { data: consentRow, error: consentError } = await supabase
-        .from('consent_versions')
-        .select('id')
-        .eq('key', parsed.data.consentKey)
-        .eq('is_active', true)
-        .single();
-
-      if (consentError || !consentRow) {
-        const headers = new Headers();
-        withCorsHeaders(headers, origin, path);
-        return new Response(JSON.stringify({ error: 'Consent version is unavailable' }), {
-          status: 400,
-          headers,
-        });
+      if (legacyLabel === 'Paying') {
+        offeringCode = 'chiropractic';
+      } else {
+        const { data: legacyOffering } = await supabase
+          .from('service_offerings')
+          .select('code')
+          .eq('display_label', legacyLabel)
+          .eq('is_active', true)
+          .maybeSingle();
+        offeringCode = legacyOffering?.code;
       }
-
-      consentVersionId = consentRow.id;
     }
 
-    const { data: joinRows, error: joinError } = await supabase.rpc('join_queue', {
+    if (!offeringCode) {
+      const headers = new Headers();
+      withCorsHeaders(headers, origin, path);
+      return new Response(JSON.stringify({ error: 'Service offering is invalid' }), {
+        status: 400,
+        headers,
+      });
+    }
+
+    const { data: joinRows, error: joinError } = await supabase.rpc('join_queue_with_offering', {
       p_airport_code: parsed.data.airportCode,
       p_location_code: parsed.data.locationCode,
       p_full_name: parsed.data.name,
       p_phone_e164: phoneE164,
       p_email: parsed.data.email,
-      p_customer_type: parsed.data.customerType,
-      p_consent_version_id: consentVersionId,
-      p_service_label: serviceLabel,
+      p_offering_code: offeringCode,
     });
 
     if (joinError || !joinRows?.length) {
-      const isDuplicate =
-        joinError?.code === '23505' ||
-        joinError?.message?.includes('uniq_active_entry_per_customer_per_queue') ||
-        joinError?.details?.includes('uniq_active_entry_per_customer_per_queue');
-
-      if (isDuplicate) {
-        const { data: locationRow } = await supabase
-          .from('locations')
-          .select('id, display_name')
-          .eq('airport_code', parsed.data.airportCode)
-          .eq('code', parsed.data.locationCode)
-          .eq('is_open', true)
-          .maybeSingle();
-
-        const { data: queueRow } = await supabase
-          .from('queues')
-          .select('id')
-          .eq('location_id', locationRow?.id ?? '')
-          .eq('code', 'default')
-          .eq('is_open', true)
-          .maybeSingle();
-
-        const { data: customerRow } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('phone_e164', phoneE164)
-          .maybeSingle();
-
-        const { data: existingEntry } = await supabase
-          .from('queue_entries')
-          .select('id, public_token, status, created_at, queue_id')
-          .eq('queue_id', queueRow?.id ?? '')
-          .eq('customer_id', customerRow?.id ?? '')
-          .in('status', ['waiting', 'serving'])
-          .maybeSingle();
-
-        if (existingEntry) {
-          const { data: waitingRow } = await supabase
-            .from('employee_queue_waiting_view')
-            .select('queue_position')
-            .eq('queue_entry_id', existingEntry.id)
-            .maybeSingle();
-
-          const headers = new Headers();
-          withCorsHeaders(headers, origin, path);
-          return new Response(
-            JSON.stringify({
-              queueEntryId: existingEntry.id,
-              publicToken: existingEntry.public_token,
-              queueId: existingEntry.queue_id,
-              status: existingEntry.status,
-              createdAt: existingEntry.created_at,
-              queuePosition: waitingRow?.queue_position ?? null,
-              locationDisplayName: locationRow?.display_name ?? 'The Chiroport',
-              alreadyInQueue: true,
-            }),
-            { status: 200, headers }
-          );
-        }
-      }
-
       const headers = new Headers();
       withCorsHeaders(headers, origin, path);
       return new Response(
@@ -262,63 +197,38 @@ serve(async (req) => {
     }
 
     const joinResult = joinRows[0];
-    const { data: queueData } = await supabase
-      .from('queues')
-      .select('id, location:locations(display_name, timezone)')
-      .eq('id', joinResult.out_queue_id)
-      .single();
+    const [{ data: queueData }, { data: entryData }] = await Promise.all([
+      supabase
+        .from('queues')
+        .select('id, location:locations(display_name, timezone)')
+        .eq('id', joinResult.out_queue_id)
+        .single(),
+      supabase
+        .from('queue_entries')
+        .select('customer_type')
+        .eq('id', joinResult.out_queue_entry_id)
+        .single(),
+    ]);
 
     const queueLocation = Array.isArray(queueData?.location)
       ? queueData.location[0]
       : queueData?.location;
     const locationDisplayName =
       queueLocation?.display_name ?? 'The Chiroport';
-
-    let payingQueuePosition = joinResult.out_queue_position;
-    if (parsed.data.customerType === 'paying') {
-      const { data: entryRow } = await supabase
-        .from('queue_entries')
-        .select('sort_key')
-        .eq('id', joinResult.out_queue_entry_id)
-        .maybeSingle();
-      if (entryRow?.sort_key != null) {
-        const { count: aheadCount } = await supabase
-          .from('queue_entries')
-          .select('id', { count: 'exact', head: true })
-          .eq('queue_id', joinResult.out_queue_id)
-          .eq('status', 'waiting')
-          .eq('customer_type', 'paying')
-          .lt('sort_key', entryRow.sort_key);
-        if (aheadCount != null) {
-          payingQueuePosition = Number(aheadCount) + 1;
-        }
-      }
+    const customerType = entryData?.customer_type;
+    if (customerType !== 'paying' && customerType !== 'priority_pass') {
+      throw new Error('Queue entry has an invalid customer type');
     }
 
-    const messageBody =
-      parsed.data.customerType === 'paying'
-        ? buildPayingConfirmation({
-            name: parsed.data.name,
-            locationDisplayName,
-            queuePosition: payingQueuePosition,
-          })
-        : buildPriorityPassConfirmation({
-            name: parsed.data.name,
-            locationDisplayName,
-          });
-
     try {
-      await enqueueAndSendOutboxMessage(supabase, {
-        queue_entry_id: joinResult.out_queue_entry_id,
-        message_type: MESSAGE_TYPES.CONFIRM,
-        to_phone: phoneE164,
-        body: messageBody,
-        status: 'queued',
-        idempotency_key: `confirm:${joinResult.out_queue_entry_id}`,
-      });
+      await sendOutboxForEntry(
+        supabase,
+        joinResult.out_queue_entry_id,
+        MESSAGE_TYPES.CONFIRM
+      );
 
       if (
-        parsed.data.customerType === 'paying' &&
+        customerType === 'paying' &&
         Number(joinResult.out_queue_position) === 1
       ) {
         try {
@@ -342,16 +252,6 @@ serve(async (req) => {
     } catch (error) {
       console.error('queue_join immediate send failed', error);
     }
-
-    await supabase.from('queue_events').insert({
-      queue_entry_id: joinResult.out_queue_entry_id,
-      actor_user_id: null,
-      event_type: 'joined',
-      payload: {
-        customer_type: parsed.data.customerType,
-        source: 'queue_join',
-      },
-    });
 
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);

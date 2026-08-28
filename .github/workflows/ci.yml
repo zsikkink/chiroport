@@ -13,13 +13,41 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.7
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.67.1
       - run: npm ci
-      - name: Validate Supabase migrations
+      - name: Check application and Edge Function types
+        run: |
+          npm run check
+          npm run check:edge
+      - name: Validate database, integration behavior, and production build
         run: |
           supabase start
           supabase db reset
-          supabase stop
-      - run: npm run check
+          eval "$(supabase status -o env)"
+          export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+          export SUPABASE_SECRET_KEY="$SERVICE_ROLE_KEY"
+          export SEND_SMS_SECRET="ci-local-only"
+          npm run db:types:check
+          npm test -- --runInBand
+          supabase functions serve --no-verify-jwt > /tmp/chiroport-functions.log 2>&1 &
+          functions_pid=$!
+          trap 'kill "$functions_pid" 2>/dev/null || true; supabase stop' EXIT
+          for attempt in {1..30}; do
+            if curl --silent --output /dev/null --request OPTIONS \
+              "$API_URL/functions/v1/queue_entry_action"; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              cat /tmp/chiroport-functions.log
+              exit 1
+            fi
+            sleep 1
+          done
+          npm run test:e2e
+          npm run build

@@ -98,9 +98,7 @@ describe('LocationDetails massage-only intake', () => {
         body: expect.objectContaining({
           airportCode: 'TST',
           locationCode: 'massage-studio',
-          customerType: 'paying',
-          serviceLabel: 'Massage: 20 minutes',
-          consentKey: 'queue_join_consent_bodywork',
+          offeringCode: 'massage_20',
         }),
       }
     ));
@@ -143,9 +141,7 @@ describe('LocationDetails massage-only intake', () => {
         body: expect.objectContaining({
           airportCode: 'TST',
           locationCode: 'massage-studio',
-          customerType: 'priority_pass',
-          serviceLabel: 'Priority Pass',
-          consentKey: 'queue_join_consent_bodywork',
+          offeringCode: 'priority_pass',
         }),
       }
     ));

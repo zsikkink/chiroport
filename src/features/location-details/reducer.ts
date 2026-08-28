@@ -1,4 +1,4 @@
-import type { Step, WizardAction, WizardState } from './types';
+import type { WizardAction, WizardState } from './types';
 
 export const createEmptyDetails = (): WizardState['details'] => ({
   name: '',
@@ -7,9 +7,7 @@ export const createEmptyDetails = (): WizardState['details'] => ({
   consent: false,
 });
 
-export const createWizardInitialState = (initialStep: Step): WizardState => ({
-  step: initialStep,
-  history: [],
+export const createWizardInitialState = (): WizardState => ({
   isMember: null,
   spinalAdjustment: null,
   selectedTreatment: null,
@@ -23,39 +21,6 @@ export const createWizardInitialState = (initialStep: Step): WizardState => ({
 
 export function wizardReducer(state: WizardState, action: WizardAction): WizardState {
   switch (action.type) {
-    case 'GO_TO':
-      return {
-        ...state,
-        ...(action.step === 'category'
-          ? {
-              visitCategory: null,
-              isMember: null,
-              spinalAdjustment: null,
-              selectedTreatment: null,
-            }
-          : {}),
-        history: [...state.history, state.step],
-        step: action.step,
-        submitAttempted: action.step === 'details' ? false : state.submitAttempted,
-      };
-
-    case 'GO_BACK':
-      const previousStep = state.history[state.history.length - 1] || 'question';
-      return {
-        ...state,
-        ...(previousStep === 'category'
-          ? {
-              visitCategory: null,
-              isMember: null,
-              spinalAdjustment: null,
-              selectedTreatment: null,
-            }
-          : {}),
-        step: previousStep,
-        history: state.history.slice(0, -1),
-        submitAttempted: false,
-      };
-
     case 'SET_MEMBER':
       return { ...state, isMember: action.value };
 
@@ -102,7 +67,7 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       };
 
     case 'RESET':
-      return createWizardInitialState(action.step);
+      return createWizardInitialState();
 
     default:
       return state;

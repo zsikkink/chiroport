@@ -1,20 +1,7 @@
 import type { LocationInfo } from '@/lib';
+import type { IntakeTreatmentOption } from '@/domain/services/catalog';
 
-export type Step =
-  | 'category'
-  | 'question'
-  | 'join'
-  | 'nonmember'
-  | 'details'
-  | 'success'
-  | 'massage_options';
-
-export interface TreatmentOption {
-  title: string;
-  price: string;
-  time: string;
-  description: string;
-}
+export type TreatmentOption = IntakeTreatmentOption;
 
 export interface WizardDetails {
   name: string;
@@ -31,8 +18,6 @@ export interface SubmissionMeta {
 }
 
 export interface WizardState {
-  step: Step;
-  history: Step[];
   isMember: boolean | null;
   spinalAdjustment: boolean | null;
   selectedTreatment: TreatmentOption | null;
@@ -45,8 +30,6 @@ export interface WizardState {
 }
 
 export type WizardAction =
-  | { type: 'GO_TO'; step: Step }
-  | { type: 'GO_BACK' }
   | { type: 'SET_MEMBER'; value: boolean }
   | { type: 'SET_SPINAL'; value: boolean }
   | { type: 'DESELECT_SPINAL' }
@@ -58,7 +41,7 @@ export type WizardAction =
   | { type: 'SUBMIT_START' }
   | { type: 'SUBMIT_SUCCESS'; payload: SubmissionMeta }
   | { type: 'SUBMIT_ERROR'; error: string }
-  | { type: 'RESET'; step: Step };
+  | { type: 'RESET' };
 
 export interface LocationDetailsProps {
   locationInfo: LocationInfo;

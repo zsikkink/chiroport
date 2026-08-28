@@ -3,13 +3,13 @@
 import { useEffect, useLayoutEffect, useReducer } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { AnimatePresence, motion, cubicBezier } from 'framer-motion';
-import 'react-phone-number-input/style.css';
 import { BodyText, ResponsiveCard } from '@/components/ui';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { detailsSchemaFactory } from '@/schemas/intake';
-import type { LocationDetailsProps, Step, VisitCategory } from '@/features/location-details/types';
+import type { LocationDetailsProps, VisitCategory } from '@/features/location-details/types';
 import type { IntakeCategory } from '@/data/locationData';
 import { MASSAGE_OPTIONS, TREATMENTS } from '@/features/location-details/config';
+import { OFFERING_CODES, type OfferingCode } from '@/domain/services/catalog';
 import { createWizardInitialState, wizardReducer } from '@/features/location-details/reducer';
 import { ConsentField, InputField, PhoneField } from '@/features/location-details/components/fields';
 import { SuccessStep } from '@/features/location-details/components/steps';
@@ -111,22 +111,10 @@ export default function LocationDetails({
   const intakeCategory: IntakeCategory = locationInfo.intakeCategory ?? 'standard';
   const isOffersMassage = intakeCategory === 'offers_massage';
   const isMassageOnly = intakeCategory === 'massage_only';
-  const initialStep: Step = isOffersMassage
-    ? 'category'
-    : isMassageOnly
-      ? 'category'
-      : 'question';
   const [state, dispatch] = useReducer(
     wizardReducer,
-    initialStep,
-    (startStep: Step) => createWizardInitialState(startStep)
+    createWizardInitialState()
   );
-
-  const isBodyworkVisitor =
-    isMassageOnly ||
-    state.isMember === true ||
-    state.visitCategory === 'massage' ||
-    state.visitCategory === 'priority_pass';
 
   const showEmailField = true;
   const requireEmail = true;
@@ -160,8 +148,8 @@ export default function LocationDetails({
   }, [airportCode, locationCode]);
 
   useEffect(() => {
-    dispatch({ type: 'RESET', step: initialStep });
-  }, [airportCode, locationCode, initialStep]);
+    dispatch({ type: 'RESET' });
+  }, [airportCode, locationCode]);
 
   const selectUndecidedTreatment = () => {
     if (!UNDECIDED_TREATMENT) {
@@ -322,30 +310,14 @@ export default function LocationDetails({
       const isPriorityPass =
         state.visitCategory === 'priority_pass' || state.isMember === true;
       const wantsAdjustments = isPriorityPass && state.spinalAdjustment === true;
-      const effectiveCustomerType = wantsAdjustments
-        ? 'paying'
-        : isPriorityPass
-          ? 'priority_pass'
-          : 'paying';
-
-      const massageSelection = state.selectedTreatment?.title?.trim();
-      const massageLabel = massageSelection
-        ? `Massage: ${massageSelection.toLowerCase()}`
-        : 'Massage';
-
-      const serviceLabel = (() => {
-        if (wantsAdjustments) return 'Priority Pass + Adjustments';
-        if (isPriorityPass) return 'Priority Pass';
-        if (isMassageOnly) return massageLabel;
-        if (!isOffersMassage) return 'Paying';
-        if (state.visitCategory === 'chiropractor') return 'Chiropractor';
-        if (state.visitCategory === 'massage') return massageLabel;
-        return 'Paying';
+      const offeringCode: OfferingCode = (() => {
+        if (wantsAdjustments) return OFFERING_CODES.PRIORITY_PASS_ADJUSTMENTS;
+        if (isPriorityPass) return OFFERING_CODES.PRIORITY_PASS;
+        if (state.visitCategory === 'massage' && state.selectedTreatment) {
+          return state.selectedTreatment.offeringCode;
+        }
+        return OFFERING_CODES.CHIROPRACTIC;
       })();
-
-      const consentKey = isBodyworkVisitor
-        ? 'queue_join_consent_bodywork'
-        : 'queue_join_consent_chiropractic';
 
       const { data, error } = await supabase.functions.invoke('queue_join', {
         body: {
@@ -355,9 +327,7 @@ export default function LocationDetails({
           phone: validationPayload.phone,
           email: validationPayload.email,
           consent: validationPayload.consent,
-          customerType: effectiveCustomerType,
-          serviceLabel,
-          consentKey,
+          offeringCode,
         },
       });
 
@@ -399,20 +369,12 @@ export default function LocationDetails({
         responseData = data as SubmissionResponse;
       }
 
-      const { data: visitData, error: visitError } = await supabase.rpc('get_visit', {
-        p_public_token: responseData.publicToken,
-      });
-
-      if (visitError || !visitData?.length) {
-        throw new Error('Unable to confirm your place in line. Please try again.');
-      }
-
       dispatch({
         type: 'SUBMIT_SUCCESS',
         payload: {
           queueEntryId: responseData.queueEntryId,
           publicToken: responseData.publicToken,
-          ...(effectiveCustomerType === 'paying'
+          ...(offeringCode !== OFFERING_CODES.PRIORITY_PASS
             ? { queuePosition: responseData.queuePosition }
             : {}),
           alreadyInQueue: responseData.alreadyInQueue ?? false,

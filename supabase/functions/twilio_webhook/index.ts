@@ -1,10 +1,8 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { verifyTwilioSignature } from '../_shared/twilio.ts';
 import { normalizePhoneToE164 } from '../_shared/phone.ts';
-import { MESSAGE_TYPES, buildCancelAck } from '../_shared/messages.ts';
-import { requireEnv } from '../_shared/env.ts';
 import { createServiceRoleClient } from '../_shared/supabaseClient.ts';
-import { enqueueAndSendOutboxMessage } from '../_shared/outbox.ts';
+import { sendOutboxForEntry } from '../_shared/outbox.ts';
 import {
   buildRateLimitResponse,
   checkRateLimit,
@@ -85,55 +83,6 @@ function parseFormPayload(body: string) {
   return payload;
 }
 
-function getRestConfig() {
-  const supabaseUrl = requireEnv('SUPABASE_URL').replace(/\/$/, '');
-  const serviceRoleKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
-  return { supabaseUrl, serviceRoleKey };
-}
-
-async function restRequest<T>(
-  path: string,
-  options: {
-    method: string;
-    headers?: Record<string, string>;
-    body?: unknown;
-  }
-) {
-  const { supabaseUrl, serviceRoleKey } = getRestConfig();
-  const headers = new Headers({
-    Authorization: `Bearer ${serviceRoleKey}`,
-    apikey: serviceRoleKey,
-    'Content-Type': 'application/json',
-    ...options.headers,
-  });
-
-  const response = await fetch(`${supabaseUrl}/rest/v1${path}`, {
-    method: options.method,
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`PostgREST ${response.status}: ${text}`);
-  }
-
-  if (response.status === 204) {
-    return null as T;
-  }
-
-  const text = await response.text();
-  if (!text) {
-    return null as T;
-  }
-
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    return null as T;
-  }
-}
-
 serve(async (req) => {
   const origin = req.headers.get('origin');
   const path = new URL(req.url).pathname;
@@ -141,9 +90,10 @@ serve(async (req) => {
     return new Response('Method not allowed', { status: 405 });
   }
 
+  const service = createServiceRoleClient();
   const ip = getClientIp(req);
   const rateLimit = await checkRateLimit(
-    createServiceRoleClient(),
+    service,
     [
       {
         bucket: `ip:${ip}`,
@@ -196,36 +146,34 @@ serve(async (req) => {
   const messageSid = formPayload.MessageSid ?? null;
   const fromE164 = normalizePhoneToE164(fromRaw);
 
-  try {
-    await restRequest('/sms_inbound?on_conflict=provider_message_id', {
-      method: 'POST',
-      headers: { Prefer: 'resolution=ignore-duplicates' },
-      body: {
-        from_phone: fromE164 ?? fromRaw,
-        to_phone: toRaw,
-        body: bodyRaw,
-        provider_message_id: messageSid,
-        raw: formPayload,
-      },
-    });
-  } catch (error) {
-    console.error('twilio_webhook sms_inbound insert failed', error);
+  const { data: inboundRows, error: inboundError } = await service.rpc(
+    'record_sms_inbound',
+    {
+      p_from_phone: fromE164 ?? fromRaw,
+      p_to_phone: toRaw,
+      p_body: bodyRaw,
+      p_provider_message_id: messageSid,
+      p_raw: formPayload,
+    }
+  );
+  if (inboundError) {
+    console.error('twilio_webhook sms_inbound command failed', inboundError);
+    return new Response(null, { status: 500 });
   }
+  const associatedEntryId = inboundRows?.[0]?.out_queue_entry_id ?? null;
 
   const normalizedBody = bodyRaw.trim().toLowerCase();
   if (normalizedBody === 'stop') {
     if (fromE164) {
-      try {
-        await restRequest('/sms_opt_outs?on_conflict=phone_e164', {
-          method: 'POST',
-          headers: { Prefer: 'resolution=merge-duplicates' },
-          body: {
-            phone_e164: fromE164,
-            opted_out_at: new Date().toISOString(),
-            source: 'twilio_webhook',
-          },
-        });
-      } catch (error) {
+      const { error } = await service.from('sms_opt_outs').upsert(
+        {
+          phone_e164: fromE164,
+          opted_out_at: new Date().toISOString(),
+          source: 'twilio_webhook',
+        },
+        { onConflict: 'phone_e164' }
+      );
+      if (error) {
         console.error('twilio_webhook opt-out insert failed', error);
       }
     }
@@ -234,11 +182,11 @@ serve(async (req) => {
 
   if (normalizedBody === 'start') {
     if (fromE164) {
-      try {
-        await restRequest(`/sms_opt_outs?phone_e164=eq.${encodeURIComponent(fromE164)}`, {
-          method: 'DELETE',
-        });
-      } catch (error) {
+      const { error } = await service
+        .from('sms_opt_outs')
+        .delete()
+        .eq('phone_e164', fromE164);
+      if (error) {
         console.error('twilio_webhook opt-out removal failed', error);
       }
     }
@@ -253,83 +201,29 @@ serve(async (req) => {
     return new Response(null, { status: 204 });
   }
 
-  let entry:
-    | {
-        id: string;
-        status: string;
-        queue_id: string;
-        customer_id: string;
-        created_at: string;
-      }
-    | undefined;
-  try {
-    const entries = await restRequest<
-      Array<{
-        id: string;
-        status: string;
-        queue_id: string;
-        customer_id: string;
-        created_at: string;
-        customers?: { full_name?: string | null } | null;
-      }>
-    >(
-      `/queue_entries?select=id,status,queue_id,customer_id,created_at,customers!inner(phone_e164,full_name)&status=in.(waiting,serving)&customers.phone_e164=eq.${encodeURIComponent(
-        fromE164
-      )}&order=created_at.desc&limit=1`,
-      { method: 'GET' }
-    );
-    entry = entries?.[0];
-  } catch (error) {
-    console.error('twilio_webhook queue lookup failed', error);
-  }
-
-  if (!entry) {
+  if (!associatedEntryId) {
     return new Response(null, { status: 204 });
   }
 
-  let cancelled = false;
-  try {
-    const updated = await restRequest<
-      Array<{ id: string; status: string; cancelled_at: string | null }>
-    >(`/queue_entries?id=eq.${entry.id}&status=in.(waiting,serving)`, {
-      method: 'PATCH',
-      headers: { Prefer: 'return=representation' },
-      body: { status: 'cancelled', cancelled_at: new Date().toISOString() },
-    });
-    cancelled = Boolean(updated?.length);
-  } catch (error) {
-    console.error('twilio_webhook cancel update failed', error);
+  const { data: cancelRows, error: cancelError } = await service.rpc(
+    'customer_cancel_queue_entry',
+    {
+      p_entry_id: associatedEntryId,
+      p_source: 'twilio_webhook',
+      p_enqueue_ack: true,
+    }
+  );
+
+  if (cancelError || !cancelRows?.length) {
+    console.error('twilio_webhook cancel command failed', cancelError);
+    return new Response(null, { status: 500 });
   }
 
-  if (cancelled) {
-    try {
-      await restRequest('/queue_events', {
-        method: 'POST',
-        body: {
-          queue_entry_id: entry.id,
-          actor_user_id: null,
-          event_type: 'cancelled_by_customer',
-          payload: { source: 'twilio_webhook' },
-        },
-      });
-    } catch (error) {
-      console.error('twilio_webhook queue_event insert failed', error);
-    }
-
-    const idempotencyKey = `cancel_ack:${entry.id}`;
-    try {
-      const service = createServiceRoleClient();
-      await enqueueAndSendOutboxMessage(service, {
-        queue_entry_id: entry.id,
-        message_type: MESSAGE_TYPES.CANCEL_ACK,
-        to_phone: fromE164,
-        body: buildCancelAck(),
-        status: 'queued',
-        idempotency_key: idempotencyKey,
-      });
-    } catch (error) {
-      console.error('twilio_webhook cancel ack send failed', error);
-    }
+  try {
+    await sendOutboxForEntry(service, associatedEntryId, 'cancel_ack');
+  } catch (error) {
+    // Delivery is best effort here; the committed outbox row remains retryable.
+    console.error('twilio_webhook cancel ack send failed', error);
   }
 
   return new Response(null, { status: 204 });
