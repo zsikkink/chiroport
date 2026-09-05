@@ -22,36 +22,8 @@ type RateLimitResult = {
   rows: RateLimitRow[];
 };
 
-function maskPhone(value: string) {
-  const digits = value.replace(/\D/g, '');
-  if (digits.length <= 4) return '****';
-  return `***${digits.slice(-4)}`;
-}
-
-function maskEmail(value: string) {
-  const [local, domain] = value.split('@');
-  if (!domain) return '***';
-  const safeLocal = local ? `${local[0]}***` : '***';
-  return `${safeLocal}@${domain}`;
-}
-
-function sanitizeLogContext(context?: Record<string, unknown>) {
-  if (!context) return undefined;
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(context)) {
-    if (typeof value === 'string') {
-      if (key.toLowerCase().includes('phone')) {
-        sanitized[key] = maskPhone(value);
-        continue;
-      }
-      if (key.toLowerCase().includes('email')) {
-        sanitized[key] = maskEmail(value);
-        continue;
-      }
-    }
-    sanitized[key] = value;
-  }
-  return sanitized;
+function safeEndpoint(endpoint?: string) {
+  return ['queue_join', 'send_sms', 'twilio_webhook', 'send_employee_message', 'queue_entry_action', 'update_queue_entry', 'advance_queue', 'set_serving'].includes(endpoint ?? '') ? endpoint : 'unknown';
 }
 
 export function getRateLimitConfig(name: string, fallback: number): number {
@@ -108,9 +80,9 @@ export async function checkRateLimit(
 
   if (error) {
     console.error('[rate_limit] rpc failed', {
-      endpoint: options?.endpoint,
-      error,
-      rules: normalized,
+      endpoint: safeEndpoint(options?.endpoint),
+      code: 'rate_limit_rpc_failed',
+      ruleCount: normalized.length,
     });
     if (options?.failOpen ?? true) {
       return { allowed: true, retryAfterSeconds: 0, rows: [] };
@@ -132,15 +104,14 @@ export async function checkRateLimit(
   }, Number.POSITIVE_INFINITY);
 
   console.warn('[rate_limit] blocked', {
-    endpoint: options?.endpoint,
+    endpoint: safeEndpoint(options?.endpoint),
     retryAfterSeconds,
     buckets: blocked.map((row) => ({
-      bucket: row.bucket_key,
-      limit: row.limit_count,
-      remaining: row.remaining,
-      reset_at: row.reset_at,
+      category: /^(sms:)?phone:/.test(row.bucket_key) ? 'phone' : row.bucket_key.startsWith('ip:') ? 'ip' : 'other',
+      limit: Number.isFinite(row.limit_count) ? row.limit_count : null,
+      remaining: Number.isFinite(row.remaining) ? row.remaining : null,
+      reset_at: Number.isFinite(Date.parse(row.reset_at)) ? new Date(row.reset_at).toISOString() : null,
     })),
-    context: sanitizeLogContext(options?.logContext),
   });
 
   return { allowed: false, retryAfterSeconds, rows };

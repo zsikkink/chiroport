@@ -17,6 +17,10 @@ export default [
   ...nextCoreWebVitals,
   ...nextTypescript,
   {
+    files: ['tests/helpers/*.cjs'],
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+  {
     rules: {
       'react-hooks/set-state-in-effect': 'off',
     },
