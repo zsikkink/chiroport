@@ -1,7 +1,7 @@
 'use client';
 
 import { AsYouType } from 'libphonenumber-js';
-import type { CSSProperties, ReactNode } from 'react';
+import { useId, type CSSProperties, type ReactNode } from 'react';
 import type { WizardState } from '@/features/location-details/types';
 
 const selectedCheckboxStyle: CSSProperties = {
@@ -28,12 +28,14 @@ export function InputField({
   error,
   required = false,
 }: InputFieldProps) {
+  const inputId = useId();
   return (
     <div>
-      <label className="text-size-stable block text-black text-[18px] leading-tight font-bold mb-2">
+      <label htmlFor={inputId} className="text-size-stable block text-black text-[18px] leading-tight font-bold mb-2">
         {label} {required && <span className="text-red-600">*</span>}
       </label>
       <input
+        id={inputId}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -58,6 +60,7 @@ export function PhoneField({
   submitAttempted,
   errors,
 }: PhoneFieldProps) {
+  const inputId = useId();
   const isIntl = details.phone?.startsWith('+');
 
   // Format US phone number as (XXX) XXX-XXXX
@@ -90,13 +93,14 @@ export function PhoneField({
 
   return (
     <div>
-      <label className="text-size-stable block text-black text-[18px] leading-tight font-bold mb-2">
+      <label htmlFor={inputId} className="text-size-stable block text-black text-[18px] leading-tight font-bold mb-2">
         Phone Number <span className="text-red-600">*</span>
       </label>
 
       {isIntl ? (
         // — international —
         <input
+          id={inputId}
           type="tel"
           inputMode="tel"
           value={intlDisplay}
@@ -107,6 +111,7 @@ export function PhoneField({
       ) : (
         // — U.S. formatting —
         <input
+          id={inputId}
           type="tel"
           value={formatUSPhone(details.phone || '')}
           onChange={handlePhoneChange}
@@ -147,11 +152,11 @@ export function ConsentField({
             type="checkbox"
             checked={isChecked}
             onChange={(e) => onUpdateField('consent', e.target.checked)}
-            className="sr-only"
+            className="sr-only peer"
           />
           <div
             className={`
-            w-5 h-5 rounded border-2 border-slate-300 flex items-center justify-center transition-colors duration-200
+            w-5 h-5 rounded border-2 border-slate-300 flex items-center justify-center transition-colors duration-200 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-sky-700
             ${isChecked 
               ? 'bg-sky-200 border-sky-400'
               : 'bg-transparent group-hover:bg-slate-100'
