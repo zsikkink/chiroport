@@ -25,7 +25,8 @@ const flags = new Set(args.filter((arg) => arg.startsWith('--')));
 const getArgValue = (flag) => {
   const index = args.indexOf(flag);
   if (index === -1) return null;
-  return args[index + 1] || null;
+  const value = args[index + 1];
+  return value && !value.startsWith('--') ? value : null;
 };
 
 const all = flags.has('--all');
@@ -44,8 +45,8 @@ if (!all && !queueId && !(airportCode && locationCode)) {
       '  npm run queue:clear -- --queue-id <uuid>\n' +
       '  npm run queue:clear -- --airport-code <code> --location-code <slug>\n' +
       'Options:\n' +
-      '  --confirm     Required for --all deletes\n' +
-      '  --force-prod  Required to run --all against production\n' +
+      '  --confirm     Required for every delete\n' +
+      '  --force-prod  Required for every non-loopback delete\n' +
       '  --dry-run     Print what would be deleted and exit\n'
   );
   process.exit(1);
@@ -59,14 +60,43 @@ if (!url || !serviceKey) {
   process.exit(1);
 }
 
+// Resolve the target before creating a privileged client. A location selector
+// is just as destructive as --all; unknown/custom hosts are remote, not safe.
+let target;
+try {
+  target = new URL(url);
+  if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password) throw new Error();
+} catch {
+  console.error('Refusing invalid Supabase URL.');
+  process.exit(1);
+}
+const allowedFlags = new Set(['--all', '--confirm', '--force-prod', '--dry-run', '--queue-id', '--queue', '--airport-code', '--location-code']);
+const valueFlags = new Set(['--queue-id', '--queue', '--airport-code', '--location-code']);
+const invalidArguments = args.filter(arg => arg.startsWith('--')).length !== flags.size || args.some((arg, index) =>
+  arg.startsWith('--')
+    ? !allowedFlags.has(arg) || (valueFlags.has(arg) && (!args[index + 1] || args[index + 1].startsWith('--')))
+    : index === 0 || !valueFlags.has(args[index - 1])
+);
+const selectors = Number(all) + Number(Boolean(queueId)) + Number(Boolean(airportCode || locationCode));
+if (invalidArguments || selectors !== 1 || (Boolean(airportCode) !== Boolean(locationCode)) ||
+    (flags.has('--queue') && flags.has('--queue-id')) ||
+    [...flags].some(flag => !allowedFlags.has(flag)) ||
+    (queueId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(queueId))) {
+  console.error('Refusing invalid or ambiguous queue selector.');
+  process.exit(1);
+}
+if (!dryRun && !confirm) {
+  console.error('Refusing delete without --confirm. Use --dry-run to inspect the target.');
+  process.exit(1);
+}
+if (!dryRun && !['localhost', '127.0.0.1', '[::1]'].includes(target.hostname) && !forceProd) {
+  console.error('Refusing remote delete without --force-prod.');
+  process.exit(1);
+}
+
 const supabase = createClient(url, serviceKey, {
   auth: { persistSession: false },
 });
-
-function isProductionUrl(value) {
-  if (!value) return false;
-  return /\.supabase\.co/.test(value) && !/localhost|127\.0\.0\.1/.test(value);
-}
 
 async function countQueueEntries(filter) {
   const query = supabase.from('queue_entries').select('id', { count: 'exact', head: true });
@@ -108,20 +138,6 @@ async function resolveQueueId() {
 
 async function clearQueues() {
   if (all) {
-    if (!confirm) {
-      console.error('Refusing to run --all without --confirm.');
-      if (process.env.CLEAR_QUEUE_SKIP_COUNT !== '1') {
-        const count = await countQueueEntries((q) => q.neq('id', '00000000-0000-0000-0000-000000000000'));
-        console.error(`Would delete ${count} queue entries from ${url}.`);
-      }
-      process.exit(1);
-    }
-
-    if (isProductionUrl(url) && !forceProd) {
-      console.error('Refusing to run --all against production without --force-prod.');
-      process.exit(1);
-    }
-
     if (dryRun) {
       if (process.env.CLEAR_QUEUE_SKIP_COUNT !== '1') {
         const count = await countQueueEntries((q) => q.neq('id', '00000000-0000-0000-0000-000000000000'));
