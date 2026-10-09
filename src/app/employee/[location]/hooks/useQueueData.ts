@@ -30,6 +30,8 @@ export function useQueueData(options: UseQueueDataOptions) {
   const locationRef = useRef(selectedLocationId);
   const requestRef = useRef(0);
   const queueRequestRef = useRef(0);
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
+  const refreshPendingRef = useRef(false);
 
   const waitingRef = useRef(waitingEntries);
   const servingRef = useRef(servingEntries);
@@ -70,9 +72,8 @@ export function useQueueData(options: UseQueueDataOptions) {
   }, [onActionError]);
 
   const refreshQueueData = useCallback(
-    async (options?: { showLoading?: boolean; reason?: string }) => {
-      if (!selectedLocationId || selectedLocationId !== locationRef.current) return;
-      const request = ++requestRef.current;
+    (options?: { showLoading?: boolean; reason?: string }) => {
+      if (!selectedLocationId || selectedLocationId !== locationRef.current) return Promise.resolve();
       const showLoading = options?.showLoading ?? false;
       refreshCountRef.current += 1;
       if (debugEnabled) {
@@ -87,48 +88,68 @@ export function useQueueData(options: UseQueueDataOptions) {
         setDataLoading(true);
       }
       onActionError?.('');
-
-      const [waiting, serving, history] = await Promise.all([
-        supabase
-          .from('employee_queue_waiting_view')
-          .select('*')
-          .eq('location_id', selectedLocationId)
-          .order('queue_position', { ascending: true }),
-        supabase
-          .from('employee_queue_serving_view')
-          .select('*')
-          .eq('location_id', selectedLocationId)
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('employee_queue_history_view')
-          .select('*')
-          .eq('location_id', selectedLocationId)
-          .order('end_ts', { ascending: false }),
-      ]);
-
-      if (request !== requestRef.current || selectedLocationId !== locationRef.current) return;
-
-      if (waiting.error || serving.error || history.error) {
-        const rootError = waiting.error || serving.error || history.error;
-        const message = formatSupabaseError(rootError, 'Failed to load queue data.');
-        console.error('[employee] refreshQueueData failed', {
-          waitingError: waiting.error,
-          servingError: serving.error,
-          historyError: history.error,
-          locationId: selectedLocationId,
-        });
-        onActionError?.(message);
-      } else {
-        const waitingRows = (waiting.data ?? []).filter(hasQueueEntryId);
-        const servingRows = (serving.data ?? []).filter(hasQueueEntryId);
-        const historyRows = (history.data ?? []).filter(hasQueueEntryId);
-
-        setWaitingEntries(sortWaitingEntries(waitingRows));
-        setServingEntries(sortServingEntries(servingRows));
-        setHistoryEntries(sortHistoryEntries(historyRows));
+      if (refreshInFlightRef.current) {
+        refreshPendingRef.current = true;
+        return refreshInFlightRef.current;
       }
+      const request = ++requestRef.current;
+      const load = async () => {
+        do {
+          refreshPendingRef.current = false;
 
-      setDataLoading(false);
+          const [waiting, serving, history] = await Promise.all([
+            supabase
+              .from('employee_queue_waiting_view')
+              .select('*')
+              .eq('location_id', selectedLocationId)
+              .order('queue_position', { ascending: true }),
+            supabase
+              .from('employee_queue_serving_view')
+              .select('*')
+              .eq('location_id', selectedLocationId)
+              .order('created_at', { ascending: true }),
+            supabase
+              .from('employee_queue_history_view')
+              .select('*')
+              .eq('location_id', selectedLocationId)
+              .order('end_ts', { ascending: false }),
+          ]);
+
+          if (request !== requestRef.current || selectedLocationId !== locationRef.current) return;
+
+          if (waiting.error || serving.error || history.error) {
+            const rootError = waiting.error || serving.error || history.error;
+            const message = formatSupabaseError(rootError, 'Failed to load queue data.');
+            console.error('[employee] refreshQueueData failed', {
+              waitingError: waiting.error,
+              servingError: serving.error,
+              historyError: history.error,
+              locationId: selectedLocationId,
+            });
+            onActionError?.(message);
+          } else {
+            const waitingRows = (waiting.data ?? []).filter(hasQueueEntryId);
+            const servingRows = (serving.data ?? []).filter(hasQueueEntryId);
+            const historyRows = (history.data ?? []).filter(hasQueueEntryId);
+
+            setWaitingEntries(sortWaitingEntries(waitingRows));
+            setServingEntries(sortServingEntries(servingRows));
+            setHistoryEntries(sortHistoryEntries(historyRows));
+          }
+
+          setDataLoading(false);
+        } while (refreshPendingRef.current && request === requestRef.current && selectedLocationId === locationRef.current);
+      };
+      const inFlight = load().catch(() => {
+        if (request === requestRef.current && selectedLocationId === locationRef.current) {
+          onActionError?.('Failed to load queue data. Please retry.');
+          setDataLoading(false);
+        }
+      }).finally(() => {
+        if (refreshInFlightRef.current === inFlight) refreshInFlightRef.current = null;
+      });
+      refreshInFlightRef.current = inFlight;
+      return inFlight;
     },
     [debugEnabled, onActionError, selectedLocationId]
   );
@@ -146,10 +167,31 @@ export function useQueueData(options: UseQueueDataOptions) {
     }
     return () => {
       locationRef.current = '';
+      refreshInFlightRef.current = null;
+      refreshPendingRef.current = false;
       requestRef.current += 1;
       queueRequestRef.current += 1;
     };
   }, [selectedLocationId, loadQueueId, refreshQueueData]);
+
+  useEffect(() => {
+    if (!selectedLocationId) return;
+    const recover = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!queueId) void loadQueueId(selectedLocationId);
+      void refreshQueueData({ showLoading: false, reason: 'browser-recovery' });
+    };
+    // Realtime can remain disconnected or miss a move/delete. A visible staff
+    // workspace must eventually converge even without a websocket recovery.
+    const interval = window.setInterval(recover, 60_000);
+    window.addEventListener('online', recover);
+    document.addEventListener('visibilitychange', recover);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('online', recover);
+      document.removeEventListener('visibilitychange', recover);
+    };
+  }, [selectedLocationId, queueId, loadQueueId, refreshQueueData]);
 
   const updateEntryInLists = useCallback(
     (entryId: string, updates: Partial<WaitingRow & ServingRow & HistoryRow>) => {

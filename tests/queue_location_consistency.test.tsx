@@ -36,16 +36,34 @@ it.each([false, true])('new location survives a late prior response (error=%s)',
   expect(onActionError).not.toHaveBeenCalled();
 });
 
-it('a newer quiet refresh settles loading and supersedes an older loading request', async () => {
+it('coalesces a refresh burst and reads again after the in-flight snapshot', async () => {
   const { result } = renderHook(() => useQueueData({ selectedLocationId: 'A', debugEnabled: false }));
   const initial = [...mockPending];
   let refresh: Promise<void>;
-  act(() => { refresh = result.current.refreshQueueData(); });
-  await finish(mockPending.slice(initial.length));
-  await act(async () => { await refresh; });
-  expect(result.current.dataLoading).toBe(false);
+  act(() => {
+    refresh = result.current.refreshQueueData();
+    for (let index = 0; index < 20; index++) expect(result.current.refreshQueueData()).toBe(refresh);
+  });
+  expect(mockPending).toHaveLength(4);
   await finish(initial);
-  expect(result.current.waitingEntries[0]?.queue_entry_id).toBe('entry-A');
+  expect(mockPending).toHaveLength(7);
+  await act(async () => {
+    for (const request of mockPending.slice(initial.length)) request.resolve({ error: null, data: request.table.includes('history') ? [{ queue_entry_id: 'completed-A', end_ts: '2026-10-09T12:00:00Z' }] : [] });
+    await refresh;
+  });
+  expect(result.current.dataLoading).toBe(false);
+  expect(result.current.waitingEntries).toEqual([]);
+  expect(result.current.historyEntries[0]?.queue_entry_id).toBe('completed-A');
+});
+
+it('recovers a missed queue change when the browser comes online', async () => {
+  const { result } = renderHook(() => useQueueData({ selectedLocationId: 'A', debugEnabled: false }));
+  await finish([...mockPending]);
+  expect(result.current.waitingEntries).toHaveLength(1);
+  const count = mockPending.length;
+  act(() => { window.dispatchEvent(new Event('online')); });
+  await act(async () => { for (const request of mockPending.slice(count)) request.resolve({ error: null, data: [] }); });
+  expect(result.current.waitingEntries).toEqual([]);
 });
 
 it('ignores failed requests after unmount', async () => {

@@ -110,12 +110,10 @@ export function useEntryActions(options: UseEntryActionsOptions) {
       if (!queueId) return false;
       optimistic();
       const success = await runAction(key, action, context);
-      if (!success) {
-        await queueState.refreshQueueData({
-          showLoading: false,
-          reason: `reconcile-failed-${key}`,
-        });
-      }
+      await queueState.refreshQueueData({
+        showLoading: false,
+        reason: `reconcile-${success ? 'completed' : 'failed'}-${key}`,
+      });
       return success;
     },
     [queueId, queueState, runAction]

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { ApiBoundaryError } from '@/lib/apiError';
 import type { ChatEntry, ChatMessage } from '../types';
 import { formatSupabaseError, resolveActionError } from '../utils';
 
@@ -20,12 +21,25 @@ export function useChatData(options: UseChatDataOptions) {
   const [unreadEntryIds, setUnreadEntryIds] = useState<Record<string, boolean>>({});
   const chatEntryRef = useRef<ChatEntry | null>(chatEntry);
   const chatListRef = useRef<HTMLDivElement | null>(null);
+  const chatGenerationRef = useRef(0);
+  const loadRequestRef = useRef(0);
+  const sendingRef = useRef(false);
+  const pendingMessageRef = useRef<{ entryId: string; body: string; requestId: string } | null>(null);
 
   useEffect(() => {
     chatEntryRef.current = chatEntry;
   }, [chatEntry]);
 
+  useEffect(() => () => {
+    chatGenerationRef.current += 1;
+    loadRequestRef.current += 1;
+    chatEntryRef.current = null;
+  }, []);
+
   const loadChatMessages = useCallback(async (entry: ChatEntry) => {
+    const generation = chatGenerationRef.current;
+    const request = ++loadRequestRef.current;
+    if (chatEntryRef.current?.queue_entry_id !== entry.queue_entry_id) return;
     setChatLoading(true);
     setChatError('');
     const [outbox, inbound] = await Promise.all([
@@ -40,6 +54,9 @@ export function useChatData(options: UseChatDataOptions) {
         .eq('queue_entry_id', entry.queue_entry_id)
         .order('received_at', { ascending: true }),
     ]);
+
+    if (generation !== chatGenerationRef.current || request !== loadRequestRef.current ||
+      chatEntryRef.current?.queue_entry_id !== entry.queue_entry_id) return;
 
     if (outbox.error || inbound.error) {
       const rootError = outbox.error || inbound.error;
@@ -65,7 +82,7 @@ export function useChatData(options: UseChatDataOptions) {
       const inboundMessages: ChatMessage[] = (inbound.data ?? [])
         .filter((row) => row.body && row.received_at)
         .map((row) => ({
-          id: row.id,
+          id: `inbound:${row.id}`,
           direction: 'in',
           body: row.body,
           at: row.received_at,
@@ -97,7 +114,11 @@ export function useChatData(options: UseChatDataOptions) {
 
   const openChat = useCallback(
     async (entry: ChatEntry) => {
-      setChatEntry(null);
+      chatGenerationRef.current += 1;
+      chatEntryRef.current = entry;
+      setChatEntry(entry);
+      setChatSending(false);
+      sendingRef.current = false;
       setChatDraft('');
       setChatError('');
       setChatMessages([]);
@@ -108,13 +129,16 @@ export function useChatData(options: UseChatDataOptions) {
         return next;
       });
       await loadChatMessages(entry);
-      setChatEntry(entry);
     },
     [loadChatMessages]
   );
 
   const closeChat = useCallback(() => {
+    chatGenerationRef.current += 1;
+    loadRequestRef.current += 1;
+    chatEntryRef.current = null;
     setChatEntry(null);
+    setChatLoading(false);
     setChatMessages([]);
     setChatError('');
     setChatDraft('');
@@ -128,23 +152,45 @@ export function useChatData(options: UseChatDataOptions) {
 
   const handleSendMessage = useCallback(async () => {
     if (!chatEntry) return;
-    if (!chatDraft.trim()) return;
+    const body = chatDraft.trim();
+    if (!body || sendingRef.current) return;
+    const generation = chatGenerationRef.current;
+    const isCurrent = () => generation === chatGenerationRef.current &&
+      chatEntryRef.current?.queue_entry_id === chatEntry.queue_entry_id;
+    if (!isCurrent()) return;
+    sendingRef.current = true;
+    // Keep the same operation identity after an ambiguous HTTP failure.
+    if (pendingMessageRef.current?.entryId !== chatEntry.queue_entry_id ||
+      pendingMessageRef.current?.body !== body) {
+      pendingMessageRef.current = { entryId: chatEntry.queue_entry_id, body, requestId: crypto.randomUUID() };
+    }
 
     setChatSending(true);
     setChatError('');
     try {
       await invokeEmployeeFunction('send_employee_message', {
         queueEntryId: chatEntry.queue_entry_id,
-        body: chatDraft.trim(),
+        body,
+        requestId: pendingMessageRef.current.requestId,
       });
 
-      setChatDraft('');
+      if (!isCurrent()) return;
+      pendingMessageRef.current = null;
+      setChatDraft(current => current.trim() === body ? '' : current);
       await loadChatMessages(chatEntry);
     } catch (error) {
+      // Opt-out is a definite no-send outcome. A later opt-in may start a new
+      // request; ambiguous/provider failures must keep their original identity.
+      if (isCurrent() && error instanceof ApiBoundaryError && error.code === 'opted_out') {
+        pendingMessageRef.current = null;
+      }
       const message = await resolveActionError(error, 'Failed to send message.');
-      setChatError(message);
+      if (isCurrent()) setChatError(message);
     } finally {
-      setChatSending(false);
+      if (isCurrent()) {
+        sendingRef.current = false;
+        setChatSending(false);
+      }
     }
   }, [chatDraft, chatEntry, invokeEmployeeFunction, loadChatMessages]);
 

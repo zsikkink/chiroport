@@ -9,13 +9,13 @@ import {
 } from '@/app/employee/[location]/hooks/realtimeReconciliation';
 
 describe('realtime recovery', () => {
-  it('does not refresh for the initial subscription', () => {
+  it('closes the snapshot-to-subscription gap on initial subscription', () => {
     const result = transitionRealtimeRecovery(
       initialRealtimeRecoveryState,
       'SUBSCRIBED'
     );
 
-    expect(result.shouldRefresh).toBe(false);
+    expect(result.shouldRefresh).toBe(true);
     expect(result.state).toEqual({ hasSubscribed: true, needsRefresh: false });
   });
 

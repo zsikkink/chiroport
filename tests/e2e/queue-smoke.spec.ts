@@ -215,6 +215,7 @@ test.describe('queue smoke', () => {
   test('public join boundary validates, rate-limits, and cannot be bypassed by RPC', async () => {
     const env = getTestEnv();
     test.skip(!env || !env.serviceKey, 'Missing Supabase env for E2E smoke');
+    if (!env || !['localhost', '127.0.0.1', '[::1]'].includes(new URL(env.url).hostname)) throw new Error('Rate-limit fixtures require loopback Supabase');
     const service = createServiceClient(env!);
     const anon = createAnonClient(env!);
     const baseUrl = env!.url.replace(/\/$/, '');
@@ -296,7 +297,11 @@ test.describe('queue smoke', () => {
     });
     expect(directBypass.error).toBeTruthy();
 
-    const phone = randomPhone();
+    // Reserved fictional number outside randomPhone's range. Earlier cases
+    // must not consume this test's exact five-request phone budget.
+    const phone = '+12025550188';
+    const buckets = [`phone:${phone}:hour`, `phone:${phone}:day`];
+    expect((await service.from('api_rate_limits').delete().in('bucket', buckets)).error).toBeNull();
     let entryId: string | undefined;
     try {
       for (let attempt = 1; attempt <= 6; attempt += 1) {
@@ -322,6 +327,7 @@ test.describe('queue smoke', () => {
         }
       }
     } finally {
+      await service.from('api_rate_limits').delete().in('bucket', buckets);
       if (entryId) {
         await service.from('sms_outbox').delete().eq('queue_entry_id', entryId);
         await service.from('queue_entries').delete().eq('id', entryId);

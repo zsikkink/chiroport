@@ -3,6 +3,7 @@ export type ApiErrorCode =
   | 'validation_error'
   | 'not_found'
   | 'conflict'
+  | 'opted_out'
   | 'rate_limited'
   | 'unauthorized'
   | 'forbidden'
@@ -20,6 +21,7 @@ const KNOWN_CODES = new Set<ApiErrorCode>([
   'validation_error',
   'not_found',
   'conflict',
+  'opted_out',
   'rate_limited',
   'unauthorized',
   'forbidden',

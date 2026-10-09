@@ -182,8 +182,9 @@ describe('bounded analytics database contract', () => {
       });
       expect(Number(current.wait_avg_minutes)).toBeCloseTo(15, 8);
       expect(Number(current.time_in_system_avg_minutes)).toBeCloseTo(35, 8);
-      expect(Number(current.average_queue_length)).toBeCloseTo(45 / 720, 8);
-      expect(Number(current.utilization_rate)).toBeCloseTo(35 / 720, 8);
+      // HOU is seeded 08:00–18:00: ten hours (600 minutes), not twelve.
+      expect(Number(current.average_queue_length)).toBeCloseTo(45 / 600, 8);
+      expect(Number(current.utilization_rate)).toBeCloseTo(35 / 600, 8);
 
       const locationScope = scope.locations.find(
         (row) => row.location.id === location!.id

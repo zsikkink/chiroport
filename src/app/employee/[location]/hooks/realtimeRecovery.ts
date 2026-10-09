@@ -15,7 +15,8 @@ export function transitionRealtimeRecovery(
   if (status === 'SUBSCRIBED') {
     return {
       state: { hasSubscribed: true, needsRefresh: false },
-      shouldRefresh: state.hasSubscribed && state.needsRefresh,
+      // Close the gap between the initial HTTP snapshot and subscription setup.
+      shouldRefresh: !state.hasSubscribed || state.needsRefresh,
     };
   }
 

@@ -18,6 +18,7 @@ for (const pending of ['action', 'realtime']) {
     let release!: () => void, observed!: () => void;
     const held = new Promise<void>(resolve => { observed = resolve; });
     const gate = new Promise<void>(resolve => { release = resolve; });
+    let interceptedRefresh = false;
     try {
       await page.goto(`/employee/${toLocationSlug(a!.airport_code, a!.code)}`);
       await page.getByLabel('Email', { exact: true }).fill(email);
@@ -33,7 +34,8 @@ for (const pending of ['action', 'realtime']) {
         await page.getByRole('button', { name: 'Move to serving', exact: true }).click();
       } else {
         await page.route('**/rest/v1/employee_queue_serving_view?**', async route => {
-          if (!decodeURIComponent(route.request().url()).includes(`queue_entry_id=eq.${entryId}`)) return route.continue();
+          if (interceptedRefresh || !decodeURIComponent(route.request().url()).includes(`location_id=eq.${a!.id}`)) return route.continue();
+          interceptedRefresh = true;
           const response = await route.fetch(); observed(); await gate;
           await route.fulfill({ response });
         });
@@ -54,7 +56,7 @@ for (const pending of ['action', 'realtime']) {
         await expect(page.getByText(/completed at /)).toBeVisible();
         await expect(page.getByRole('button', { name: 'Mark completed', exact: true })).toHaveCount(0);
       }
-      const delayed = page.waitForResponse(response => pending === 'action' ? response.url().includes('/functions/v1/queue_entry_action') : decodeURIComponent(response.url()).includes(`queue_entry_id=eq.${entryId}`));
+      const delayed = page.waitForResponse(response => pending === 'action' ? response.url().includes('/functions/v1/queue_entry_action') : decodeURIComponent(response.url()).includes(`location_id=eq.${a!.id}`) && response.url().includes('employee_queue_serving_view'));
       release();
       await (await delayed).finished();
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));

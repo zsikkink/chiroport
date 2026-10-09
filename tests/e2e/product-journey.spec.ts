@@ -81,20 +81,21 @@ test('synthetic visitor: browser intake → staff service → history → analyt
     expect(outbox.data!.every(row => row.provider_message_id === null)).toBe(true);
 
     await page.goto('/employee/analytics');
-    // Latest settled day is resolved by the database in the location calendar.
-    // Relative presets currently use the browser calendar (documented separate
-    // cross-timezone issue); do not make this journey depend on the runner TZ.
+    // Explicit location-local day avoids both browser timezone drift and
+    // assumptions about the default preset or removed UI options.
+    const visitDay = new Intl.DateTimeFormat('en-CA', { timeZone: location!.timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(entry.data!.created_at));
+    await page.getByLabel('Time window').selectOption('custom_day');
+    await page.getByLabel('Day', { exact: true }).fill(visitDay);
     const analytics = page.waitForResponse(response => {
       const url = new URL(response.url());
-      return url.pathname === '/api/analytics' && url.searchParams.get('locationId') === location!.id && !url.searchParams.has('dateStart');
+      return url.pathname === '/api/analytics' && url.searchParams.get('locationId') === location!.id && url.searchParams.get('dateStart') === visitDay && url.searchParams.get('dateEnd') === visitDay;
     });
     await page.getByLabel('Location scope').selectOption(location!.id);
-    await expect(page.getByLabel('Time window')).toHaveValue('latest');
+    await expect(page.getByLabel('Time window')).toHaveValue('custom_day');
     const analyticsResponse = await analytics;
     expect(analyticsResponse.ok()).toBeTruthy();
     const payload = await analyticsResponse.json();
     expect(payload.analytics.kpis.completed_total).toBeGreaterThanOrEqual(1);
-    const visitDay = new Intl.DateTimeFormat('en-CA', { timeZone: location!.timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(entry.data!.created_at));
     expect(payload.analytics.filters.date_end).toBe(visitDay);
     await expect(page.getByText('Analytics Filters', { exact: true })).toBeVisible();
     await shot(page, 'synthetic-analytics.png');

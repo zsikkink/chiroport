@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import type { Database } from '@/lib/supabase/database.types';
 import type { ChatEntry, ChatMessage, HistoryRow, ServingRow, WaitingRow, WithEntryId } from '../types';
 import {
   initialRealtimeRecoveryState,
@@ -9,15 +8,12 @@ import {
 } from './realtimeRecovery';
 import {
   reconcileInboundRows,
-  reconcileRealtimeDelete,
   upsertRealtimeChatMessage,
 } from './realtimeReconciliation';
 import {
-  removeEntry,
   sortHistoryEntries,
   sortServingEntries,
   sortWaitingEntries,
-  upsertEntry,
 } from '../utils';
 
 const supabase = getSupabaseBrowserClient();
@@ -56,9 +52,6 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
     setServingEntries,
     setHistoryEntries,
     updateEntryInLists,
-    fetchWaitingEntry,
-    fetchServingEntry,
-    fetchHistoryEntry,
     refreshQueueData,
   } = queueState;
   const { chatEntryRef, setChatMessages, setUnreadEntryIds, reloadActiveChat } = chatState;
@@ -95,124 +88,12 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
     [refreshQueueData, reloadActiveChat]
   );
 
-  const handleQueueEntryChange = useCallback(
-    async (payload: {
-      eventType: string;
-      new?: Record<string, unknown>;
-      old?: Record<string, unknown>;
-    }) => {
-      const record = (payload.eventType === 'DELETE'
-        ? payload.old
-        : payload.new) as Database['public']['Tables']['queue_entries']['Row'] | undefined;
-      if (!record) return;
-      const entryId = record.id;
-      if (debugEnabled) {
-        console.debug('[employee] queue_entries event', {
-          eventType: payload.eventType,
-          entryId,
-          status: record.status,
-        });
-      }
-
-      if (payload.eventType === 'DELETE') {
-        const reconciled = reconcileRealtimeDelete(
-          {
-            waiting: waitingRef.current,
-            serving: servingRef.current,
-            history: historyRef.current,
-          },
-          entryId
-        );
-        setWaitingEntries(reconciled.waiting);
-        setServingEntries(reconciled.serving);
-        setHistoryEntries(reconciled.history);
-        return;
-      }
-
-      if (record.status === 'waiting') {
-        const existing = waitingRef.current.find(
-          (row) => row.queue_entry_id === entryId
-        );
-        if (existing) {
-          updateEntryInLists(entryId, {
-            status: record.status,
-            sort_key: record.sort_key ?? existing.sort_key,
-            updated_at: record.updated_at ?? existing.updated_at,
-          });
-        } else {
-          const row = await fetchWaitingEntry(entryId);
-          if (row) {
-            setWaitingEntries((prev) => sortWaitingEntries(upsertEntry(prev, row)));
-          }
-        }
-        setServingEntries((prev) => removeEntry(prev, entryId));
-        setHistoryEntries((prev) => removeEntry(prev, entryId));
-        return;
-      }
-
-      if (record.status === 'serving') {
-        const existing = servingRef.current.find(
-          (row) => row.queue_entry_id === entryId
-        );
-        if (existing) {
-          updateEntryInLists(entryId, {
-            status: record.status,
-            served_at: record.served_at ?? existing.served_at,
-            updated_at: record.updated_at ?? existing.updated_at,
-          });
-        } else {
-          const row = await fetchServingEntry(entryId);
-          if (row) {
-            setServingEntries((prev) => sortServingEntries(upsertEntry(prev, row)));
-          }
-        }
-        setWaitingEntries((prev) => removeEntry(prev, entryId));
-        setHistoryEntries((prev) => removeEntry(prev, entryId));
-        return;
-      }
-
-      if (['completed', 'cancelled', 'no_show'].includes(record.status ?? '')) {
-        const existing = historyRef.current.find(
-          (row) => row.queue_entry_id === entryId
-        );
-        if (existing) {
-          const endTs =
-            record.completed_at ??
-            record.cancelled_at ??
-            record.no_show_at ??
-            record.served_at ??
-            record.updated_at ??
-            record.created_at ??
-            existing.end_ts;
-          updateEntryInLists(entryId, {
-            status: record.status,
-            end_ts: endTs,
-            updated_at: record.updated_at ?? existing.updated_at,
-          });
-        } else {
-          const row = await fetchHistoryEntry(entryId);
-          if (row) {
-            setHistoryEntries((prev) => sortHistoryEntries(upsertEntry(prev, row)));
-          }
-        }
-        setWaitingEntries((prev) => removeEntry(prev, entryId));
-        setServingEntries((prev) => removeEntry(prev, entryId));
-      }
-    },
-    [
-      debugEnabled,
-      fetchHistoryEntry,
-      fetchServingEntry,
-      fetchWaitingEntry,
-      historyRef,
-      servingRef,
-      setHistoryEntries,
-      setServingEntries,
-      setWaitingEntries,
-      updateEntryInLists,
-      waitingRef,
-    ]
-  );
+  // Changes also affect joined customer fields and every other entry's rank.
+  // Re-read the authoritative views; delayed per-entry reads can resurrect a
+  // settled visit or leave the old location visible after a move.
+  const handleQueueEntryChange = useCallback(async () => {
+    await refreshQueueData({ showLoading: false, reason: 'realtime-queue-change' });
+  }, [refreshQueueData]);
 
   useEffect(() => {
     if (!queueId) return;
@@ -233,8 +114,8 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
           table: 'queue_entries',
           filter: `queue_id=eq.${queueId}`,
         },
-        (payload) => {
-          void handleQueueEntryChange(payload);
+        () => {
+          void handleQueueEntryChange();
         }
       )
       .subscribe((status) => {
