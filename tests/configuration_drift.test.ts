@@ -2,6 +2,8 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
+import ts from 'typescript';
 import { TREATMENT_OPTIONS } from '@/domain/services/catalog';
 import { airportLocations } from '@/lib';
 import {
@@ -122,4 +124,12 @@ describe('published location and offering drift', () => {
       })).sort((left, right) => left.code.localeCompare(right.code))
     );
   });
+});
+
+
+it.each(['https://example.invalid', 'http://127.0.0.1.evil.invalid:3000', 'http://user:pass@127.0.0.1:3000', 'http://127.0.0.1:3000/path', 'http://127.0.0.1:3000?token=synthetic'])('browser tests refuse an unsafe target %s before fixtures', baseURL => {
+  const code = ts.transpileModule(fs.readFileSync('playwright.config.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+  const defineConfig = jest.fn();
+  expect(() => vm.runInNewContext(code, { exports: {}, require: () => ({ defineConfig }), URL, process: { env: { NEXT_PUBLIC_BASE_URL: baseURL } } })).toThrow('hosted targets are refused');
+  expect(defineConfig).not.toHaveBeenCalled();
 });
