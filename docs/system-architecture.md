@@ -2,7 +2,7 @@
 
 This document records the rules that are difficult to infer from a single file. It is intentionally limited to ownership boundaries and operational invariants.
 
-This describes repository behavior and configured schedules, not verified deployed artifacts. September 4, 2026 local verification used synthetic data and disabled scheduled dispatch. Hosted configuration, grants, release compatibility and recovery require separate authorized inspection.
+This describes repository behavior and configured schedules, not verified deployed artifacts. The [operations and maintenance runbook](operations-runbook.md) and [October 9 hardening report](audits/chiroport-production-hardening-2026-10-09.md) cover the current handoff. September 4, 2026 local verification used synthetic data and disabled scheduled dispatch. Hosted configuration, grants, release compatibility and recovery require separate authorized inspection.
 
 ## Runtime boundaries
 
@@ -41,7 +41,7 @@ Callers must not implement transitions as a sequence of table writes. Each comma
 | Inbound SMS ingestion | `twilio_webhook` | `record_sms_inbound` |
 | STOP/START preference reconciliation | `twilio_webhook` | `apply_sms_preference` after durable receipt |
 
-`join_queue_with_offering` writes the joined event and confirmation outbox row in the same transaction as the visit. `customer_cancel_queue_entry` writes the cancellation event and optional acknowledgement outbox row with the state change. Retrying either command is idempotent for the active visit.
+`join_queue_with_offering` writes the joined event and confirmation outbox row in the same transaction as the visit. `customer_cancel_queue_entry` writes the cancellation event and optional acknowledgement outbox row with the state change. Retrying either command is idempotent for the active visit. Token cancellation returns the first cancelled result/reason on a retry. New webhook cancellations additionally lock their durable inbound receipt and record `sms_cancel_processed` in the same transaction; replaying that receipt cannot undo a later staff return. Legacy callers/historical receipts have no receipt marker, so rollout must retire old webhook workers.
 
 `queue_entries_enqueue_messages` owns transition-triggered `next` and `serving` outbox rows. Immediate Edge Function delivery is only a latency optimization; the committed outbox row remains the source of truth and the scheduled `send_sms` worker retries it.
 
@@ -68,13 +68,15 @@ Do not add a client-authored `customerType`, consent selector, or label-to-class
 
 Every newly ingested inbound message stores its raw phone/payload and, when exactly one active visit can be identified, an explicit `sms_inbound.queue_entry_id`. Ambiguous messages remain unassociated rather than guessing. Employee chat and realtime updates use the visit ID, not phone number alone. This prevents a returning customer's messages from being attached to the wrong visit.
 
-Realtime is an invalidation signal, not the authoritative state store. After a channel error, timeout, or closure, a later subscription recovery re-fetches the queue and active chat from Postgres so missed websocket events cannot leave the employee UI permanently stale.
+Realtime is an invalidation signal, not the authoritative state store. Initial subscription and recovery re-fetch the queue and active chat. Queue events invalidate the full authoritative read rather than applying delayed per-entry snapshots. Queue refresh bursts share one in-flight request with a trailing read; visible staff clients also refresh every 60 seconds and on online/visibility recovery. Three view reads remain independent snapshots; later invalidation/recovery converges them.
 
 The employee workspace is keyed by route location. Changing location unmounts its queue/chat/dialog/action state; query generation guards reject superseded results, including errors. Pending callbacks cannot mutate a newly selected workspace, including A→B→A navigation. Actions require a resolved queue ID. This is UI consistency, not location-level authorization.
 
 Preference receipts and preference application are deliberately separate durable steps. `record_sms_inbound` deduplicates provider SID; `apply_sms_preference` serializes by phone and applies the latest recorded STOP/START, not the retried request body. Ordering uses first stored `received_at`; STOP wins equal timestamps. SQL normalization matches JavaScript `trim()`. Invalid phone/missing stable SID is not acknowledged as a valid preference. Failed application returns 500; a retry can reconcile the already-recorded intent. This cannot recover vendor send order, prove callback retries are enabled, or override other writers that bypass the resolver. Deploy the new RPC before the webhook, then retire old webhook workers; old workers' direct writes are not fenced by the new resolver.
 
-Outbox writes require `status=sending` and the claimed `attempt_count`, and must return an affected row. Immediately before provider I/O, a valid five-minute lease is atomically renewed; expired claims are refused. Provider HTTP has a 20-second transport bound, not a maximum notification age. Provider acceptance plus failed/lost database persistence remains ambiguous; inspect provider state before manual replay. These controls do not provide exactly-once delivery or automatically suppress all delayed messages for changed/settled visits. Maximum useful age and cross-visit contact policy remain owner decisions.
+Manual message retries carry an optional operation UUID; entry/actor/request identity deduplicates the durable row and queued event and rejects different content under the same identity. The new browser retains the UUID for ambiguous failures in its one in-memory pending draft. One pending request is kept in memory: reload/location unmount loses it; a different visit/body replaces it, and success or definite opt-out clears it. Closing/reopening the same visit and retyping the same draft can reuse it. Deliberate new submissions can still create another message. Legacy callers without a UUID retain one-message-per-call behavior. Replaying an already sent row reports sent without provider I/O.
+
+Outbox writes require `status=sending` and the claimed `attempt_count`, and must return an affected row. Immediately before provider I/O, a valid five-minute lease is atomically renewed; expired claims are refused. Provider HTTP has a 20-second transport bound, not a maximum notification age. Provider acceptance plus failed/lost database persistence remains ambiguous; inspect provider state before manual replay. These controls do not provide exactly-once delivery or eliminate the check-to-provider race. The sender now suppresses delayed next/serving/cancellation messages whose visit state is obsolete and next messages with an obsolete recorded queue identity. Unclaimed next work can be retargeted on a move; active claims are preserved and may need manual notice. A move after the final check can still race provider acceptance. Confirmation remains eligible as the prerequisite for follow-up delivery. Maximum useful age and cross-visit contact policy remain owner decisions.
 
 ## Authorization
 
@@ -112,7 +114,7 @@ the page.
 
 The monthly wait-over-20-minute rate is a served-count-weighted fraction of daily rates. Missing daily fractions with served visits yield unknown, not zero. Both monthly rollup and rebuild use the same calculation. This forward correction does not rewrite historical rows automatically: only a reviewed rebuild with complete retained daily inputs can correct a historical month. Older rates remain unverified when their inputs have expired. Other existing approximate percentile/summary semantics are unchanged.
 
-Unresolved calendar issue: relative presets derive `dateEnd` from the browser timezone, while database history uses each location's calendar. An ATL visit after Eastern midnight can be omitted when a Central-time browser still selects the previous day. The “Latest settled day” preset is data-derived and includes the latest settled location date. Choose a location-calendar versus explicit reporting-calendar rule before changing cross-location comparisons; this task does not silently redefine that policy.
+Unresolved calendar issue: relative presets derive `dateEnd` from the browser timezone, while database history uses each location's calendar. An ATL visit after Eastern midnight can be omitted when a Central-time browser still selects the previous day. The UI supports an explicit “Specific day” selection; use a location-local day for investigations. The older “Latest settled day” UI option is no longer present. Choose a location-calendar versus explicit reporting-calendar rule before changing cross-location comparisons; this task does not silently redefine that policy.
 
 ## Database automation
 
@@ -132,14 +134,16 @@ deployment record.
 | --- | --- | --- |
 | `join_queue_with_offering` | Service-only canonical offering-aware join | `20260827001000_canonical_service_offerings.sql` |
 | `join_queue` | Internal locked/idempotent join primitive | `20260827006000_enforce_security_and_queue_ownership.sql` |
-| `staff_queue_entry_action` | Service-only serve/complete/cancel/return/move/delete command | `20260104000044_staff_queue_entry_move_dedupe.sql` |
-| `staff_edit_queue_entry`, `customer_cancel_queue_entry` | Service-only atomic edit/cancel commands | `20260827002000_atomic_queue_mutations.sql` |
-| `staff_enqueue_message` | Service-only atomic manual-message enqueue/event command | `20260827007000_atomic_staff_message_enqueue.sql` |
+| `staff_queue_entry_action` | Service-only serve/complete/cancel/return/move/delete command | `20260104000044_staff_queue_entry_move_dedupe.sql`; departure metadata overload `20261009001000` |
+| `staff_edit_queue_entry`, `customer_cancel_queue_entry` | Service-only atomic edit/cancel commands | `20260827002000_atomic_queue_mutations.sql`; cancellation receipt overload `20261009003000` |
+| `staff_enqueue_message` | Service-only atomic manual-message enqueue/event command | `20261009002000_retry_safe_customer_and_staff_requests.sql` |
+| `cancel_visit`, `cancel_visit_with_reason` | Token-based public cancellation with settled-result retries | `20261009002000_retry_safe_customer_and_staff_requests.sql` |
+| `enqueue_queue_messages`, `queue_entries_auto_next` | Transition notifications; source/destination head reconciliation on moves | `20261009003000_queue_move_and_sms_replay_guards.sql` |
 | `mark_next_queue_entry` | Internal owner of priority-aware next notification | `20260827006000_enforce_security_and_queue_ownership.sql` |
 | `record_sms_inbound` | Service-only inbound SMS/visit association command | `20260827003000_inbound_sms_visit_identity.sql` |
 | `apply_sms_preference` | Service-only, serialized latest-recorded preference resolver | `20260905001000_retry_safe_sms_preferences.sql` |
 | `employee_queue_waiting_view` | Employee read model with authoritative position/rank | `20260827006000_enforce_security_and_queue_ownership.sql` |
-| `claim_sms_outbox` | Service-only leased worker claim | `20260104000028_fix_claim_sms_outbox_next_guard.sql` |
+| `claim_sms_outbox` | Service-only leased worker claim | `20261009001000_analytics_departure_reasons.sql` |
 | `get_admin_analytics` | Service-only rich primary analytics response | `20260208000007_story_driven_analytics_payload.sql` |
 | `get_admin_dashboard_scopes` | Service-only bounded location/segment/current/baseline aggregates | `20260827008000_bounded_dashboard_analytics.sql` |
 | `get_admin_daily_repeat_share` | Service-only daily repeat series | `20260827004000_daily_repeat_share_rpc.sql` |
@@ -148,7 +152,7 @@ deployment record.
 
 ## Operational inspection and ownership
 
-- The scheduled worker owns retrying `queued`/`failed` outbox rows. A `dead`
+- The worker claims one row just before sending (batch limit 1–100), so serialized provider calls do not age a preclaimed batch. The scheduled worker owns retrying `queued`/`failed` outbox rows. A `dead`
   row is terminal and requires an operator to inspect `last_error`, confirm
   eligibility/provider state, and deliberately decide whether to requeue; there
   is no automatic replay or delivery guarantee after Twilio accepts a request.
@@ -213,6 +217,6 @@ npm run queue:clear -- --queue-id <synthetic-queue-uuid> --confirm
 
 Rate-limit logs allowlist endpoint/category/count/timing fields and static failure codes; they exclude arbitrary bucket IDs, context and raw dependency errors. Storage counters and allow/deny semantics are unchanged. External log consumers/retention are not inspected here.
 
-The existing storage monitor is a hosted read-only operator tool, **not part of local quick start**. Its storage defaults and existing watch remain unchanged. Workflow checks are opt-in via `CHIROPORT_WORKFLOW_POLICY_PATH`: the policy must provide numeric `maxPendingMinutes`, `maxSendingMinutes`, `maxDeadMessages`, `maxNewAnomalies`, plus an `anomaliesSince` review checkpoint. No operational values or recipients are invented. It measures aggregate pending/sending age, dead work (excluding intentional opt-out termination), and new anomalies even if cron/HTTP succeeded; missing/invalid measurements fail closed. A checkpoint is operator review state, not automatic anomaly resolution. Without policy, output explicitly says `workflow_check: not_configured`.
+The existing storage monitor is a hosted read-only operator tool, **not part of local quick start**. Its storage defaults and existing watch remain unchanged. Workflow checks are opt-in via `CHIROPORT_WORKFLOW_POLICY_PATH`: the policy must provide numeric `maxPendingMinutes`, `maxSendingMinutes`, `maxDeadMessages`, `maxNewAnomalies`, plus an `anomaliesSince` review checkpoint. No operational values or recipients are invented. It measures aggregate pending/sending age, dead work (excluding exact opt-out and supersession termination codes, including NULL/unknown errors), and new anomalies even if cron/HTTP succeeded; missing/invalid measurements fail closed. A checkpoint is operator review state, not automatic anomaly resolution. Without policy, output explicitly says `workflow_check: not_configured`.
 
 The owner must approve cadence, recipient, always-on runner/credentials, recovery objectives and backup custody before workflow monitoring is activated. The existing Mac-dependent storage follow-up is not always-on SMS incident monitoring. The synthetic recovery drill restores only local public/Auth data, authenticates locally, exercises queue commands/rollup conservation, and never starts a dispatcher. It omits production data/configuration, Vault, Storage objects, offsite custody and recovery-objective validation.

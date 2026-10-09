@@ -68,10 +68,14 @@ node scripts/local-verify.cjs --capture-demo  # Also refresh screenshots/recordi
 
 For further development, the printed temporary copy is a starting point; the running demo is a production build, not a hot-reloading development server. [Environment and operational instructions](docs/system-architecture.md#verification-and-local-development) explain the lower-level commands and their risks.
 
+## Operational handoff
+
+[Operations and maintenance](docs/operations-runbook.md) covers incidents, ownership, release sequencing, backups and recovery. [October 9 hardening report](docs/audits/chiroport-production-hardening-2026-10-09.md) records changes, validation, independent reviews and remaining owner actions. Repository safeguards do not establish hosted monitoring, backups or deployment readiness.
+
 ## Scope and limitations
 
 This repository uses Next.js, React, TypeScript, Tailwind, Supabase and Twilio. Configured location counts do not establish an active business footprint. Employee access is currently chain-wide, not tenant isolation.
 
-Local checks do not establish which web/Edge artifacts, grants, monitoring, or backups are active in production. The health endpoint is liveness/configuration only. Real Twilio configuration/delivery, historical aggregate correction where daily inputs have expired, notification-age policy, cross-visit contact semantics, and production recovery objectives require separate decisions or evidence. Relative analytics presets currently use the browser calendar, which can omit a newer location-local day across timezones; the walkthrough uses the database-resolved “Latest settled day.”
+Local checks do not establish which web/Edge artifacts, grants, monitoring, or backups are active in production. The health endpoint is liveness/configuration only. Real Twilio configuration/delivery, historical aggregate correction where daily inputs have expired, notification-age policy, cross-visit contact semantics, and production recovery objectives require separate decisions or evidence. Relative analytics presets currently use the browser calendar, which can omit a newer location-local day across timezones; the browser regression explicitly selects the visit’s location-local day. Existing September screenshots precede the current analytics controls.
 
 The project releases directly to `main`; it does not require PRs. A push or deployment is a separate checkpoint: reconcile deployed artifacts and migration history, select the intended source changes, confirm compatible release/recovery artifacts, and review publication exposure first. No hosted publication, credential rotation, or deployment is performed by the local demo.

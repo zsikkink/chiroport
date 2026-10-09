@@ -257,6 +257,8 @@ observability vendor or claim that `/api/health` performs dependency readiness.
 
 ## Deployment order
 
+**Historical release guidance:** this section describes the August remediation, not a verified current production baseline. Its blanket database-first/prior-artifact rollback advice is superseded by the [current coordinated release and rollback procedure](../operations-runbook.md#coordinated-deployment-and-rollback). Reconcile the actual ledger and deployed callers; old artifacts may rely on revoked permissions or unfenced webhooks.
+
 1. Take the normal pre-deployment database backup/snapshot and confirm an
    operator has direct database access for ACL verification.
 2. Apply forward migrations in order:
