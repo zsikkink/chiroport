@@ -1,0 +1,26 @@
+stateDiagram-v2
+  [*] --> waiting: join / staff create
+  waiting --> serving: serving; guard = currently waiting
+  waiting --> completed: complete; served_at filled
+  serving --> completed: complete
+  waiting --> cancelled: staff cancel / customer CANCEL
+  serving --> cancelled: staff cancel / customer CANCEL
+  serving --> waiting: return
+  completed --> waiting: return
+  cancelled --> waiting: return
+  no_show --> waiting: return
+  waiting --> waiting: move to open queue in same airport
+  serving --> waiting: move to open queue in same airport
+  completed --> waiting: move to open queue in same airport
+  cancelled --> waiting: move to open queue in same airport
+  no_show --> waiting: move to open queue in same airport
+  waiting --> [*]: admin delete
+  serving --> [*]: admin delete
+  completed --> [*]: admin delete
+  cancelled --> [*]: admin delete
+  no_show --> [*]: admin delete
+  note right of no_show
+    Enum/read models include no_show,
+    but the active Edge action allowlist
+    exposes no no-show command.
+  end note

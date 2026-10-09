@@ -2,7 +2,11 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { verifyTwilioSignature } from '../_shared/twilio.ts';
 import { normalizePhoneToE164 } from '../_shared/phone.ts';
 import { createServiceRoleClient } from '../_shared/supabaseClient.ts';
-import { sendOutboxForEntry } from '../_shared/outbox.ts';
+import {
+  isSettledOutboxResult,
+  sendOutboxForEntry,
+} from '../_shared/outbox.ts';
+import { MESSAGE_TYPES } from '../_shared/messages.ts';
 import {
   buildRateLimitResponse,
   checkRateLimit,
@@ -163,32 +167,33 @@ serve(async (req) => {
   const associatedEntryId = inboundRows?.[0]?.out_queue_entry_id ?? null;
 
   const normalizedBody = bodyRaw.trim().toLowerCase();
-  if (normalizedBody === 'stop') {
-    if (fromE164) {
-      const { error } = await service.from('sms_opt_outs').upsert(
-        {
-          phone_e164: fromE164,
-          opted_out_at: new Date().toISOString(),
-          source: 'twilio_webhook',
-        },
-        { onConflict: 'phone_e164' }
-      );
-      if (error) {
-        console.error('twilio_webhook opt-out insert failed', error);
-      }
+  if (normalizedBody === 'stop' || normalizedBody === 'start') {
+    if (!fromE164 || !messageSid?.trim()) return new Response(null, { status: 400 });
+    const { error } = await service.rpc('apply_sms_preference', {
+      p_inbound_id: inboundRows?.[0]?.out_sms_inbound_id,
+    });
+    if (error) {
+      console.error('twilio_webhook preference persistence failed');
+      return new Response(null, { status: 500 });
     }
     return new Response(null, { status: 204 });
   }
 
-  if (normalizedBody === 'start') {
-    if (fromE164) {
-      const { error } = await service
-        .from('sms_opt_outs')
-        .delete()
-        .eq('phone_e164', fromE164);
-      if (error) {
-        console.error('twilio_webhook opt-out removal failed', error);
-      }
+  const reasonByReply: Record<string, string> = {
+    '1': 'wait_too_long',
+    '2': 'no_staff_available',
+    '3': 'plans_changed',
+    '4': 'other',
+    '5': 'priority_pass_declined',
+  };
+  if (!associatedEntryId && fromE164 && reasonByReply[normalizedBody]) {
+    const { error } = await service.rpc('record_customer_cancel_reason', {
+      p_phone_e164: fromE164,
+      p_departure_reason: reasonByReply[normalizedBody],
+    });
+    if (error) {
+      console.error('twilio_webhook cancellation reason failed', error);
+      return new Response(null, { status: 500 });
     }
     return new Response(null, { status: 204 });
   }
@@ -220,10 +225,38 @@ serve(async (req) => {
   }
 
   try {
-    await sendOutboxForEntry(service, associatedEntryId, 'cancel_ack');
+    const delivery = await sendOutboxForEntry(
+      service,
+      associatedEntryId,
+      'cancel_ack'
+    );
+    if (!isSettledOutboxResult(delivery)) {
+      console.error('twilio_webhook cancel ack immediate send incomplete', {
+        queueEntryId: associatedEntryId,
+        delivery,
+      });
+    }
   } catch (error) {
     // Delivery is best effort here; the committed outbox row remains retryable.
     console.error('twilio_webhook cancel ack send failed', error);
+  }
+
+  const { error: promptError } = await service.from('sms_outbox').insert({
+    queue_entry_id: associatedEntryId,
+    message_type: MESSAGE_TYPES.CANCEL_REASON_PROMPT,
+    to_phone: fromE164,
+    body: 'Chiroport Msg: Why did you leave the queue? Reply 1 wait too long, 2 no staff available, 3 plans changed, 4 other, or 5 Priority Pass declined (if applicable).',
+    status: 'queued',
+    idempotency_key: `cancel_reason_prompt:${associatedEntryId}`,
+  });
+  if (promptError && promptError.code !== '23505') {
+    console.error('twilio_webhook cancellation reason prompt failed', promptError);
+    return new Response(null, { status: 500 });
+  }
+  try {
+    await sendOutboxForEntry(service, associatedEntryId, MESSAGE_TYPES.CANCEL_REASON_PROMPT);
+  } catch (error) {
+    console.error('twilio_webhook cancellation reason prompt delivery failed', error);
   }
 
   return new Response(null, { status: 204 });

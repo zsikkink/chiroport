@@ -2,153 +2,27 @@ import 'server-only';
 
 import { env } from '@/server/env';
 
-/**
- * Application Configuration
- * 
- * Centralized configuration for the application including
- * security settings, API endpoints, and monitoring.
- */
-
-// Environment variables with defaults
-export const config = {
-  // Environment
-  isDevelopment: env.NODE_ENV === 'development',
-  isProduction: env.NODE_ENV === 'production',
-  
-  // API Configuration
-  api: {
-    baseUrl: env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
-    supabase: {
-      url: env.NEXT_PUBLIC_SUPABASE_URL,
-      anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      serviceRoleKey: env.SUPABASE_SECRET_KEY,
-    },
-  },
-
-  // Security Configuration
-  security: {
-    rateLimit: {
-      api: parseInt(env.RATE_LIMIT_API || '30', 10),
-      submit: parseInt(env.RATE_LIMIT_SUBMIT || '5', 10),
-      enabled: true,
-    },
-  },
-
-  // Feature Flags
-  features: {
-    analytics: env.NEXT_PUBLIC_ENABLE_ANALYTICS === 'true',
-    errorReporting: env.NEXT_PUBLIC_ENABLE_ERROR_REPORTING === 'true',
-    debugMode: env.NEXT_PUBLIC_DEBUG_MODE === 'true',
-  },
-
-  // Monitoring
-  monitoring: {
-    healthCheck: {
-      enabled: env.HEALTH_CHECK_ENABLED === 'true',
-      secret: env.HEALTH_CHECK_SECRET,
-    },
-    logging: {
-      level: env.LOG_LEVEL || 'info',
-      enabled: true,
-    }
-  },
-
-  // Messaging
-  messaging: {
-    twilio: {
-      accountSid: env.TWILIO_ACCOUNT_SID,
-      authToken: env.TWILIO_AUTH_TOKEN,
-      apiKeySid: env.TWILIO_API_KEY_SID,
-      apiKeySecret: env.TWILIO_API_KEY_SECRET,
-      messagingServiceSid: env.TWILIO_MESSAGING_SERVICE_SID,
-      fromNumber: env.TWILIO_FROM_NUMBER,
-    },
-  },
-
-  // Performance
-  performance: {
-    imageQuality: parseInt(env.NEXT_PUBLIC_IMAGE_QUALITY || '85', 10),
-    cacheTimeout: parseInt(env.NEXT_PUBLIC_CACHE_TIMEOUT || '300000', 10),
-  }
-};
-
-// Validation: Check required environment variables
-export function validateConfig(): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-
-  // Required in production
-  if (config.isProduction) {
-    if (!config.monitoring.healthCheck.secret) {
-      errors.push('HEALTH_CHECK_SECRET is recommended in production');
-    }
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors
-  };
-}
-
-// Security headers configuration
-// Logging utilities
 export function debugLog(...args: unknown[]): void {
-  if (config.features.debugMode || config.isDevelopment) {
+  if (env.NEXT_PUBLIC_DEBUG_MODE === 'true' || env.NODE_ENV === 'development') {
     console.log('[DEBUG]', new Date().toISOString(), ...args);
   }
 }
 
-export function logError(error: Error, context?: string): void {
-  const errorInfo = {
+export function logError(error: Error, context = 'unknown'): void {
+  console.error('[ERROR]', {
     message: error.message,
     stack: error.stack,
-    context: context || 'Unknown',
+    context,
     timestamp: new Date().toISOString(),
-    environment: config.isDevelopment ? 'development' : 'production'
-  };
-
-  // Always log errors
-  console.error('[ERROR]', errorInfo);
-
-  // In production, you might want to send to error reporting service
-  if (config.features.errorReporting && config.isProduction) {
-    // TODO: Integrate with error reporting service (Sentry, etc.)
-    // errorReportingService.captureException(error, { extra: errorInfo });
-  }
+    environment: env.NODE_ENV,
+  });
 }
 
 export function logSecurityEvent(event: string, details: unknown): void {
-  const securityLog = {
+  console.warn('[SECURITY]', {
     event,
     details,
     timestamp: new Date().toISOString(),
-    environment: env.NODE_ENV
-  };
-
-  console.warn('[SECURITY]', securityLog);
-
-  // In production, you might want to send to security monitoring
-  if (config.isProduction) {
-    // TODO: Integrate with security monitoring service
-    // securityMonitoring.logEvent(securityLog);
-  }
+    environment: env.NODE_ENV,
+  });
 }
-
-// Rate limiting configuration
-export function getRateLimitConfig(endpoint: string): { limit: number; windowMs: number } {
-  const isSubmitEndpoint = endpoint.includes('/submit');
-  
-  return {
-    limit: isSubmitEndpoint ? config.security.rateLimit.submit : config.security.rateLimit.api,
-    windowMs: isSubmitEndpoint ? 5 * 60 * 1000 : 60 * 1000 // 5 min for submit, 1 min for others
-  };
-}
-
-// Export configuration validation on module load
-const validation = validateConfig();
-if (!validation.valid && config.isProduction) {
-  console.error('Configuration validation failed:', validation.errors);
-  // In production, you might want to exit the process
-  // process.exit(1);
-} else if (!validation.valid) {
-  console.warn('Configuration warnings:', validation.errors);
-} 

@@ -1,123 +1,77 @@
 # Chiroport
 
-Customer-facing and employee-facing web app for managing chiropractic queues in major US airports. Built with Next.js App Router, Supabase, and Twilio.
+Chiroport manages walk-in chiropractic and bodywork visits at airport locations. Travelers choose a service, provide contact details and consent, and join a location's queue. Staff see the line, start and complete visits, handle messages, and review operational analytics.
 
-## Key Features
-- **Customer intake + queue join** by location/concourses.
-- **Employee dashboard** for queue management and SMS workflows.
-- **Multi-airport support** (ATL, HOU, LAS, MSP) driven by JSON location data.
-- **Supabase Realtime** updates for queue entries and SMS inbox/outbox.
-- **Twilio SMS** integration for customer communication.
+The engineering problem is keeping that shared queue understandable and correct when staff act concurrently, browsers reconnect, and SMS delivery fails independently of the database.
 
-## Tech Stack
-- **Next.js** 16.1.6 (App Router)
-- **React** 19 + **TypeScript**
-- **Tailwind CSS**
-- **Supabase** (Postgres, Auth, Realtime, Edge Functions)
-- **Twilio** (SMS)
-- **Zod** (validation), **Framer Motion** (animations)
+## Product walkthrough
 
-## Project Structure
-```
-src/
-├── app/                    # App Router pages + route handlers
-├── components/             # Shared UI components
-├── content/                # Marketing/service copy
-├── data/                   # JSON-backed location data
-├── features/               # Feature modules
-├── lib/                    # Client helpers (Supabase, location data)
-├── schemas/                # Zod schemas
-└── server/                 # Server-only helpers (config, env)
+These are real application captures from an isolated local environment. **All people, visits, messages, and analytics shown are synthetic.** No SMS was delivered to a phone.
 
-supabase/
-├── functions/              # Supabase Edge Functions
-└── migrations/             # SQL migrations
+![Synthetic visitor intake](docs/images/synthetic-intake.png)
 
-scripts/                    # Local tooling (smoke tests, cache utils)
+![Staff queue with a synthetic visitor](docs/images/synthetic-queue.png)
 
-tests/                      # Jest tests
-```
+1. Choose a service and submit contact details and consent through public intake.
+2. Sign in as staff and see the new visit in the location queue.
+3. Start service, then complete the visit through the staff controls.
+4. Inspect [completed history](docs/images/synthetic-history.png) and [synthetic analytics](docs/images/synthetic-analytics.png).
 
-## Local Development
-### Prerequisites
-- Node.js **22+**
-- npm
+[Watch the automated browser recording](docs/images/synthetic-walkthrough.webm) · [Run the same regression](tests/e2e/product-journey.spec.ts)
 
-### Setup
+## My contribution
+
+I’m Zack Sikkink. My work spans the public intake, staff workflows, SQL queue commands, messaging integration, analytics, and their tests. Inspectable examples in Git are the idempotent join (`2ffa4e8`), admin analytics endpoint/UI (`dcad8e1`), and queue/analytics hardening (`91775f4`). These establish implementation contributions, not sole ownership of product decisions or the managed infrastructure.
+
+Supabase supplies Postgres, Auth, Realtime and Edge hosting; Twilio supplies SMS transport; Next.js/React supply the web framework. The application-specific contribution is how those boundaries enforce and communicate the product's rules.
+
+## Three engineering highlights
+
+### Queue correctness
+
+Competing staff commands must not duplicate transitions or notifications. A database command locks the visit and commits its state, event, and outbox work together. The UI uses authoritative ordering and isolates each selected location's asynchronous work.
+
+The tradeoff is intentional database ownership of business rules, with focused browser reconciliation rather than a second client-side queue model. [A coordinated two-writer test](tests/queue_concurrency.test.ts) observes both writers blocked in Postgres before releasing them: one serving transition succeeds, the other is rejected, and one serving event and notification row remain. [Location-switch regressions](tests/e2e/location-context.spec.ts) exercise delayed actions and Realtime responses.
+
+### Durable messaging, honest failures
+
+SMS work is committed before delivery. Claims are leased; persistence checks the current attempt and affected row. Claims expired before provider I/O are rejected; superseded attempts and deleted rows cannot be reported as successfully persisted. Signed STOP/START callbacks reconcile the latest durably recorded preference, so an older retry cannot undo newer recorded intent.
+
+The tradeoff: provider acceptance and database persistence cannot be one transaction. A timeout or lost persistence acknowledgement can remain ambiguous; this is **not exactly-once delivery**. [Real-adapter experiments](tests/sms_outbox_adapter.test.ts) use local Postgres and a fake provider to verify ownership and accepted-but-not-persisted outcomes. [Preference ordering tests](tests/sms_preference_ordering.test.ts) exercise the actual signed handler and database resolver. Neither proves live carrier delivery.
+
+### Trustworthy history and recovery
+
+Consent/contact snapshots survive operational visit cleanup. Rollups need numerical evidence, not just a successful job status: a two-day fixture conserves **10 arrivals, 8 served visits, and 6 completions** across the monthly-rollup function, replay, and rebuild. It also exposed a monthly rate calculation error: **−3.75 became the correct 0.375** for three over-threshold waits among eight served visits.
+
+The tradeoff is retaining historical records and explicit unknowns instead of manufacturing values after source data expires. [The SQL fixture](tests/fixtures/rollup-conservation.sql) runs both normally and inside [a synthetic restore drill](scripts/test-local-recovery.cjs), which also checks restored authentication, queue operations, legal snapshots, and permissions. This is local recovery evidence, not proof of production disaster recovery or an agreed recovery SLA.
+
+These numerical results are scoped to synthetic local verification on September 4, 2026 (America/Chicago), not traffic, business impact, throughput, or uptime claims. [Engineering walkthrough and evidence](docs/engineering-walkthrough.md) · [Authoritative system rules](docs/system-architecture.md)
+
+## Safe local quick start
+
+Prerequisites: Node **22.x** (verified 22.22.0), npm (10.9.4), Deno **2.7.7**, Supabase CLI **2.67.1**, running local Docker, and PostgreSQL client tools (`psql`, `pg_dump`, `pg_restore`; verified **18.2** against the local **17.6** database). Internet access is needed to download locked packages, Chromium, and Docker images. Ports 3000 and 54321–54324 must be free.
+
+From this checkout, without creating an environment file:
+
 ```bash
-npm install
-cp env.template .env.local
-# Fill in .env.local (see env.template)
-
-npm run dev
-# open http://localhost:3000
+node scripts/local-verify.cjs --demo
 ```
 
-### Supabase Workflow
+The runner copies source into a private temporary directory, installs locked dependencies and a fresh browser, rehearses the recorded migration upgrade, then creates a fresh database and runs the checks. It starts the actual Next/Edge application with local credentials and no provider configuration. Your checkout and existing database volumes are not reset.
+
+After verification, open [the local app](http://127.0.0.1:3000). Employee login: `demo-staff@example.invalid` / `Synthetic-Only-2468!`. These credentials exist only in the disposable demo. Use synthetic contact details; do not enter customer information. Ctrl-C stops its services and removes only its disposable database volumes. Logs and synthetic restore artifacts remain in the printed private temporary paths.
+
 ```bash
-# Apply migrations to your Supabase project
-supabase db push
-
-# Regenerate Supabase TypeScript types
-npm run db:types
+node scripts/local-verify.cjs                 # Verify, then clean up
+node scripts/local-verify.cjs --capture-demo  # Also refresh screenshots/recording
 ```
 
-## Environment Variables
-Use `env.template` as the source of truth.
+For further development, the printed temporary copy is a starting point; the running demo is a production build, not a hot-reloading development server. [Environment and operational instructions](docs/system-architecture.md#verification-and-local-development) explain the lower-level commands and their risks.
 
-- **Next.js runtime** reads `.env.local` locally and Vercel env vars in prod.
-- **Edge Functions** use Supabase secrets (`supabase secrets set`).
+## Scope and limitations
 
-## Common Scripts
-```bash
-npm run dev          # Start dev server
-npm run build        # Production build
-npm run start        # Start production server
-npm run lint         # ESLint
-npm run type-check   # TypeScript
-npm test             # Jest
-npm run verify       # App checks, Jest, production build, Edge types
-npm run db:migrate   # supabase db push
-npm run db:types     # Regenerate local Supabase contract after schema changes
-npm run db:types:check # Fail when the committed database contract has drifted
-npm run rate-limit:smoke  # Rate-limit smoke test
-npm run queue:clear  # Clear queue entries (destructive)
-npm run queue:clear:smoke # Smoke test queue:clear guardrails
-```
+This repository uses Next.js, React, TypeScript, Tailwind, Supabase and Twilio. Configured location counts do not establish an active business footprint. Employee access is currently chain-wide, not tenant isolation.
 
-Important queue, authorization, SMS, offering, location, analytics, and verification invariants are documented in [docs/system-architecture.md](docs/system-architecture.md).
+Local checks do not establish which web/Edge artifacts, grants, monitoring, or backups are active in production. The health endpoint is liveness/configuration only. Real Twilio configuration/delivery, historical aggregate correction where daily inputs have expired, notification-age policy, cross-visit contact semantics, and production recovery objectives require separate decisions or evidence. Relative analytics presets currently use the browser calendar, which can omit a newer location-local day across timezones; the walkthrough uses the database-resolved “Latest settled day.”
 
-## Locations & Images
-- Location data lives in `data/locationData.json`.
-- Location images are served from `public/images/stores/`.
-
-## Queue Maintenance (Destructive)
-Use `queue:clear` for manual cleanup. It is guarded to prevent accidental production wipes.
-
-Examples:
-```bash
-# Dry-run a location clear
-npm run queue:clear -- --airport-code ATL --location-code concourse-a --dry-run
-
-# Clear a specific queue (non-prod)
-npm run queue:clear -- --queue-id <uuid>
-
-# Clear all entries (requires confirmation)
-npm run queue:clear -- --all --confirm
-
-# Clear all entries in production (explicit)
-npm run queue:clear -- --all --confirm --force-prod
-```
-
-## Deployment
-- **Frontend**: Vercel
-- **Backend**: Supabase (DB + Edge Functions)
-- **SMS**: Twilio
-
-## CORS Origin Logging (Audit Mode)
-Before enforcing a strict CORS allowlist, this repo logs incoming Origin headers
-for Edge Functions in **production/staging only**. See `docs/cors-origin-logging.md`
-for log format, where to find logs, and how long to observe.
-
-## License
-See `LICENSE`.
+The project releases directly to `main`; it does not require PRs. A push or deployment is a separate checkpoint: reconcile deployed artifacts and migration history, select the intended source changes, confirm compatible release/recovery artifacts, and review publication exposure first. No hosted publication, credential rotation, or deployment is performed by the local demo.

@@ -8,10 +8,7 @@ export const createEmptyDetails = (): WizardState['details'] => ({
 });
 
 export const createWizardInitialState = (): WizardState => ({
-  isMember: null,
-  spinalAdjustment: null,
-  selectedTreatment: null,
-  visitCategory: null,
+  serviceChoice: null,
   details: createEmptyDetails(),
   submitAttempted: false,
   isSubmitting: false,
@@ -21,23 +18,8 @@ export const createWizardInitialState = (): WizardState => ({
 
 export function wizardReducer(state: WizardState, action: WizardAction): WizardState {
   switch (action.type) {
-    case 'SET_MEMBER':
-      return { ...state, isMember: action.value };
-
-    case 'SET_SPINAL':
-      return { ...state, spinalAdjustment: action.value };
-
-    case 'DESELECT_SPINAL':
-      return { ...state, spinalAdjustment: null };
-
-    case 'SELECT_TREATMENT':
-      return { ...state, selectedTreatment: action.treatment };
-
-    case 'SET_VISIT_CATEGORY':
-      return { ...state, visitCategory: action.value };
-
-    case 'CLEAR_SELECTED_TREATMENT':
-      return { ...state, selectedTreatment: null };
+    case 'SELECT_SERVICE':
+      return { ...state, serviceChoice: action.value };
 
     case 'UPDATE_FIELD':
       return {

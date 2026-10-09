@@ -14,8 +14,10 @@
     "start": "next start",
     "lint": "eslint .",
     "check": "npm run check:env && npm run type-check && npm run lint",
-    "check:edge": "deno check --no-lock supabase/functions/*/index.ts",
+    "check:edge": "deno check --config supabase/functions/deno.json --frozen supabase/functions/*/index.ts",
     "verify": "npm run check && npm test -- --runInBand && npm run build && npm run check:edge",
+    "verify:local": "node scripts/local-verify.cjs",
+    "demo:local": "node scripts/local-verify.cjs --demo",
     "check:env": "node scripts/check-env.cjs",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -35,7 +37,8 @@
     "db:migrate": "supabase db push",
     "db:reset": "supabase db reset",
     "db:types": "node scripts/check-database-types.cjs --write",
-    "db:types:check": "node scripts/check-database-types.cjs"
+    "db:types:check": "node scripts/check-database-types.cjs",
+    "db:privileges:check": "node scripts/check-database-privileges.cjs"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -50,7 +53,6 @@
   "devDependencies": {
     "@playwright/test": "^1.55.0",
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/container-queries": "^0.1.1",
     "@testing-library/jest-dom": "^6.4.0",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.0",

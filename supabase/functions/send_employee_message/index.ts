@@ -1,13 +1,15 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { withCorsHeaders, buildCorsHeaders } from '../_shared/cors.ts';
 import { requireEmployee } from '../_shared/employeeAuth.ts';
-import { enqueueAndSendOutboxMessage } from '../_shared/outbox.ts';
+import { sendOutboxForEntry } from '../_shared/outbox.ts';
+import { mapStaffMessageOutcome } from '../_shared/staffMessageOutcome.ts';
 import {
   buildRateLimitResponse,
   checkRateLimit,
   getRateLimitConfig,
 } from '../_shared/rateLimit.ts';
 import { getLocationIdForQueueEntry } from '../_shared/queue.ts';
+import { errorResponse } from '../_shared/httpError.ts';
 
 type Payload = {
   queueEntryId?: string;
@@ -24,20 +26,14 @@ serve(async (req) => {
   if (req.method !== 'POST') {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers,
-    });
+    return errorResponse('validation_error', 'Method not allowed', 405, headers);
   }
 
   const authHeader = req.headers.get('authorization');
   if (!authHeader) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers,
-    });
+    return errorResponse('unauthorized', 'Unauthorized', 401, headers);
   }
 
   let payload: Payload = {};
@@ -51,19 +47,23 @@ serve(async (req) => {
   if (!payload.queueEntryId) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Queue entry id is required' }), {
-      status: 400,
-      headers,
-    });
+    return errorResponse(
+      'validation_error',
+      'Queue entry id is required',
+      400,
+      headers
+    );
   }
 
   if (!messageBody) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Message body is required' }), {
-      status: 400,
-      headers,
-    });
+    return errorResponse(
+      'validation_error',
+      'Message body is required',
+      400,
+      headers
+    );
   }
 
   let auth;
@@ -72,9 +72,11 @@ serve(async (req) => {
   } catch (error) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unauthorized' }),
-      { status: 403, headers }
+    return errorResponse(
+      'forbidden',
+      error instanceof Error ? error.message : 'Forbidden',
+      403,
+      headers
     );
   }
 
@@ -113,72 +115,85 @@ serve(async (req) => {
     }
   }
 
-  const { data: entry, error: entryError } = await service
-    .from('queue_entries')
-    .select('id, customer:customers(phone_e164)')
-    .eq('id', payload.queueEntryId)
-    .maybeSingle();
-
-  if (entryError) {
-    console.error('send_employee_message lookup failed', {
-      error: entryError,
+  const { data: queuedRows, error: queueError } = await service.rpc(
+    'staff_enqueue_message',
+    {
+      p_entry_id: payload.queueEntryId,
+      p_actor_user_id: userId,
+      p_body: messageBody,
+    }
+  );
+  const queued = queuedRows?.[0];
+  if (queueError || !queued?.out_outbox_id || !queued.out_message_type) {
+    console.error('send_employee_message durable enqueue failed', {
+      error: queueError,
       queueEntryId: payload.queueEntryId,
     });
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
     return new Response(
-      JSON.stringify({ error: entryError.message || 'Unable to load queue entry' }),
-      { status: 403, headers }
-    );
-  }
-
-  const phone =
-    typeof entry?.customer === 'object' && entry?.customer
-      ? (entry.customer as { phone_e164?: string }).phone_e164
-      : null;
-
-  if (!entry?.id || !phone) {
-    const headers = new Headers();
-    withCorsHeaders(headers, origin, path);
-    return new Response(
-      JSON.stringify({ error: 'Customer phone number is missing' }),
-      { status: 409, headers }
-    );
-  }
-
-  const messageType = `staff_${crypto.randomUUID()}`;
-  const idempotencyKey = `staff:${entry.id}:${crypto.randomUUID()}`;
-
-  try {
-    await enqueueAndSendOutboxMessage(service, {
-      queue_entry_id: entry.id,
-      message_type: messageType,
-      to_phone: phone,
-      body: messageBody,
-      status: 'queued',
-      idempotency_key: idempotencyKey,
-    });
-  } catch (error) {
-    console.error('send_employee_message failed', error);
-    const headers = new Headers();
-    withCorsHeaders(headers, origin, path);
-    return new Response(
-      JSON.stringify({ error: 'Failed to send message' }),
+      JSON.stringify({
+        error: {
+          code: 'dependency_unavailable',
+          message: 'Message could not be durably queued.',
+        },
+      }),
       { status: 500, headers }
     );
   }
 
-  await service.from('queue_events').insert({
-    queue_entry_id: entry.id,
-    actor_user_id: null,
-    event_type: 'staff_message_sent',
-    payload: { to_phone: phone },
-  });
+  const delivery = await sendOutboxForEntry(
+    service,
+    payload.queueEntryId,
+    queued.out_message_type
+  );
 
+  if (delivery.status === 'sent') {
+    const { error: eventError } = await service.from('queue_events').insert({
+      queue_entry_id: payload.queueEntryId,
+      actor_user_id: userId,
+      event_type: 'staff_message_sent',
+      payload: {
+        outbox_id: queued.out_outbox_id,
+        provider_message_id: delivery.providerMessageId,
+      },
+    });
+    if (eventError) {
+      console.error('send_employee_message sent audit persistence failed', {
+        error: eventError,
+        queueEntryId: payload.queueEntryId,
+        outboxId: queued.out_outbox_id,
+        providerMessageId: delivery.providerMessageId,
+      });
+      const headers = new Headers();
+      withCorsHeaders(headers, origin, path);
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: 'dependency_unavailable',
+            message: 'Message was accepted by the provider, but its audit event could not be recorded.',
+          },
+          outcome: 'sent_unrecorded',
+        }),
+        { status: 500, headers }
+      );
+    }
+
+  }
+
+  if (!['sent', 'durably_queued', 'opted_out'].includes(delivery.status)) {
+    console.error('send_employee_message delivery did not complete', {
+      queueEntryId: payload.queueEntryId,
+      outboxId: queued.out_outbox_id,
+      delivery,
+    });
+  }
+
+  const outcome = mapStaffMessageOutcome(delivery);
   const headers = new Headers();
   withCorsHeaders(headers, origin, path);
-  return new Response(JSON.stringify({ success: true }), {
-    status: 200,
-    headers,
-  });
+  return new Response(
+    JSON.stringify(outcome.body),
+    { status: outcome.status, headers }
+  );
 });

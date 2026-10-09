@@ -13,6 +13,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ResponsiveCard, Button, LoadingSpinner } from '@/components/ui';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { requireEnv } from '@/lib/supabase/helpers';
+import { ApiBoundaryError, parseApiError } from '@/lib/apiError';
 import { toLocationSlug } from '@/lib/locationSlug';
 import { TREATMENT_OPTIONS } from '@/domain/services/catalog';
 import { useChatData } from './hooks/useChatData';
@@ -39,6 +40,14 @@ import type {
 const supabase = getSupabaseBrowserClient();
 
 export default function EmployeeDashboardPage() {
+  const params = useParams();
+  const location = typeof params?.location === 'string' ? params.location : '';
+  // A route owns its queue, chat, dialogs and pending optimistic actions.
+  // Remounting prevents old async completions from mutating the next location.
+  return <EmployeeLocationWorkspace key={location} />;
+}
+
+function EmployeeLocationWorkspace() {
   const [actionError, setActionError] = useState('');
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [menuEntryId, setMenuEntryId] = useState<string | null>(null);
@@ -49,6 +58,7 @@ export default function EmployeeDashboardPage() {
   const [createEntryOpen, setCreateEntryOpen] = useState(false);
   const [createForm, setCreateForm] = useState<CreateFormState | null>(null);
   const [historyDecisionEntryId, setHistoryDecisionEntryId] = useState<string | null>(null);
+  const [departureReason, setDepartureReason] = useState('');
   const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false);
   const router = useRouter();
   const params = useParams();
@@ -227,9 +237,13 @@ export default function EmployeeDashboardPage() {
       };
 
       let result = await requestOnce();
+      let boundaryError = parseApiError(
+        result.parsed,
+        `Edge Function error (${result.response.status})`
+      );
       if (
-        (result.response.status === 401 || result.response.status === 403) &&
-        (result.parsed as { error?: string })?.error === 'Unauthorized'
+        result.response.status === 401 ||
+        (result.response.status === 403 && boundaryError.code === 'unauthorized')
       ) {
         const { data: refreshed, error: refreshError } =
           await supabase.auth.refreshSession();
@@ -237,14 +251,14 @@ export default function EmployeeDashboardPage() {
           throw new Error('Session expired. Please sign in again.');
         }
         result = await requestOnce();
+        boundaryError = parseApiError(
+          result.parsed,
+          `Edge Function error (${result.response.status})`
+        );
       }
 
       if (!result.response.ok) {
-        const errorValue = (result.parsed as { error?: string })?.error;
-        if (errorValue) {
-          throw new Error(errorValue);
-        }
-        throw new Error(result.raw || `Edge Function error (${result.response.status})`);
+        throw new ApiBoundaryError(boundaryError, result.response.status);
       }
 
       if (
@@ -252,10 +266,7 @@ export default function EmployeeDashboardPage() {
         typeof result.parsed === 'object' &&
         'error' in result.parsed
       ) {
-        const errorValue = (result.parsed as { error?: string }).error;
-        if (errorValue) {
-          throw new Error(errorValue);
-        }
+        throw new ApiBoundaryError(parseApiError(result.parsed, 'Action failed'), 500);
       }
       return result.parsed;
     },
@@ -281,11 +292,13 @@ export default function EmployeeDashboardPage() {
     setServingEntries,
     setHistoryEntries,
     updateEntryInLists,
-    removeEntryFromLists,
     fetchWaitingEntry,
     fetchServingEntry,
     fetchHistoryEntry,
   } = queueData;
+  const historyDecisionEntry = [...waitingEntries, ...servingEntries].find(
+    (entry) => entry.queue_entry_id === historyDecisionEntryId
+  );
 
   const {
     chatEntry,
@@ -316,7 +329,6 @@ export default function EmployeeDashboardPage() {
       setServingEntries,
       setHistoryEntries,
       updateEntryInLists,
-      removeEntryFromLists,
       fetchWaitingEntry,
       fetchServingEntry,
       fetchHistoryEntry,
@@ -427,6 +439,7 @@ export default function EmployeeDashboardPage() {
 
   const handleCloseHistoryDecision = useCallback(() => {
     setHistoryDecisionEntryId(null);
+    setDepartureReason('');
   }, []);
 
   const handleConfirmHistoryDecision = useCallback(
@@ -435,11 +448,12 @@ export default function EmployeeDashboardPage() {
       if (action === 'completed') {
         await handleComplete(historyDecisionEntryId);
       } else {
-        await handleCancel(historyDecisionEntryId);
+        await handleCancel(historyDecisionEntryId, departureReason || null);
       }
       setHistoryDecisionEntryId(null);
+      setDepartureReason('');
     },
-    [handleCancel, handleComplete, historyDecisionEntryId]
+    [departureReason, handleCancel, handleComplete, historyDecisionEntryId]
   );
 
   const handleMoveSubmit = useCallback(async () => {
@@ -487,7 +501,6 @@ export default function EmployeeDashboardPage() {
       );
       if (!selected) return;
       setIsLocationMenuOpen(false);
-      setSelectedLocationId(locationId);
       router.push(`/employee/${selected.slug}`);
     },
     [locationOptions, router]
@@ -1156,6 +1169,22 @@ export default function EmployeeDashboardPage() {
             className="w-full max-w-sm"
             onClick={(event) => event.stopPropagation()}
           >
+            <label className="mb-4 block text-sm text-slate-800">
+              Reason for leaving (optional)
+              <select
+                className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2"
+                value={departureReason}
+                onChange={(event) => setDepartureReason(event.target.value)}
+              >
+                <option value="">Not recorded</option>
+                {historyDecisionEntry?.customer_type === 'priority_pass' ? (
+                  <option value="priority_pass_declined">Priority Pass declined</option>
+                ) : null}
+                <option value="no_staff_available">No staff available</option>
+                <option value="customer_left">Customer chose to leave</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
             <div className="flex justify-between gap-3">
               <Button
                 className="flex-1 border-0 bg-red-600 text-white hover:bg-red-700"

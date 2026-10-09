@@ -6,6 +6,12 @@ describe('location data', () => {
     expect(airportLocations.some((airport) => airport.code === 'DFW')).toBe(false);
   });
 
+  it('does not publish Atlanta or Las Vegas Concourse B', () => {
+    expect(findAirport('atlanta')).toBeNull();
+    expect(findConcourse('las-vegas', 'concourse-b')).toBeNull();
+    expect(findConcourse('las-vegas', 'concourse-c')).not.toBeNull();
+  });
+
   it('keeps MSP Concourse C on standard intake without the massage category', () => {
     const concourse = findConcourse('minneapolis', 'concourse-c');
 

@@ -19,6 +19,19 @@ function loadEnvFile(filePath) {
 
 loadEnvFile(path.join(process.cwd(), '.env.local'));
 
+if (process.env.CHIROPORT_LOCAL_DEMO === '1') {
+  let host;
+  try { host = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname; } catch { /* rejected below */ }
+  const missing = ['NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_SECRET_KEY', 'SEND_SMS_SECRET'].filter(key => !process.env[key]);
+  const providerConfigured = Object.keys(process.env).some(key => key.startsWith('TWILIO_') && process.env[key]);
+  if (!['127.0.0.1', 'localhost', '[::1]'].includes(host) || missing.length || providerConfigured) {
+    console.error('Local synthetic mode requires loopback Supabase, local app/worker keys, and no Twilio credentials.');
+    process.exit(1);
+  }
+  console.log('Local synthetic environment verified; provider sending is unavailable. Production configuration was not checked.');
+  process.exit(0);
+}
+
 if (process.env.CI && process.env.SKIP_ENV_CHECK !== '0') {
   console.log('Skipping env check in CI.');
   process.exit(0);

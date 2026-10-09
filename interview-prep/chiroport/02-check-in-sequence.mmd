@@ -1,0 +1,28 @@
+sequenceDiagram
+  autonumber
+  actor Customer
+  participant UI as Intake UI
+  participant Edge as queue_join Edge Function
+  participant DB as PostgreSQL
+  participant SMS as Twilio
+
+  Customer->>UI: Choose service; enter contact; accept consent
+  UI->>UI: Validate required fields and E.164-capable phone
+  UI->>Edge: POST airport, location, contact, consent, offeringCode
+  Edge->>Edge: Validate, normalize phone, enforce rate limits
+  rect rgb(232, 244, 255)
+    Note over Edge,DB: One database RPC transaction
+    Edge->>DB: join_queue_with_offering(...)
+    DB->>DB: Resolve open offering, consent, location, queue
+    DB->>DB: Lock queue row + queue/class allocation; upsert customer
+    DB->>DB: Reuse or insert active queue entry
+    DB->>DB: Insert joined event + confirmation outbox row
+    DB-->>Edge: entry, capability token, status, initial position
+  end
+  Note over Edge,DB: RPC has returned; durable work is committed
+  Edge->>SMS: Best-effort immediate confirmation send
+  alt send/persist fails
+    Edge->>Edge: Log incomplete delivery; durable row remains retryable
+  end
+  Edge-->>UI: 200 with entry and initial position
+  UI-->>Customer: Show joined state and SMS expectation

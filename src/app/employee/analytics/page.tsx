@@ -7,7 +7,14 @@ import { ResponsiveCard, Button, LoadingSpinner } from '@/components/ui';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { toLocationSlug } from '@/lib/locationSlug';
 import {
+  AnalyticsFilters,
+  DATE_PRESETS,
+  type CustomerFilter,
+  type DatePreset,
+} from './AnalyticsFilters';
+import {
   WAIT_TARGET_MINUTES,
+  buildDashboardInterpretation,
   buildSegmentComparisonModel,
   buildExecutiveSummary,
   buildLocationComparisonRows,
@@ -23,6 +30,7 @@ import {
   type SegmentAnalyticsPair,
   type SegmentComparisonModel,
   type SortDirection,
+  type WorkforceAnalytics,
 } from './dashboardModel';
 
 type EmployeeProfile = {
@@ -38,32 +46,12 @@ type LocationOption = {
   is_open: boolean;
 };
 
-type DatePreset =
-  | 'latest'
-  | 'last_7'
-  | 'last_30'
-  | 'last_90'
-  | 'last_180'
-  | 'last_365'
-  | 'all_time';
-
-type CustomerFilter = 'all' | 'paying' | 'priority_pass';
 type ComparisonMode = 'previous_period' | 'trailing_30_day_average';
 type ComparisonReference = {
   mode: ComparisonMode;
   longLabel: string;
   chipLabel: string;
 };
-
-const DATE_PRESETS: { value: DatePreset; label: string; days?: number }[] = [
-  { value: 'latest', label: 'Latest settled day' },
-  { value: 'last_7', label: 'Last 7 days', days: 7 },
-  { value: 'last_30', label: 'Last 30 days', days: 30 },
-  { value: 'last_90', label: 'Last 3 months', days: 90 },
-  { value: 'last_180', label: 'Last 6 months', days: 180 },
-  { value: 'last_365', label: 'Last year', days: 365 },
-  { value: 'all_time', label: 'All time' },
-];
 
 function formatLocalDate(date: Date): string {
   const year = date.getFullYear();
@@ -78,13 +66,26 @@ function subtractDays(date: Date, days: number): Date {
   return copy;
 }
 
-function resolveDateRange(preset: DatePreset): { start: string | null; end: string | null } {
-  if (preset === 'latest') {
-    return { start: null, end: null };
-  }
-
+function resolveDateRange(
+  preset: DatePreset,
+  customStart: string,
+  customEnd: string
+): { start: string; end: string } | null {
   const today = new Date();
   const end = formatLocalDate(today);
+
+  if (preset === 'today') return { start: end, end };
+  if (preset === 'custom_day') {
+    return /^\d{4}-\d{2}-\d{2}$/.test(customStart)
+      ? { start: customStart, end: customStart }
+      : null;
+  }
+  if (preset === 'custom_range') {
+    return /^\d{4}-\d{2}-\d{2}$/.test(customStart) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(customEnd) && customStart <= customEnd
+      ? { start: customStart, end: customEnd }
+      : null;
+  }
 
   if (preset === 'all_time') {
     return { start: '2000-01-01', end };
@@ -117,15 +118,6 @@ function formatMinutesShort(value: number | null | undefined, digits = 1): strin
     return '—';
   }
   return `${formatNumber(value, digits)} min`;
-}
-
-function formatAdjustedCompletions(value: number | null | undefined): string {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return '—';
-  }
-
-  const digits = Number.isInteger(value) ? 0 : 2;
-  return formatNumber(value, digits);
 }
 
 function formatSignedRatePoints(value: number, digits = 1): string {
@@ -231,7 +223,7 @@ function getVisibleCategoryIndexes(totalCount: number, desiredCount = 7) {
 }
 
 function formatResolvedWindowLabel(dateStart: string | null, dateEnd: string | null): string {
-  if (!dateStart || !dateEnd) return 'Latest settled day';
+  if (!dateStart || !dateEnd) return 'Today';
   if (dateStart === dateEnd) return formatHumanDate(dateStart);
   return `${formatHumanDate(dateStart)} – ${formatHumanDate(dateEnd)}`;
 }
@@ -455,7 +447,7 @@ function CompactDelta({
 type KpiCardProps = {
   label: string;
   value: string;
-  trend: ReactNode;
+  trend?: ReactNode;
 };
 
 function KpiCard({ label, value, trend }: KpiCardProps) {
@@ -465,7 +457,7 @@ function KpiCard({ label, value, trend }: KpiCardProps) {
         {label}
       </p>
       <p className="mt-1.5 text-2xl font-semibold text-slate-900">{value}</p>
-      <div className="mt-1.5">{trend}</div>
+      {trend ? <div className="mt-1.5">{trend}</div> : null}
     </div>
   );
 }
@@ -1785,8 +1777,7 @@ function LocationComparisonTable({
     { label: 'Location' },
     { key: 'attention', label: 'Status' },
     { key: 'completed', label: 'Completed Visits', align: 'right' },
-    { key: 'adjusted_completed', label: 'Adjusted Completions', align: 'right' },
-    { key: 'completion', label: 'Completion Rate', align: 'right' },
+    { key: 'unserved', label: 'Left unserved', align: 'right' },
     { key: 'wait', label: 'Avg wait', align: 'right' },
     { key: 'utilization', label: 'Utilization Rate', align: 'right' },
     { key: 'queue_length', label: 'Avg Queue Length', align: 'right' },
@@ -1863,19 +1854,8 @@ function LocationComparisonTable({
                 </td>
                 <td className="px-3 py-2.5 text-right tabular-nums">
                   <div className="text-sm font-semibold text-slate-900">
-                    {formatAdjustedCompletions(row.adjusted_completed_total)}
+                    {formatNumber(row.cancelled_before_served_total)}
                   </div>
-                  <CompactDelta delta={row.adjusted_completed_delta} digits={2} />
-                </td>
-                <td className="px-3 py-2.5 text-right tabular-nums">
-                  <div className="text-sm font-semibold text-slate-900">
-                    {formatPercent(row.completion_rate)}
-                  </div>
-                  <CompactDelta
-                    delta={row.completion_delta}
-                    isRate
-                    higherIsBetter
-                  />
                 </td>
                 <td className="px-3 py-2.5 text-right tabular-nums">
                   <div className="text-sm font-semibold text-slate-900">
@@ -2012,7 +1992,10 @@ export default function AnalyticsPage() {
   const [selectedCustomerType, setSelectedCustomerType] =
     useState<CustomerFilter>('all');
   const [selectedDatePreset, setSelectedDatePreset] =
-    useState<DatePreset>('latest');
+    useState<DatePreset>('today');
+  const [customDateStart, setCustomDateStart] = useState(() => formatLocalDate(new Date()));
+  const [customDateEnd, setCustomDateEnd] = useState(() => formatLocalDate(new Date()));
+  const [workforceAnalytics, setWorkforceAnalytics] = useState<WorkforceAnalytics | null>(null);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsResponse | null>(
     null
   );
@@ -2121,12 +2104,18 @@ export default function AnalyticsPage() {
   }, [isAdmin, loadLocations]);
 
   const dateRange = useMemo(
-    () => resolveDateRange(selectedDatePreset),
-    [selectedDatePreset]
+    () => resolveDateRange(selectedDatePreset, customDateStart, customDateEnd),
+    [selectedDatePreset, customDateStart, customDateEnd]
   );
 
   useEffect(() => {
     if (!isAdmin || !session?.access_token) return;
+    if (!dateRange) {
+      setAnalyticsData(null);
+      setWorkforceAnalytics(null);
+      setAnalyticsError('Choose a valid day or date range.');
+      return;
+    }
 
     const controller = new AbortController();
 
@@ -2151,6 +2140,7 @@ export default function AnalyticsPage() {
         if (controller.signal.aborted) return;
 
         setAnalyticsData(dashboard.analytics);
+        setWorkforceAnalytics(dashboard.workforce_analytics);
         setLocationComparisonRows(
           buildLocationComparisonRows(dashboard.location_analytics)
         );
@@ -2172,6 +2162,7 @@ export default function AnalyticsPage() {
             error instanceof Error ? error.message : 'Failed to load analytics.'
           );
           setAnalyticsData(null);
+          setWorkforceAnalytics(null);
           setLocationComparisonRows([]);
           setSegmentAnalytics(null);
           setDailyRepeatShareRows([]);
@@ -2190,8 +2181,7 @@ export default function AnalyticsPage() {
       controller.abort();
     };
   }, [
-    dateRange.end,
-    dateRange.start,
+    dateRange,
     isAdmin,
     selectedCustomerType,
     selectedLocationId,
@@ -2320,46 +2310,6 @@ export default function AnalyticsPage() {
     [analyticsData, comparisonReference.longLabel, locationComparisonRows, scopeLabel]
   );
 
-  const repeatShareSummary = useMemo(() => {
-    const rows = dailyRepeatShareRows.filter(
-      (row): row is DailyRepeatShareRow & { repeat_share: number } =>
-        row.repeat_share !== null && !Number.isNaN(row.repeat_share)
-    );
-
-    if (!rows.length) {
-      return null;
-    }
-
-    const average =
-      rows.reduce((sum, row) => sum + row.repeat_share, 0) / rows.length;
-    const peak = rows.reduce((currentPeak, row) =>
-      row.repeat_share > currentPeak.repeat_share ? row : currentPeak
-    );
-
-    return {
-      average,
-      peak,
-    };
-  }, [dailyRepeatShareRows]);
-  const peakWaitDay = useMemo(() => {
-    const rows = analyticsData?.series ?? [];
-    return rows.reduce<{ local_date: string; value: number } | null>((peak, row) => {
-      if (row.wait_avg_minutes === null || row.wait_avg_minutes === undefined) {
-        return peak;
-      }
-      if (!peak || row.wait_avg_minutes > peak.value) {
-        return {
-          local_date: row.local_date,
-          value: row.wait_avg_minutes,
-        };
-      }
-      return peak;
-    }, null);
-  }, [analyticsData]);
-  const currentPriorityShare =
-    analyticsData && analyticsData.kpis.arrivals_total > 0
-      ? analyticsData.kpis.arrivals_non_paying / analyticsData.kpis.arrivals_total
-      : null;
   const segmentComparisonModel = useMemo<SegmentComparisonModel | null>(() => {
     if (!analyticsData || !segmentAnalytics?.paying || !segmentAnalytics.priority) {
       return null;
@@ -2376,145 +2326,43 @@ export default function AnalyticsPage() {
       : selectedCustomerType === 'paying'
         ? 'Paying only'
         : 'Priority Pass only';
-  const selectedLocationComparison =
-    selectedLocationId === 'all'
-      ? null
-      : locationComparisonRows.find((row) => row.location_id === selectedLocationId) ?? null;
-  const chainAverageWait = useMemo(() => {
-    const values = locationComparisonRows
-      .map((row) => row.wait_avg_minutes)
-      .filter((value): value is number => value !== null);
-    if (!values.length) return null;
-    return values.reduce((sum, value) => sum + value, 0) / values.length;
-  }, [locationComparisonRows]);
-  const chainAverageCompletion = useMemo(() => {
-    const values = locationComparisonRows
-      .map((row) => row.completion_rate)
-      .filter((value): value is number => value !== null);
-    if (!values.length) return null;
-    return values.reduce((sum, value) => sum + value, 0) / values.length;
-  }, [locationComparisonRows]);
-  const selectedBenchmarkDetail = useMemo(() => {
-    if (!selectedLocationComparison || chainAverageWait === null || chainAverageCompletion === null) {
-      return 'Comparison uses the same resolved window across all visible locations.';
-    }
-
-    const notes: string[] = [];
-    if (selectedLocationComparison.wait_avg_minutes !== null) {
-      notes.push(
-        `${formatMinutesShort(selectedLocationComparison.wait_avg_minutes, 1)} wait vs ${formatMinutesShort(
-          chainAverageWait,
-          1
-        )} chain wait`
-      );
-    }
-    if (selectedLocationComparison.completion_rate !== null) {
-      notes.push(
-        `${formatPercent(selectedLocationComparison.completion_rate)} completion vs ${formatPercent(
-          chainAverageCompletion
-        )} chain completion`
-      );
-    }
-
-    return notes.length
-      ? `Selected location: ${notes.join(' · ')}.`
-      : 'Comparison uses the same resolved window across all visible locations.';
-  }, [
-    chainAverageCompletion,
-    chainAverageWait,
-    selectedLocationComparison,
-  ]);
-  const highestVolumeLocation = useMemo(
+  const dashboardInterpretation = useMemo(
     () =>
-      [...locationComparisonRows].sort(
-        (left, right) => right.arrivals_total - left.arrivals_total
-      )[0] ?? null,
-    [locationComparisonRows]
-  );
-  const worstWaitLocation = useMemo(
-    () =>
-      [...locationComparisonRows]
-        .filter((row) => row.wait_avg_minutes !== null)
-        .sort(
-          (left, right) => (right.wait_avg_minutes ?? 0) - (left.wait_avg_minutes ?? 0)
-        )[0] ?? null,
-    [locationComparisonRows]
-  );
-  const bestCompletionLocation = useMemo(
-    () =>
-      [...locationComparisonRows]
-        .filter((row) => row.completion_rate !== null)
-        .sort(
-          (left, right) => (right.completion_rate ?? 0) - (left.completion_rate ?? 0)
-        )[0] ?? null,
-    [locationComparisonRows]
-  );
-  const highestAdjustedLocation = useMemo(
-    () =>
-      [...locationComparisonRows]
-        .filter(
-          (row): row is LocationComparisonRow & { adjusted_completed_total: number } =>
-            row.adjusted_completed_total !== null
-        )
-        .sort(
-          (left, right) =>
-            (right.adjusted_completed_total ?? 0) - (left.adjusted_completed_total ?? 0)
-        )[0] ?? null,
-    [locationComparisonRows]
-  );
-  const primaryDriverRow = useMemo(
-    () =>
-      executiveSummary?.primary_driver
-        ? locationComparisonRows.find(
-            (row) => row.location_name === executiveSummary.primary_driver
-          ) ?? null
+      analyticsData && executiveSummary
+        ? buildDashboardInterpretation(
+            analyticsData,
+            locationComparisonRows,
+            dailyRepeatShareRows,
+            executiveSummary,
+            selectedLocationId
+          )
         : null,
-    [executiveSummary?.primary_driver, locationComparisonRows]
+    [
+      analyticsData,
+      dailyRepeatShareRows,
+      executiveSummary,
+      locationComparisonRows,
+      selectedLocationId,
+    ]
   );
-  const largestAdjustedGainLocation = useMemo(
-    () =>
-      [...locationComparisonRows]
-        .filter(
-          (row): row is LocationComparisonRow & { adjusted_completed_delta: number } =>
-            row.adjusted_completed_delta !== null && row.adjusted_completed_delta > 0
-        )
-        .sort(
-          (left, right) => right.adjusted_completed_delta - left.adjusted_completed_delta
-        )[0] ?? null,
-    [locationComparisonRows]
+  const repeatShareSummary = dashboardInterpretation?.repeat_share_summary ?? null;
+  const peakWaitDay = dashboardInterpretation?.peak_wait_day ?? null;
+  const currentPriorityShare = dashboardInterpretation?.current_priority_share ?? null;
+  const chainAverageWait = dashboardInterpretation?.chain_average_wait ?? null;
+  const selectedBenchmarkDetail =
+    dashboardInterpretation?.selected_benchmark_detail ??
+    'Comparison uses the same resolved window across all visible locations.';
+  const highestVolumeLocation = dashboardInterpretation?.highest_volume_location ?? null;
+  const worstWaitLocation = dashboardInterpretation?.worst_wait_location ?? null;
+  const fewestUnservedLocation = [...locationComparisonRows]
+    .filter((row) => row.arrivals_total > 0)
+    .sort((left, right) =>
+      (left.before_service_loss_rate ?? 1) - (right.before_service_loss_rate ?? 1)
+    )[0] ?? null;
+  const primaryDriverRow = dashboardInterpretation?.primary_driver_row ?? null;
+  const summaryTone = getSummaryToneClasses(
+    dashboardInterpretation?.summary_status ?? 'healthy'
   );
-  const summaryToneStatus = useMemo<ExecutiveSummary['status']>(() => {
-    if (!analyticsData) {
-      return executiveSummary?.status ?? 'healthy';
-    }
-
-    if (analyticsData.kpis.arrivals_total === 0) {
-      return 'urgent';
-    }
-
-    const currentAdjustedCompletions = analyticsData.kpis.adjusted_completed_total;
-    const previousAdjustedCompletions =
-      analyticsData.previous_period?.kpis?.adjusted_completed_total ?? null;
-
-    if (
-      currentAdjustedCompletions !== null &&
-      previousAdjustedCompletions !== null &&
-      previousAdjustedCompletions !== undefined
-    ) {
-      const adjustedCompletionsDelta =
-        currentAdjustedCompletions - previousAdjustedCompletions;
-
-      if (adjustedCompletionsDelta > 0.01) {
-        return 'healthy';
-      }
-      if (adjustedCompletionsDelta < -0.01) {
-        return 'urgent';
-      }
-    }
-
-    return executiveSummary?.status ?? 'healthy';
-  }, [analyticsData, executiveSummary?.status]);
-  const summaryTone = getSummaryToneClasses(summaryToneStatus);
   const topSignals = (executiveSummary?.signals ?? []).slice(0, 2);
 
   if (authLoading) {
@@ -2637,99 +2485,24 @@ export default function AnalyticsPage() {
         </header>
 
         <ResponsiveCard className="border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">
-                Analytics Filters
-              </h2>
-            </div>
-            {analyticsData ? (
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
-                {storyMode === 'single_day'
-                  ? 'Hourly operating view'
-                  : storyMode === 'multi_day'
-                    ? 'Daily operating view'
-                    : 'Trend operating view'}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="mt-3 grid gap-4 xl:grid-cols-[1.1fr_1fr_1fr]">
-            <label className="text-sm">
-              Location scope
-              <select
-                className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                value={selectedLocationId}
-                onChange={(event) => setSelectedLocationId(event.target.value)}
-              >
-                <option value="all">All active locations</option>
-                <optgroup label="Active locations">
-                  {activeLocationOptions.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.display_name}
-                    </option>
-                  ))}
-                </optgroup>
-                {closedLocationOptions.length > 0 ? (
-                  <optgroup label="Closed locations — historical">
-                    {closedLocationOptions.map((location) => (
-                      <option key={location.id} value={location.id}>
-                        {location.display_name} (Closed)
-                      </option>
-                    ))}
-                  </optgroup>
-                ) : null}
-              </select>
-            </label>
-            <label className="text-sm">
-              Time window
-              <select
-                className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                value={selectedDatePreset}
-                onChange={(event) =>
-                  setSelectedDatePreset(event.target.value as DatePreset)
-                }
-              >
-                {DATE_PRESETS.map((preset) => (
-                  <option key={preset.value} value={preset.value}>
-                    {preset.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              Customer segment
-              <select
-                className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-100"
-                value={selectedCustomerType}
-                onChange={(event) =>
-                  setSelectedCustomerType(event.target.value as CustomerFilter)
-                }
-              >
-                <option value="all">All customers</option>
-                <option value="paying">Paying</option>
-                <option value="priority_pass">Priority Pass</option>
-              </select>
-            </label>
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
-              Window: {resolvedWindowLabel}
-            </span>
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
-              {comparisonReference.chipLabel}
-            </span>
-          </div>
-
-          {selectedLocationIsClosed ? (
-            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              <p className="font-semibold">Closed location — historical reporting only</p>
-              <p className="mt-1 text-xs leading-5 text-amber-800">
-                This location is excluded from active-location totals and comparisons. Its settled history remains available for past-period reporting.
-              </p>
-            </div>
-          ) : null}
+          <AnalyticsFilters
+            activeLocations={activeLocationOptions}
+            closedLocations={closedLocationOptions}
+            locationId={selectedLocationId}
+            datePreset={selectedDatePreset}
+            customDateStart={customDateStart}
+            customDateEnd={customDateEnd}
+            customerType={selectedCustomerType}
+            storyMode={analyticsData ? storyMode : null}
+            resolvedWindowLabel={resolvedWindowLabel}
+            comparisonChipLabel={comparisonReference.chipLabel}
+            selectedLocationIsClosed={selectedLocationIsClosed}
+            onLocationChange={setSelectedLocationId}
+            onDatePresetChange={setSelectedDatePreset}
+            onCustomDateStartChange={setCustomDateStart}
+            onCustomDateEndChange={setCustomDateEnd}
+            onCustomerTypeChange={setSelectedCustomerType}
+          />
 
           {analyticsData ? (
             <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
@@ -2737,7 +2510,7 @@ export default function AnalyticsPage() {
                 <div className={`rounded-2xl border px-4 py-4 shadow-sm ${summaryTone.panel}`}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">
-                      Top-line evidence
+                      Queue and staffing
                     </p>
                     <span className="rounded-full border border-white/60 bg-white/70 px-3 py-1 text-xs text-slate-600">
                       {resolvedWindowLabel}
@@ -2759,18 +2532,8 @@ export default function AnalyticsPage() {
                         {formatMinutesShort(chainAverageWait, 1)} chain wait
                       </span>
                     ) : null}
-                    {highestAdjustedLocation &&
-                    highestAdjustedLocation.adjusted_completed_total !== null ? (
-                      <span className="rounded-full border border-white/70 bg-white/80 px-3 py-1">
-                        Highest adjusted completions: {highestAdjustedLocation.location_name}{' '}
-                        {formatAdjustedCompletions(
-                          highestAdjustedLocation.adjusted_completed_total
-                        )}
-                      </span>
-                    ) : null}
                     <span className="rounded-full border border-white/70 bg-white/80 px-3 py-1">
-                      Non-paying {formatPercent(currentPriorityShare)} · Repeat{' '}
-                      {formatPercent(analyticsData.kpis.repeat_customers_rate)}
+                      Priority Pass share {formatPercent(currentPriorityShare)}
                     </span>
                   </div>
                   <p className="mt-3 text-xs text-slate-600">
@@ -2810,6 +2573,10 @@ export default function AnalyticsPage() {
 
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
                 <KpiCard
+                  label="Settled visits"
+                  value={formatNumber(analyticsData.kpis.arrivals_total)}
+                />
+                <KpiCard
                   label="Completed Visits"
                   value={formatNumber(analyticsData.kpis.completed_total)}
                   trend={
@@ -2820,77 +2587,39 @@ export default function AnalyticsPage() {
                   }
                 />
                 <KpiCard
-                  label="Adj. Completions"
-                  value={formatAdjustedCompletions(analyticsData.kpis.adjusted_completed_total)}
-                  trend={
-                    <TrendBadge
-                      current={analyticsData.kpis.adjusted_completed_total}
-                      previous={previousPeriodKpis?.adjusted_completed_total}
-                      absoluteDigits={2}
-                    />
-                  }
+                  label="Left unserved"
+                  value={formatNumber(analyticsData.kpis.cancelled_before_served_total)}
                 />
                 <KpiCard
-                  label="Completion Rate"
-                  value={formatPercent(analyticsData.kpis.completion_rate)}
-                  trend={
-                    <TrendBadge
-                      current={analyticsData.kpis.completion_rate}
-                      previous={previousPeriodKpis?.completion_rate}
-                      isRate
-                      higherIsBetter
-                    />
-                  }
-                />
-                <KpiCard
-                  label="Avg Wait"
-                  value={
-                    analyticsData.kpis.wait_avg_minutes === null
+                  label="Paying left unserved"
+                  value={selectedCustomerType === 'paying'
+                    ? formatNumber(analyticsData.kpis.cancelled_before_served_total)
+                    : selectedCustomerType === 'priority_pass'
                       ? '—'
-                      : formatMinutesShort(analyticsData.kpis.wait_avg_minutes, 1)
-                  }
-                  trend={
-                    <TrendBadge
-                      current={analyticsData.kpis.wait_avg_minutes}
-                      previous={previousPeriodKpis?.wait_avg_minutes}
-                      higherIsBetter={false}
-                      absoluteUnit="min"
-                    />
-                  }
+                      : formatNumber(workforceAnalytics?.paying_unserved_total)}
                 />
                 <KpiCard
-                  label="Utilization Rate"
-                  value={formatPercent(analyticsData.kpis.utilization_rate)}
-                  trend={
-                    <TrendBadge
-                      current={analyticsData.kpis.utilization_rate}
-                      previous={previousPeriodKpis?.utilization_rate}
-                      isRate
-                      higherIsBetter
-                    />
-                  }
+                  label="Priority Pass left unserved"
+                  value={selectedCustomerType === 'paying'
+                    ? '—'
+                    : formatNumber(workforceAnalytics?.priority_unserved_total)}
                 />
                 <KpiCard
-                  label="Avg Queue Length"
-                  value={
-                    analyticsData.kpis.average_queue_length === null
-                      ? '—'
-                      : formatNumber(analyticsData.kpis.average_queue_length, 1)
-                  }
-                  trend={
-                    <TrendBadge
-                      current={analyticsData.kpis.average_queue_length}
-                      previous={previousPeriodKpis?.average_queue_length}
-                      higherIsBetter={false}
-                      absoluteUnit="customers"
-                      absoluteDigits={1}
-                    />
-                  }
+                  label="Priority Pass declined"
+                  value={selectedCustomerType === 'paying'
+                    ? '—'
+                    : formatNumber(workforceAnalytics?.priority_declined_total)}
                 />
               </div>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Adjusted Completions gives full credit to each paying completion and quarter
-                credit to each non-paying completion (i.e. four priority pass customers equal one paying customer).
+                Counts include visits that reached a settled outcome in this window. Left unserved means
+                cancelled or no-show before service. Priority Pass decline rate:{' '}
+                {selectedCustomerType === 'paying' || !workforceAnalytics?.priority_settled_total
+                  ? '—'
+                  : formatPercent(
+                      workforceAnalytics.priority_declined_total /
+                      workforceAnalytics.priority_settled_total
+                    )}.
               </p>
             </div>
           ) : null}
@@ -2900,6 +2629,57 @@ export default function AnalyticsPage() {
           <LoadingSpinner text="Loading owner dashboard..." />
         ) : analyticsData ? (
           <>
+            {workforceAnalytics ? (
+              <section className="grid gap-4 lg:grid-cols-2">
+                <ResponsiveCard className="border border-slate-200 bg-white shadow-sm">
+                  <h2 className="text-lg font-semibold text-slate-900">Do we need more staff?</h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Priority Pass outcomes in the selected settled visits.
+                  </p>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div><p className="text-slate-500">Reached service</p><p className="text-xl font-semibold">{formatNumber(workforceAnalytics.priority_served_total)}</p></div>
+                    <div><p className="text-slate-500">Left unserved</p><p className="text-xl font-semibold">{formatNumber(workforceAnalytics.priority_unserved_total)}</p></div>
+                    <div><p className="text-slate-500">Priority Pass declined</p><p className="text-xl font-semibold">{formatNumber(workforceAnalytics.priority_declined_total)}</p></div>
+                    <div><p className="text-slate-500">No staff available</p><p className="text-xl font-semibold">{formatNumber(workforceAnalytics.priority_no_staff_available_total)}</p></div>
+                  </div>
+                  <p className="mt-4 text-xs leading-5 text-slate-500">
+                    Decline rate is recorded declines divided by settled Priority Pass visits.
+                    {workforceAnalytics.priority_unknown_reason_total > 0
+                      ? ` ${formatNumber(workforceAnalytics.priority_unknown_reason_total)} Priority Pass departures have no recorded reason.`
+                      : ''}
+                    {' '}A recorded staffing reason is evidence of unmet demand; the queue alone cannot prove whether another employee would have served someone.
+                  </p>
+                </ResponsiveCard>
+                <ResponsiveCard className="border border-slate-200 bg-white shadow-sm">
+                  <h2 className="text-lg font-semibold text-slate-900">Why people left unserved</h2>
+                  <p className="mt-1 text-sm text-slate-600">Reasons are recorded from staff choices, the phone page, and replies to cancellation texts.</p>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div><p className="text-slate-500">Priority Pass declined</p><p className="font-semibold">{formatNumber(workforceAnalytics.priority_declined_total)}</p></div>
+                    <div><p className="text-slate-500">No staff available</p><p className="font-semibold">{formatNumber(workforceAnalytics.no_staff_available_total)}</p></div>
+                    <div><p className="text-slate-500">Wait too long</p><p className="font-semibold">{formatNumber(workforceAnalytics.wait_too_long_total)}</p></div>
+                    <div><p className="text-slate-500">Plans changed</p><p className="font-semibold">{formatNumber(workforceAnalytics.plans_changed_total)}</p></div>
+                    <div><p className="text-slate-500">Customer chose to leave</p><p className="font-semibold">{formatNumber(workforceAnalytics.customer_left_total)}</p></div>
+                    <div><p className="text-slate-500">Other</p><p className="font-semibold">{formatNumber(workforceAnalytics.other_reason_total)}</p></div>
+                    <div><p className="text-slate-500">Reason not recorded</p><p className="font-semibold">{formatNumber(workforceAnalytics.unknown_reason_total)}</p></div>
+                  </div>
+                </ResponsiveCard>
+                <ResponsiveCard className="border border-slate-200 bg-white shadow-sm lg:col-span-2">
+                  <h2 className="text-lg font-semibold text-slate-900">Employee service outcomes</h2>
+                  <p className="mt-1 text-sm text-slate-600">Visits are attributed to the employee who started service. A completion is counted when that visit ended completed.</p>
+                  {workforceAnalytics.employees.length ? (
+                    <div className="mt-4 overflow-x-auto">
+                      <table className="min-w-full text-left text-sm">
+                        <thead><tr className="border-b border-slate-200 text-slate-500"><th className="py-2">Employee</th><th className="py-2 text-right">Started</th><th className="py-2 text-right">Completed</th><th className="py-2 text-right">Completed share</th></tr></thead>
+                        <tbody>{workforceAnalytics.employees.map((employee) => (
+                          <tr key={employee.user_id} className="border-b border-slate-100"><td className="py-2">{employee.employee}</td><td className="py-2 text-right">{formatNumber(employee.started_total)}</td><td className="py-2 text-right">{formatNumber(employee.completed_total)}</td><td className="py-2 text-right">{formatPercent(employee.started_total ? employee.completed_total / employee.started_total : null)}</td></tr>
+                        ))}</tbody>
+                      </table>
+                    </div>
+                  ) : <p className="mt-4 text-sm text-slate-500">No attributed service visits in this window.</p>}
+                  <p className="mt-3 text-xs text-slate-500">Employee attribution starts when this tracking is deployed; older visits remain in location totals.</p>
+                </ResponsiveCard>
+              </section>
+            ) : null}
             <section className="space-y-3">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
@@ -2944,15 +2724,15 @@ export default function AnalyticsPage() {
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
-                      Best completion rate
+                      Fewest left unserved
                     </p>
                     <div className="mt-1 flex items-baseline justify-between gap-3">
                       <p className="text-sm font-semibold text-slate-900">
-                        {bestCompletionLocation?.location_name ?? '—'}
+                        {fewestUnservedLocation?.location_name ?? '—'}
                       </p>
                       <span className="text-xs text-slate-500">
-                        {bestCompletionLocation
-                          ? formatPercent(bestCompletionLocation.completion_rate)
+                        {fewestUnservedLocation
+                          ? formatNumber(fewestUnservedLocation.cancelled_before_served_total)
                           : '—'}
                       </span>
                     </div>
@@ -2975,19 +2755,16 @@ export default function AnalyticsPage() {
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
-                      Largest adjusted-completions gain
+                      Priority Pass left unserved
                     </p>
                     <div className="mt-1 flex items-baseline justify-between gap-3">
                       <p className="text-sm font-semibold text-slate-900">
-                        {largestAdjustedGainLocation?.location_name ?? '—'}
+                        {selectedCustomerType === 'paying' ? 'Outside filter' : 'Selected scope'}
                       </p>
                       <span className="text-xs text-slate-500">
-                        {largestAdjustedGainLocation?.adjusted_completed_delta !== null &&
-                        largestAdjustedGainLocation?.adjusted_completed_delta !== undefined
-                          ? `+${formatAdjustedCompletions(
-                              largestAdjustedGainLocation.adjusted_completed_delta
-                            )}`
-                          : '—'}
+                        {selectedCustomerType === 'paying'
+                          ? '—'
+                          : formatNumber(workforceAnalytics?.priority_unserved_total)}
                       </span>
                     </div>
                   </div>
@@ -3307,10 +3084,16 @@ export default function AnalyticsPage() {
                           </div>
                           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                             <p className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
-                              Completion rate
+                              Left unserved
                             </p>
                             <p className="mt-2 text-lg font-semibold text-slate-900">
-                              {formatPercent(analyticsData.kpis.completion_rate)}
+                              {formatNumber(analyticsData.kpis.cancelled_before_served_total)}
+                              {' '}({formatPercent(
+                                analyticsData.kpis.arrivals_total
+                                  ? analyticsData.kpis.cancelled_before_served_total /
+                                    analyticsData.kpis.arrivals_total
+                                  : null
+                              )})
                             </p>
                           </div>
                           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">

@@ -44,7 +44,7 @@ serve(async (req) => {
     req.headers.get('x-internal-secret') || req.headers.get('x-sms-secret');
   const authHeader = req.headers.get('authorization');
   const apiKey = req.headers.get('apikey');
-  const bearerToken = authHeader?.replace(/^Bearer\\s+/i, '');
+  const bearerToken = authHeader?.match(/^Bearer\s+(\S+)$/i)?.[1];
 
   const hasInternalSecret =
     Boolean(internalSecret) && providedSecret === internalSecret;
@@ -103,15 +103,29 @@ serve(async (req) => {
     });
   }
 
-  const results: Array<{ id: string; status: string; error?: string }> = [];
+  const results: Array<{
+    id: string;
+    status: string;
+    error?: string;
+    providerAccepted?: boolean;
+  }> = [];
 
   for (const message of queued ?? []) {
     const result = await sendClaimedMessage(supabase, message);
-    results.push({
+    const processed: {
+      id: string;
+      status: string;
+      error?: string;
+      providerAccepted?: boolean;
+    } = {
       id: message.id,
       status: result.status,
-      error: result.status === 'failed' ? result.error : undefined,
-    });
+    };
+    if ('error' in result) processed.error = result.error;
+    if ('providerAccepted' in result) {
+      processed.providerAccepted = result.providerAccepted;
+    }
+    results.push(processed);
   }
 
   const headers = new Headers();

@@ -8,11 +8,15 @@ import {
   type RealtimeRecoveryState,
 } from './realtimeRecovery';
 import {
+  reconcileInboundRows,
+  reconcileRealtimeDelete,
+  upsertRealtimeChatMessage,
+} from './realtimeReconciliation';
+import {
   removeEntry,
   sortHistoryEntries,
   sortServingEntries,
   sortWaitingEntries,
-  toEpoch,
   upsertEntry,
 } from '../utils';
 
@@ -28,7 +32,6 @@ type QueueState = {
   setServingEntries: React.Dispatch<React.SetStateAction<WithEntryId<ServingRow>[]>>;
   setHistoryEntries: React.Dispatch<React.SetStateAction<WithEntryId<HistoryRow>[]>>;
   updateEntryInLists: (entryId: string, updates: Partial<WaitingRow & ServingRow & HistoryRow>) => void;
-  removeEntryFromLists: (entryId: string) => void;
   fetchWaitingEntry: (entryId: string) => Promise<WithEntryId<WaitingRow> | null>;
   fetchServingEntry: (entryId: string) => Promise<WithEntryId<ServingRow> | null>;
   fetchHistoryEntry: (entryId: string) => Promise<WithEntryId<HistoryRow> | null>;
@@ -53,7 +56,6 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
     setServingEntries,
     setHistoryEntries,
     updateEntryInLists,
-    removeEntryFromLists,
     fetchWaitingEntry,
     fetchServingEntry,
     fetchHistoryEntry,
@@ -113,7 +115,17 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
       }
 
       if (payload.eventType === 'DELETE') {
-        removeEntryFromLists(entryId);
+        const reconciled = reconcileRealtimeDelete(
+          {
+            waiting: waitingRef.current,
+            serving: servingRef.current,
+            history: historyRef.current,
+          },
+          entryId
+        );
+        setWaitingEntries(reconciled.waiting);
+        setServingEntries(reconciled.serving);
+        setHistoryEntries(reconciled.history);
         return;
       }
 
@@ -193,7 +205,6 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
       fetchServingEntry,
       fetchWaitingEntry,
       historyRef,
-      removeEntryFromLists,
       servingRef,
       setHistoryEntries,
       setServingEntries,
@@ -264,46 +275,19 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
           const entryId = row.queue_entry_id;
           const body = row.body ?? '';
 
-          const shouldUpdate = (entry: {
-            queue_entry_id: string;
-            last_inbound_at?: string | null;
-          }) => {
-            if (entry.queue_entry_id !== entryId) return false;
-            if (entry.last_inbound_at && toEpoch(receivedAt) <= toEpoch(entry.last_inbound_at)) {
-              return false;
-            }
-            return true;
-          };
-
-          const updateInbound = <
-            T extends {
-              queue_entry_id: string;
-              last_inbound_at?: string | null;
-              last_inbound_body?: string | null;
-            }
-          >(
-            rows: T[]
-          ) => {
-            let updated = rows;
-            const updatedEntryIds = new Set<string>();
-            rows.forEach((entry, index) => {
-              if (!shouldUpdate(entry)) return;
-              updatedEntryIds.add(entry.queue_entry_id);
-              if (updated === rows) {
-                updated = rows.slice();
-              }
-              updated[index] = {
-                ...entry,
-                last_inbound_body: body,
-                last_inbound_at: receivedAt,
-              };
-            });
-            return { rows: updated, updatedEntryIds };
-          };
-
-          const waitingUpdate = updateInbound(waitingRef.current);
-          const servingUpdate = updateInbound(servingRef.current);
-          const historyUpdate = updateInbound(historyRef.current);
+          const inboundEvent = { entryId, body, receivedAt };
+          const waitingUpdate = reconcileInboundRows(
+            waitingRef.current,
+            inboundEvent
+          );
+          const servingUpdate = reconcileInboundRows(
+            servingRef.current,
+            inboundEvent
+          );
+          const historyUpdate = reconcileInboundRows(
+            historyRef.current,
+            inboundEvent
+          );
           const updatedEntryIds = new Set<string>([
             ...waitingUpdate.updatedEntryIds,
             ...servingUpdate.updatedEntryIds,
@@ -336,15 +320,14 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
             });
           }
           if (activeChat?.queue_entry_id === entryId) {
-            setChatMessages((prev) => [
-              ...prev,
-              {
+            setChatMessages((prev) =>
+              upsertRealtimeChatMessage(prev, {
                 id: `inbound:${row.id ?? receivedAt}`,
                 direction: 'in',
                 body,
                 at: receivedAt,
-              },
-            ]);
+              })
+            );
           }
         }
       )
@@ -386,9 +369,6 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
           const activeChat = chatEntryRef.current;
           if (activeChat?.queue_entry_id === entryId && row.body) {
             setChatMessages((prev) => {
-              const existingIndex = prev.findIndex(
-                (message) => message.id === row.id
-              );
               const message = {
                 id: row.id ?? `outbound:${entryId}:${row.created_at ?? Date.now()}`,
                 direction: 'out' as const,
@@ -397,21 +377,7 @@ export function useRealtimeSubscriptions(queueState: QueueState, chatState: Chat
                 status: row.status ?? null,
                 messageType,
               };
-              if (existingIndex === -1) {
-                return [...prev, message].sort(
-                  (a, b) => toEpoch(a.at) - toEpoch(b.at)
-                );
-              }
-              const updated = prev.slice();
-              const existingMessage = updated[existingIndex];
-              if (!existingMessage) {
-                return prev;
-              }
-              updated[existingIndex] = {
-                ...existingMessage,
-                status: row.status ?? null,
-              };
-              return updated;
+              return upsertRealtimeChatMessage(prev, message);
             });
           }
         }

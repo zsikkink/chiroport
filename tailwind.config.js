@@ -63,8 +63,5 @@ module.exports = {
       },
     },
   },
-  // Additional plugins for extending Tailwind's functionality
-  plugins: [
-    require('@tailwindcss/container-queries'),
-  ],
-}; 
+  plugins: [],
+};

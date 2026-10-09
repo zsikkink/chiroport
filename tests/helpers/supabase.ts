@@ -71,6 +71,6 @@ export function createServiceClient(env: TestEnv): SupabaseClient {
 }
 
 export function randomPhone() {
-  const base = Math.floor(1000000000 + Math.random() * 9000000000);
-  return `+1${base}`;
+  const subscriber = Math.floor(1000 + Math.random() * 9000);
+  return `+1202555${subscriber}`;
 }

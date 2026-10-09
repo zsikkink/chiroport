@@ -103,10 +103,33 @@ export type AnalyticsDashboardWarnings = {
 
 export type AnalyticsDashboardPayload = {
   analytics: AnalyticsResponse;
+  workforce_analytics: WorkforceAnalytics | null;
   location_analytics: LocationAnalyticsInput[];
   segment_analytics: SegmentAnalyticsPair | null;
   daily_repeat_share_rows: DailyRepeatShareRow[];
   warnings: AnalyticsDashboardWarnings;
+};
+
+export type WorkforceAnalytics = {
+  priority_settled_total: number;
+  priority_served_total: number;
+  priority_unserved_total: number;
+  paying_unserved_total: number;
+  priority_declined_total: number;
+  priority_no_staff_available_total: number;
+  priority_unknown_reason_total: number;
+  no_staff_available_total: number;
+  customer_left_total: number;
+  wait_too_long_total: number;
+  plans_changed_total: number;
+  other_reason_total: number;
+  unknown_reason_total: number;
+  employees: {
+    user_id: string;
+    employee: string;
+    started_total: number;
+    completed_total: number;
+  }[];
 };
 
 export type StoryMode = 'single_day' | 'multi_day' | 'long_range';
@@ -114,6 +137,7 @@ export type SortDirection = 'asc' | 'desc';
 export type LocationSortKey =
   | 'attention'
   | 'completed'
+  | 'unserved'
   | 'adjusted_completed'
   | 'completion'
   | 'wait'
@@ -168,6 +192,26 @@ export type ExecutiveSummary = {
   best_location: string | null;
   watch_location: string | null;
   signals: ExecutiveSignal[];
+};
+
+export type DashboardInterpretation = {
+  summary_status: ExecutiveSummary['status'];
+  repeat_share_summary: {
+    average: number;
+    peak: DailyRepeatShareRow & { repeat_share: number };
+  } | null;
+  peak_wait_day: { local_date: string; value: number } | null;
+  current_priority_share: number | null;
+  selected_location: LocationComparisonRow | null;
+  chain_average_wait: number | null;
+  chain_average_completion: number | null;
+  selected_benchmark_detail: string;
+  highest_volume_location: LocationComparisonRow | null;
+  worst_wait_location: LocationComparisonRow | null;
+  best_completion_location: LocationComparisonRow | null;
+  highest_adjusted_location: LocationComparisonRow | null;
+  primary_driver_row: LocationComparisonRow | null;
+  largest_adjusted_gain_location: LocationComparisonRow | null;
 };
 
 export type SegmentComparisonMetric = {
@@ -357,12 +401,6 @@ function formatCount(value: number | null | undefined, digits = 0) {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(value);
-}
-
-function formatAdjustedCompletions(value: number | null | undefined) {
-  if (value === null || value === undefined || Number.isNaN(value)) return '—';
-  const digits = Number.isInteger(value) ? 0 : 2;
-  return formatCount(value, digits);
 }
 
 function formatMinutes(value: number | null | undefined, digits = 1) {
@@ -617,11 +655,11 @@ export function buildSegmentComparisonModel(
     ),
     buildSegmentMetric(
       'completion',
-      'Completion rate',
+      'Left unserved rate',
       'percent',
-      true,
-      payingKpis.completion_rate,
-      priorityKpis.completion_rate
+      false,
+      safeRate(payingKpis.cancelled_before_served_total, payingKpis.arrivals_total),
+      safeRate(priorityKpis.cancelled_before_served_total, priorityKpis.arrivals_total)
     ),
     buildSegmentMetric(
       'loss',
@@ -1015,6 +1053,8 @@ export function sortLocationComparisonRows(
         return factor * (left.completed_total - right.completed_total);
       case 'adjusted_completed':
         return factor * compareNullable(left.adjusted_completed_total, right.adjusted_completed_total);
+      case 'unserved':
+        return factor * (left.cancelled_before_served_total - right.cancelled_before_served_total);
       case 'completion':
         return factor * compareNullable(left.completion_rate, right.completion_rate);
       case 'wait':
@@ -1041,6 +1081,126 @@ export function sortLocationComparisonRows(
   return sorted;
 }
 
+/**
+ * Owns the dashboard's cross-section interpretation. Components should format
+ * and render this model, not independently decide which location or tone wins.
+ */
+export function buildDashboardInterpretation(
+  analytics: AnalyticsResponse,
+  rows: LocationComparisonRow[],
+  dailyRepeatRows: DailyRepeatShareRow[],
+  executiveSummary: ExecutiveSummary,
+  selectedLocationId: string
+): DashboardInterpretation {
+  const repeatRows = dailyRepeatRows.filter(
+    (row): row is DailyRepeatShareRow & { repeat_share: number } =>
+      row.repeat_share !== null && !Number.isNaN(row.repeat_share)
+  );
+  const repeatShareSummary = repeatRows.length
+    ? {
+        average:
+          repeatRows.reduce((sum, row) => sum + row.repeat_share, 0) /
+          repeatRows.length,
+        peak: repeatRows.reduce((peak, row) =>
+          row.repeat_share > peak.repeat_share ? row : peak
+        ),
+      }
+    : null;
+
+  const peakWaitDay = analytics.series.reduce<{
+    local_date: string;
+    value: number;
+  } | null>((peak, row) => {
+    const value = row.wait_avg_minutes;
+    if (value === null || value === undefined) return peak;
+    return !peak || value > peak.value
+      ? { local_date: row.local_date, value }
+      : peak;
+  }, null);
+
+  const selectedLocation =
+    selectedLocationId === 'all'
+      ? null
+      : rows.find((row) => row.location_id === selectedLocationId) ?? null;
+  const chainAverageWait = averageOf(rows, (row) => row.wait_avg_minutes);
+  const chainAverageCompletion = averageOf(rows, (row) => row.completion_rate);
+  const benchmarkParts: string[] = [];
+  if (selectedLocation && chainAverageWait !== null) {
+    if (selectedLocation.wait_avg_minutes !== null) {
+      benchmarkParts.push(
+        `${formatMinutes(selectedLocation.wait_avg_minutes)} wait vs ${formatMinutes(chainAverageWait)} chain wait`
+      );
+    }
+    if (selectedLocation.completion_rate !== null && chainAverageCompletion !== null) {
+      benchmarkParts.push(
+        `${formatPercent(selectedLocation.completion_rate)} completion vs ${formatPercent(chainAverageCompletion)} chain completion`
+      );
+    }
+  }
+
+  const highestVolumeLocation = [...rows].sort(
+    (left, right) => right.arrivals_total - left.arrivals_total
+  )[0] ?? null;
+  const worstWaitLocation = [...rows]
+    .filter((row) => row.wait_avg_minutes !== null)
+    .sort(
+      (left, right) =>
+        (right.wait_avg_minutes ?? 0) - (left.wait_avg_minutes ?? 0)
+    )[0] ?? null;
+  const bestCompletionLocation = [...rows]
+    .filter((row) => row.completion_rate !== null)
+    .sort(
+      (left, right) =>
+        (right.completion_rate ?? 0) - (left.completion_rate ?? 0)
+    )[0] ?? null;
+  const highestAdjustedLocation = [...rows]
+    .filter((row) => row.adjusted_completed_total !== null)
+    .sort(
+      (left, right) =>
+        (right.adjusted_completed_total ?? 0) -
+        (left.adjusted_completed_total ?? 0)
+    )[0] ?? null;
+  const largestAdjustedGainLocation = [...rows]
+    .filter(
+      (row) =>
+        row.adjusted_completed_delta !== null &&
+        row.adjusted_completed_delta > 0
+    )
+    .sort(
+      (left, right) =>
+        (right.adjusted_completed_delta ?? 0) -
+        (left.adjusted_completed_delta ?? 0)
+    )[0] ?? null;
+
+  return {
+    // The executive model is the only owner of semantic severity. In
+    // particular, volume movement never overrides wait/loss urgency.
+    summary_status: executiveSummary.status,
+    repeat_share_summary: repeatShareSummary,
+    peak_wait_day: peakWaitDay,
+    current_priority_share: safeRate(
+      analytics.kpis.arrivals_non_paying,
+      analytics.kpis.arrivals_total
+    ),
+    selected_location: selectedLocation,
+    chain_average_wait: chainAverageWait,
+    chain_average_completion: chainAverageCompletion,
+    selected_benchmark_detail: benchmarkParts.length
+      ? `Selected location: ${benchmarkParts.join(' · ')}.`
+      : 'Comparison uses the same resolved window across all visible locations.',
+    highest_volume_location: highestVolumeLocation,
+    worst_wait_location: worstWaitLocation,
+    best_completion_location: bestCompletionLocation,
+    highest_adjusted_location: highestAdjustedLocation,
+    primary_driver_row: executiveSummary.primary_driver
+      ? rows.find(
+          (row) => row.location_name === executiveSummary.primary_driver
+        ) ?? null
+      : null,
+    largest_adjusted_gain_location: largestAdjustedGainLocation,
+  };
+}
+
 export function buildExecutiveSummary(
   analytics: AnalyticsResponse,
   rows: LocationComparisonRow[],
@@ -1052,8 +1212,6 @@ export function buildExecutiveSummary(
   const currentWait = kpis.wait_avg_minutes ?? null;
   const currentDropoff = kpis.dropoff_rate ?? null;
   const currentCompletion = kpis.completion_rate ?? null;
-  const currentAdjustedCompletions = kpis.adjusted_completed_total ?? null;
-  const previousAdjustedCompletions = previous?.adjusted_completed_total ?? null;
   const priorityShare = safeRate(kpis.arrivals_non_paying, kpis.arrivals_total);
   const waitDelta =
     previous?.wait_avg_minutes !== null &&
@@ -1072,12 +1230,6 @@ export function buildExecutiveSummary(
     previous?.dropoff_rate !== undefined &&
     currentDropoff !== null
       ? currentDropoff - previous.dropoff_rate
-      : null;
-  const adjustedCompletionsDelta =
-    previousAdjustedCompletions !== null &&
-    previousAdjustedCompletions !== undefined &&
-    currentAdjustedCompletions !== null
-      ? currentAdjustedCompletions - previousAdjustedCompletions
       : null;
   const noVisitsInScope = kpis.arrivals_total === 0;
 
@@ -1102,7 +1254,7 @@ export function buildExecutiveSummary(
   if (watchLocation && watchLocation.issue_label === 'No visits') {
     signals.push({
       title: `${watchLocation.location_name} recorded 0 settled visits in this window.`,
-      detail: `Adjusted completions at ${watchLocation.location_name} were 0 in the same period.`,
+      detail: `No completed visits were recorded there in the same period.`,
       tone: 'attention',
     });
   } else if (
@@ -1238,7 +1390,7 @@ export function buildExecutiveSummary(
   if (!noVisitsInScope && priorityShare !== null && priorityShare >= 0.45) {
     signals.push({
       title: `${formatPercent(priorityShare)} of settled visits were non-paying.`,
-      detail: `Non-paying mix can shift wait, utilization, and adjusted-completion totals in this window.`,
+      detail: `Compare the paying and Priority Pass counts separately to see who reached service.`,
       tone: 'watch',
     });
   }
@@ -1261,32 +1413,16 @@ export function buildExecutiveSummary(
           ? 'watch'
           : 'healthy';
 
-  const headline =
-    noVisitsInScope
-      ? `Adjusted completions totaled 0 because no settled visits were recorded in this window.`
-      : currentAdjustedCompletions !== null
-        ? adjustedCompletionsDelta !== null && Math.abs(adjustedCompletionsDelta) >= 0.01
-          ? `Adjusted completions totaled ${formatAdjustedCompletions(
-              currentAdjustedCompletions
-            )}, ${adjustedCompletionsDelta >= 0 ? 'up' : 'down'} ${formatAdjustedCompletions(
-              Math.abs(adjustedCompletionsDelta)
-            )} versus ${comparisonLabel}.`
-          : `Adjusted completions totaled ${formatAdjustedCompletions(
-              currentAdjustedCompletions
-            )} in this window.`
-        : currentCompletion !== null
-          ? `Completion rate was ${formatPercent(currentCompletion)} in this window.`
-          : `Executive summary unavailable for ${scopeLabel} in this window.`;
+  const headline = noVisitsInScope
+    ? 'No settled visits were recorded in this window.'
+    : `${formatCount(kpis.arrivals_total)} settled visits: ${formatCount(
+        kpis.completed_total
+      )} completed and ${formatCount(kpis.cancelled_before_served_total)} left unserved.`;
 
   const summaryParts = [
     `Completed visits totaled ${formatCount(kpis.completed_total)}`,
-    currentCompletion !== null
-      ? `${formatPercent(currentCompletion)} completion`
-      : null,
+    `${formatCount(kpis.cancelled_before_served_total)} left before service`,
     currentWait !== null ? `${formatMinutes(currentWait)} average wait` : null,
-    currentDropoff !== null
-      ? `${formatPercent(currentDropoff)} overall loss rate`
-      : null,
   ].filter(Boolean);
 
   const locationNote =

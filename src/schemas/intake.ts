@@ -32,25 +32,3 @@ export const detailsSchemaFactory = ({
       'You must agree to the Privacy Policy and Terms & Conditions to proceed'
     ),
   });
-
-export const submissionSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  phone: z.string().min(1, 'Phone is required'),
-  email: z.string().email('Invalid email'),
-  consent: z.boolean().refine(
-    (val) => val === true,
-    'You must agree to the Privacy Policy and Terms & Conditions to proceed'
-  ),
-  selectedTreatment: z
-    .object({
-      title: z.string(),
-      price: z.string(),
-      time: z.string(),
-      description: z.string(),
-    })
-    .nullable(),
-  spinalAdjustment: z.boolean().nullable(),
-  locationId: z.string().min(1, 'Location ID is required'),
-});
-
-export type SubmissionSchema = z.infer<typeof submissionSchema>;

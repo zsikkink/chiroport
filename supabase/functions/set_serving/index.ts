@@ -1,8 +1,11 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { withCorsHeaders, buildCorsHeaders } from '../_shared/cors.ts';
 import { requireEmployee } from '../_shared/employeeAuth.ts';
-import { MESSAGE_TYPES, buildServingNotification } from '../_shared/messages.ts';
-import { enqueueAndSendOutboxMessage } from '../_shared/outbox.ts';
+import { MESSAGE_TYPES } from '../_shared/messages.ts';
+import {
+  isSettledOutboxResult,
+  sendOutboxForEntry,
+} from '../_shared/outbox.ts';
 import {
   buildRateLimitResponse,
   checkRateLimit,
@@ -98,15 +101,16 @@ serve(async (req) => {
       });
     }
   }
-  const nowIso = new Date().toISOString();
-
-  const { data, error } = await service
-    .from('queue_entries')
-    .update({ status: 'serving', served_at: nowIso })
-    .eq('id', payload.queueEntryId)
-    .in('status', ['waiting'])
-    .select('id, status, served_at')
-    .maybeSingle();
+  // Compatibility endpoint: retain the deployed HTTP shape but delegate the
+  // transition, audit event, and durable outbox write to the canonical command.
+  const { data: rows, error } = await service.rpc('staff_queue_entry_action', {
+    p_entry_id: payload.queueEntryId,
+    p_action: 'serving',
+    p_target_location_id: null,
+    p_actor_user_id: userId,
+    p_departure_reason: null,
+  });
+  const data = rows?.[0];
 
   if (error) {
     console.error('set_serving update failed', {
@@ -121,7 +125,7 @@ serve(async (req) => {
     );
   }
 
-  if (!data) {
+  if (!data?.out_queue_entry_id) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
     return new Response(
@@ -133,25 +137,15 @@ serve(async (req) => {
   }
 
   try {
-    const { data: entry, error: entryError } = await service
-      .from('queue_entries')
-      .select('id, customer_type, customer:customers(phone_e164)')
-      .eq('id', data.id)
-      .maybeSingle();
-    if (entryError) throw entryError;
-
-    const phone =
-      typeof entry?.customer === 'object' && entry?.customer
-        ? (entry.customer as { phone_e164?: string }).phone_e164
-        : null;
-    if (entry?.id && phone) {
-      await enqueueAndSendOutboxMessage(service, {
-        queue_entry_id: entry.id,
-        message_type: MESSAGE_TYPES.SERVING,
-        to_phone: phone,
-        body: buildServingNotification(),
-        status: 'queued',
-        idempotency_key: `serving:${entry.id}`,
+    const delivery = await sendOutboxForEntry(
+      service,
+      data.out_queue_entry_id,
+      MESSAGE_TYPES.SERVING
+    );
+    if (!isSettledOutboxResult(delivery)) {
+      console.error('set_serving immediate send incomplete', {
+        queueEntryId: data.out_queue_entry_id,
+        delivery,
       });
     }
   } catch (error) {
@@ -162,9 +156,9 @@ serve(async (req) => {
   withCorsHeaders(headers, origin, path);
   return new Response(
     JSON.stringify({
-      queueEntryId: data.id,
-      status: data.status,
-      servedAt: data.served_at,
+      queueEntryId: data.out_queue_entry_id,
+      status: data.out_status,
+      servedAt: new Date().toISOString(),
     }),
     { status: 200, headers }
   );

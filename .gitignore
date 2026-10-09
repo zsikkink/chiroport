@@ -8,6 +8,9 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+.Rapp.history
 
 # next.js
 /.next/
@@ -31,6 +34,9 @@ yarn-error.log*
 # local admin seed
 employees.json
 employees.local.json
+
+# Supabase CLI local branch state
+/supabase/.branches/
 
 # vercel
 .vercel

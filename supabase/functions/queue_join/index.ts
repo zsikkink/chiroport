@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { z } from 'npm:zod';
+import { z } from 'npm:zod@3.25.76';
 import { withCorsHeaders, buildCorsHeaders } from '../_shared/cors.ts';
 import { createServiceRoleClient } from '../_shared/supabaseClient.ts';
 import { normalizePhoneToE164 } from '../_shared/phone.ts';
@@ -9,7 +9,11 @@ import {
   getRateLimitConfig,
 } from '../_shared/rateLimit.ts';
 import { MESSAGE_TYPES } from '../_shared/messages.ts';
-import { sendOutboxForEntry } from '../_shared/outbox.ts';
+import { errorResponse } from '../_shared/httpError.ts';
+import {
+  isSettledOutboxResult,
+  sendOutboxForEntry,
+} from '../_shared/outbox.ts';
 
 function getClientIp(req: Request) {
   const forwardedFor = req.headers.get('x-forwarded-for');
@@ -55,10 +59,7 @@ serve(async (req) => {
   if (req.method !== 'POST') {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers,
-    });
+    return errorResponse('validation_error', 'Method not allowed', 405, headers);
   }
 
   let payload: unknown;
@@ -67,39 +68,33 @@ serve(async (req) => {
   } catch {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
-      status: 400,
-      headers,
-    });
+    return errorResponse('validation_error', 'Invalid JSON body', 400, headers);
   }
 
   const parsed = joinSchema.safeParse(payload);
   if (!parsed.success) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(
-      JSON.stringify({ error: 'Invalid payload', details: parsed.error.flatten() }),
-      { status: 400, headers }
+    return errorResponse(
+      'validation_error',
+      'Invalid payload',
+      400,
+      headers,
+      parsed.error.flatten()
     );
   }
 
   if (!parsed.data.consent) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Consent is required' }), {
-      status: 400,
-      headers,
-    });
+    return errorResponse('validation_error', 'Consent is required', 400, headers);
   }
 
   const phoneE164 = normalizePhoneToE164(parsed.data.phone);
   if (!phoneE164) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Invalid phone number' }), {
-      status: 400,
-      headers,
-    });
+    return errorResponse('validation_error', 'Invalid phone number', 400, headers);
   }
 
   const supabase = createServiceRoleClient();
@@ -148,10 +143,12 @@ serve(async (req) => {
       if (!legacyLabel) {
         const headers = new Headers();
         withCorsHeaders(headers, origin, path);
-        return new Response(JSON.stringify({ error: 'Service offering is required' }), {
-          status: 400,
-          headers,
-        });
+        return errorResponse(
+          'validation_error',
+          'Service offering is required',
+          400,
+          headers
+        );
       }
 
       if (legacyLabel === 'Paying') {
@@ -170,10 +167,12 @@ serve(async (req) => {
     if (!offeringCode) {
       const headers = new Headers();
       withCorsHeaders(headers, origin, path);
-      return new Response(JSON.stringify({ error: 'Service offering is invalid' }), {
-        status: 400,
-        headers,
-      });
+      return errorResponse(
+        'validation_error',
+        'Service offering is invalid',
+        400,
+        headers
+      );
     }
 
     const { data: joinRows, error: joinError } = await supabase.rpc('join_queue_with_offering', {
@@ -188,11 +187,12 @@ serve(async (req) => {
     if (joinError || !joinRows?.length) {
       const headers = new Headers();
       withCorsHeaders(headers, origin, path);
-      return new Response(
-        JSON.stringify({
-          error: joinError?.message || 'Failed to join queue',
-        }),
-        { status: 500, headers }
+      const expectedDomainError = joinError?.code === 'P0001';
+      return errorResponse(
+        expectedDomainError ? 'validation_error' : 'dependency_unavailable',
+        joinError?.message || 'Failed to join queue',
+        expectedDomainError ? 400 : 503,
+        headers
       );
     }
 
@@ -221,11 +221,17 @@ serve(async (req) => {
     }
 
     try {
-      await sendOutboxForEntry(
+      const delivery = await sendOutboxForEntry(
         supabase,
         joinResult.out_queue_entry_id,
         MESSAGE_TYPES.CONFIRM
       );
+      if (!isSettledOutboxResult(delivery)) {
+        console.error('queue_join immediate confirmation incomplete', {
+          queueEntryId: joinResult.out_queue_entry_id,
+          delivery,
+        });
+      }
 
       if (
         customerType === 'paying' &&
@@ -271,11 +277,11 @@ serve(async (req) => {
     console.error('queue_join failed', error);
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'Queue join failed',
-      }),
-      { status: 500, headers }
+    return errorResponse(
+      'internal_error',
+      error instanceof Error ? error.message : 'Queue join failed',
+      500,
+      headers
     );
   }
 });

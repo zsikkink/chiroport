@@ -12,5 +12,4 @@ export {
   StaticLabel,
 } from './StaticTypography';
 export { default as LoadingSpinner, ButtonLoader, LoadingSpinnerWithText } from './LoadingSpinner';
-export { default as StaticLoadingSpinner, StaticInlineLoader } from './StaticLoadingSpinner';
 export { default as ErrorBoundary } from './ErrorBoundary';

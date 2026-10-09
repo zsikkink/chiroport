@@ -1,0 +1,23 @@
+sequenceDiagram
+  autonumber
+  participant TX as Queue transaction
+  participant O as sms_outbox
+  participant W as Immediate/minutely worker
+  participant P as Twilio
+
+  TX->>O: Insert unique queued message
+  TX-->>TX: Commit visit/event/outbox together
+  W->>O: Claim due row FOR UPDATE SKIP LOCKED
+  O-->>W: status=sending, attempt_count++, 5-minute lease
+  W->>O: Check opt-out/rate limit; renew fenced claim
+  W->>P: POST SMS (20-second timeout)
+  alt provider rejects or call throws
+    W->>O: failed + exponential next_attempt_at; dead at attempt 8
+  else provider accepts and local update succeeds
+    P-->>W: provider message ID
+    W->>O: sent + provider_message_id + sent_at
+  else provider may accept but response/local write is lost
+    Note over W,O: Ambiguous external effect
+    W->>O: Row may remain failed/sending and later be reclaimed
+    Note over W,P: Duplicate SMS is possible; no exactly-once guarantee
+  end

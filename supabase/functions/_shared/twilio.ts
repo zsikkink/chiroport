@@ -85,6 +85,9 @@ export async function sendTwilioSms(params: { to: string; body: string }) {
   const auth = btoa(`${apiKeySid}:${apiKeySecret}`);
   const response = await fetch(url, {
     method: 'POST',
+    // Bound provider I/O well inside the five-minute claim lease. An aborted
+    // request can still have been accepted; this is not exactly-once delivery.
+    signal: AbortSignal.timeout(20_000),
     headers: {
       Authorization: `Basic ${auth}`,
       'Content-Type': 'application/x-www-form-urlencoded',

@@ -384,6 +384,7 @@ export type Database = {
           created_at: string
           customer_id: string
           customer_type: Database["public"]["Enums"]["customer_type"]
+          departure_reason: string | null
           id: string
           next_notified_at: string | null
           no_show_at: string | null
@@ -391,6 +392,7 @@ export type Database = {
           public_token: string
           queue_id: string
           served_at: string | null
+          served_by_user_id: string | null
           service_label: string
           sort_key: number
           status: Database["public"]["Enums"]["queue_status"]
@@ -404,6 +406,7 @@ export type Database = {
           created_at?: string
           customer_id: string
           customer_type: Database["public"]["Enums"]["customer_type"]
+          departure_reason?: string | null
           id?: string
           next_notified_at?: string | null
           no_show_at?: string | null
@@ -411,6 +414,7 @@ export type Database = {
           public_token?: string
           queue_id: string
           served_at?: string | null
+          served_by_user_id?: string | null
           service_label?: string
           sort_key?: number
           status?: Database["public"]["Enums"]["queue_status"]
@@ -424,6 +428,7 @@ export type Database = {
           created_at?: string
           customer_id?: string
           customer_type?: Database["public"]["Enums"]["customer_type"]
+          departure_reason?: string | null
           id?: string
           next_notified_at?: string | null
           no_show_at?: string | null
@@ -431,6 +436,7 @@ export type Database = {
           public_token?: string
           queue_id?: string
           served_at?: string | null
+          served_by_user_id?: string | null
           service_label?: string
           sort_key?: number
           status?: Database["public"]["Enums"]["queue_status"]
@@ -475,6 +481,7 @@ export type Database = {
           created_at: string
           customer_id: string
           customer_type: Database["public"]["Enums"]["customer_type"]
+          departure_reason: string | null
           id: string
           local_date: string
           location_id: string
@@ -483,6 +490,7 @@ export type Database = {
           public_token: string
           queue_id: string
           served_at: string | null
+          served_by_user_id: string | null
           service_label: string
           status: Database["public"]["Enums"]["queue_status"]
           timezone: string
@@ -495,6 +503,7 @@ export type Database = {
           created_at: string
           customer_id: string
           customer_type: Database["public"]["Enums"]["customer_type"]
+          departure_reason?: string | null
           id: string
           local_date: string
           location_id: string
@@ -503,6 +512,7 @@ export type Database = {
           public_token: string
           queue_id: string
           served_at?: string | null
+          served_by_user_id?: string | null
           service_label?: string
           status: Database["public"]["Enums"]["queue_status"]
           timezone: string
@@ -515,6 +525,7 @@ export type Database = {
           created_at?: string
           customer_id?: string
           customer_type?: Database["public"]["Enums"]["customer_type"]
+          departure_reason?: string | null
           id?: string
           local_date?: string
           location_id?: string
@@ -523,6 +534,7 @@ export type Database = {
           public_token?: string
           queue_id?: string
           served_at?: string | null
+          served_by_user_id?: string | null
           service_label?: string
           status?: Database["public"]["Enums"]["queue_status"]
           timezone?: string
@@ -1236,6 +1248,7 @@ export type Database = {
           next_sms_status: string | null
           offering_code: string | null
           phone_e164: string | null
+          priority_rank: number | null
           queue_entry_id: string | null
           queue_id: string | null
           queue_position: number | null
@@ -1283,6 +1296,7 @@ export type Database = {
           created_at: string | null
           customer_id: string | null
           customer_type: Database["public"]["Enums"]["customer_type"] | null
+          departure_reason: string | null
           id: string | null
           local_date: string | null
           location_id: string | null
@@ -1291,6 +1305,7 @@ export type Database = {
           public_token: string | null
           queue_id: string | null
           served_at: string | null
+          served_by_user_id: string | null
           service_label: string | null
           status: Database["public"]["Enums"]["queue_status"] | null
           timezone: string | null
@@ -1325,6 +1340,10 @@ export type Database = {
           out_served_at: string
         }[]
       }
+      apply_sms_preference: {
+        Args: { p_inbound_id: string }
+        Returns: undefined
+      }
       backfill_queue_daily_stats: {
         Args: { p_end: string; p_start: string }
         Returns: undefined
@@ -1335,6 +1354,14 @@ export type Database = {
       }
       cancel_visit: {
         Args: { p_public_token: string }
+        Returns: {
+          out_cancelled_at: string
+          out_queue_entry_id: string
+          out_status: Database["public"]["Enums"]["queue_status"]
+        }[]
+      }
+      cancel_visit_with_reason: {
+        Args: { p_departure_reason: string; p_public_token: string }
         Returns: {
           out_cancelled_at: string
           out_queue_entry_id: string
@@ -1421,6 +1448,24 @@ export type Database = {
           repeat_total: number
         }[]
       }
+      get_admin_dashboard_scopes: {
+        Args: {
+          p_customer_type?: string
+          p_date_end: string
+          p_date_start: string
+          p_location_id?: string
+        }
+        Returns: Json
+      }
+      get_admin_workforce_analytics: {
+        Args: {
+          p_customer_type?: string
+          p_date_end: string
+          p_date_start: string
+          p_location_id?: string
+        }
+        Returns: Json
+      }
       get_visit: {
         Args: { p_public_token: string }
         Returns: {
@@ -1498,6 +1543,14 @@ export type Database = {
       }
       jsonb_sum: { Args: { a: Json; b: Json }; Returns: Json }
       jsonb_sum_agg: { Args: { p_values: Json[] }; Returns: Json }
+      mark_next_queue_entry: {
+        Args: { p_actor_user_id?: string; p_queue_id: string }
+        Returns: {
+          out_next_notified_at: string
+          out_queue_entry_id: string
+          out_status: Database["public"]["Enums"]["queue_status"]
+        }[]
+      }
       next_sort_key: {
         Args: {
           p_customer_type: Database["public"]["Enums"]["customer_type"]
@@ -1505,10 +1558,18 @@ export type Database = {
         }
         Returns: number
       }
+      queue_customer_priority: {
+        Args: { p_customer_type: Database["public"]["Enums"]["customer_type"] }
+        Returns: number
+      }
       queue_rollup_sanity_check: { Args: { p_since?: string }; Returns: number }
       rebuild_queue_monthly_stats: {
         Args: { p_end: string; p_start: string }
         Returns: undefined
+      }
+      record_customer_cancel_reason: {
+        Args: { p_departure_reason: string; p_phone_e164: string }
+        Returns: boolean
       }
       record_sms_inbound: {
         Args: {
@@ -1557,21 +1618,45 @@ export type Database = {
           out_service_label: string
         }[]
       }
-      staff_queue_entry_action: {
-        Args: {
-          p_action: string
-          p_actor_user_id?: string
-          p_entry_id: string
-          p_target_location_id?: string
-        }
+      staff_enqueue_message: {
+        Args: { p_actor_user_id: string; p_body: string; p_entry_id: string }
         Returns: {
-          out_customer_id: string
-          out_customer_type: Database["public"]["Enums"]["customer_type"]
-          out_queue_entry_id: string
-          out_queue_id: string
-          out_status: Database["public"]["Enums"]["queue_status"]
+          out_message_type: string
+          out_outbox_id: string
         }[]
       }
+      staff_queue_entry_action:
+        | {
+            Args: {
+              p_action: string
+              p_actor_user_id?: string
+              p_entry_id: string
+              p_target_location_id?: string
+            }
+            Returns: {
+              out_customer_id: string
+              out_customer_type: Database["public"]["Enums"]["customer_type"]
+              out_queue_entry_id: string
+              out_queue_id: string
+              out_status: Database["public"]["Enums"]["queue_status"]
+            }[]
+          }
+        | {
+            Args: {
+              p_action: string
+              p_actor_user_id: string
+              p_departure_reason: string
+              p_entry_id: string
+              p_target_location_id: string
+            }
+            Returns: {
+              out_customer_id: string
+              out_customer_type: Database["public"]["Enums"]["customer_type"]
+              out_queue_entry_id: string
+              out_queue_id: string
+              out_status: Database["public"]["Enums"]["queue_status"]
+            }[]
+          }
     }
     Enums: {
       customer_type: "paying" | "priority_pass"

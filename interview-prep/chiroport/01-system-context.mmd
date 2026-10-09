@@ -1,0 +1,35 @@
+flowchart LR
+  C[Customer browser]
+  S[Staff browser]
+  A[Admin browser]
+
+  subgraph W["Next.js application — web host not evidenced"]
+    I[Public location / intake UI]
+    D[Employee dashboard]
+    AR[Admin analytics API]
+  end
+
+  subgraph SB["Supabase project boundary — configured, deployment not confirmed"]
+    AU[Auth]
+    EF[Edge Functions]
+    RT[Realtime]
+    DB[(PostgreSQL)]
+    CR[pg_cron + pg_net]
+  end
+
+  T[Twilio SMS API / webhook]
+
+  C --> I
+  I -->|HTTPS queue_join| EF
+  S --> D
+  D -->|JWT| AU
+  D -->|RLS reads| DB
+  D <-->|Postgres changes| RT
+  D -->|JWT staff commands| EF
+  A --> AR
+  AR -->|validate JWT; service-role RPC| DB
+  EF -->|service-role RPC| DB
+  DB --> RT
+  CR -->|internal send_sms call| EF
+  EF -->|HTTPS, outside DB transaction| T
+  T -->|signed webhook| EF

@@ -88,6 +88,76 @@ async function deleteVisits(service: SupabaseClient, visits: JoinedVisit[]) {
 }
 
 describe('authoritative queue mutation commands', () => {
+  itIf('uses one priority rule for join position, staff order, and automatic next selection', async () => {
+    const service = createServiceClient(env!);
+    const location = await getOpenLocation(service);
+    const priorityPass = await joinVisit(
+      service,
+      'priority_pass',
+      randomPhone(),
+      location
+    );
+    const paying = await joinVisit(
+      service,
+      'chiropractic',
+      randomPhone(),
+      location
+    );
+
+    try {
+      const joinPosition = await service.rpc('get_visit', {
+        p_public_token: paying.publicToken,
+      });
+      expect(joinPosition.error).toBeNull();
+      expect(joinPosition.data?.[0]?.queue_position).toBe(1);
+
+      const { data: waiting, error: waitingError } = await service
+        .from('employee_queue_waiting_view')
+        .select('queue_entry_id,queue_position,priority_rank')
+        .in('queue_entry_id', [priorityPass.entryId, paying.entryId])
+        .order('queue_position');
+      expect(waitingError).toBeNull();
+      expect(waiting).toEqual([
+        {
+          queue_entry_id: paying.entryId,
+          queue_position: 1,
+          priority_rank: 0,
+        },
+        {
+          queue_entry_id: priorityPass.entryId,
+          queue_position: 2,
+          priority_rank: 1,
+        },
+      ]);
+
+      const { data: nextState } = await service
+        .from('queue_entries')
+        .select('id,next_notified_at')
+        .in('id', [priorityPass.entryId, paying.entryId]);
+      expect(nextState?.find((row) => row.id === paying.entryId)?.next_notified_at).toBeTruthy();
+      expect(
+        nextState?.find((row) => row.id === priorityPass.entryId)?.next_notified_at
+      ).toBeNull();
+
+      const queueId = waiting?.[0]
+        ? (
+            await service
+              .from('queue_entries')
+              .select('queue_id')
+              .eq('id', paying.entryId)
+              .single()
+          ).data?.queue_id
+        : null;
+      const automatic = await service.rpc('advance_queue', {
+        p_queue_id: queueId!,
+      });
+      expect(automatic.error).toBeNull();
+      expect(automatic.data?.[0]?.out_queue_entry_id).toBe(paying.entryId);
+    } finally {
+      await deleteVisits(service, [priorityPass, paying]);
+    }
+  });
+
   itIf('keeps queue joining idempotent and preserves the active offering', async () => {
     const service = createServiceClient(env!);
     const visit = await joinVisit(service, 'chiropractic');
@@ -381,6 +451,79 @@ describe('authoritative queue mutation commands', () => {
       });
     } finally {
       await deleteVisits(service, [visit]);
+    }
+  });
+
+  itIf('atomically enqueues a manual staff message with a truthful queued event', async () => {
+    const service = createServiceClient(env!);
+    const visit = await joinVisit(service, 'chiropractic');
+    const { data: actor } = await service.auth.admin.createUser({
+      email: `message-actor-${Date.now()}@example.com`,
+      password: 'TestPass123!',
+      email_confirm: true,
+    });
+    const actorId = actor.user?.id;
+    expect(actorId).toBeTruthy();
+
+    try {
+      const rolledBack = await service.rpc('staff_enqueue_message', {
+        p_entry_id: visit.entryId,
+        p_actor_user_id: crypto.randomUUID(),
+        p_body: 'This transaction must roll back',
+      });
+      expect(rolledBack.error).toBeTruthy();
+
+      const [{ count: rolledBackRows }, { count: rolledBackEvents }] =
+        await Promise.all([
+          service
+            .from('sms_outbox')
+            .select('id', { count: 'exact', head: true })
+            .eq('queue_entry_id', visit.entryId)
+            .like('message_type', 'staff_%'),
+          service
+            .from('queue_events')
+            .select('id', { count: 'exact', head: true })
+            .eq('queue_entry_id', visit.entryId)
+            .eq('event_type', 'staff_message_queued'),
+        ]);
+      expect(rolledBackRows).toBe(0);
+      expect(rolledBackEvents).toBe(0);
+
+      const queued = await service.rpc('staff_enqueue_message', {
+        p_entry_id: visit.entryId,
+        p_actor_user_id: actorId!,
+        p_body: 'Please return to the front desk.',
+      });
+      expect(queued.error).toBeNull();
+      expect(queued.data?.[0]?.out_outbox_id).toBeTruthy();
+
+      const [{ data: outbox }, { data: events }] = await Promise.all([
+        service
+          .from('sms_outbox')
+          .select('id,message_type,status,body')
+          .eq('id', queued.data![0]!.out_outbox_id)
+          .single(),
+        service
+          .from('queue_events')
+          .select('actor_user_id,event_type,payload')
+          .eq('queue_entry_id', visit.entryId)
+          .eq('event_type', 'staff_message_queued'),
+      ]);
+      expect(outbox).toMatchObject({
+        id: queued.data?.[0]?.out_outbox_id,
+        status: 'queued',
+        body: 'Please return to the front desk.',
+      });
+      expect(outbox?.message_type).toMatch(/^staff_/);
+      expect(events).toHaveLength(1);
+      expect(events?.[0]).toMatchObject({
+        actor_user_id: actorId,
+        event_type: 'staff_message_queued',
+        payload: { outbox_id: queued.data?.[0]?.out_outbox_id },
+      });
+    } finally {
+      await deleteVisits(service, [visit]);
+      if (actorId) await service.auth.admin.deleteUser(actorId);
     }
   });
 

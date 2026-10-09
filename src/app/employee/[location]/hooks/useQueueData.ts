@@ -27,6 +27,9 @@ export function useQueueData(options: UseQueueDataOptions) {
   const [historyEntries, setHistoryEntries] = useState<WithEntryId<HistoryRow>[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const refreshCountRef = useRef(0);
+  const locationRef = useRef(selectedLocationId);
+  const requestRef = useRef(0);
+  const queueRequestRef = useRef(0);
 
   const waitingRef = useRef(waitingEntries);
   const servingRef = useRef(servingEntries);
@@ -45,12 +48,15 @@ export function useQueueData(options: UseQueueDataOptions) {
   }, [historyEntries]);
 
   const loadQueueId = useCallback(async (locationId: string) => {
+    const request = ++queueRequestRef.current;
     const { data, error } = await supabase
       .from('queues')
       .select('id')
       .eq('location_id', locationId)
       .eq('code', 'default')
       .maybeSingle();
+
+    if (request !== queueRequestRef.current || locationId !== locationRef.current) return;
 
     if (error) {
       const message = formatSupabaseError(error, 'Failed to load queue.');
@@ -65,7 +71,8 @@ export function useQueueData(options: UseQueueDataOptions) {
 
   const refreshQueueData = useCallback(
     async (options?: { showLoading?: boolean; reason?: string }) => {
-      if (!selectedLocationId) return;
+      if (!selectedLocationId || selectedLocationId !== locationRef.current) return;
+      const request = ++requestRef.current;
       const showLoading = options?.showLoading ?? false;
       refreshCountRef.current += 1;
       if (debugEnabled) {
@@ -99,6 +106,8 @@ export function useQueueData(options: UseQueueDataOptions) {
           .order('end_ts', { ascending: false }),
       ]);
 
+      if (request !== requestRef.current || selectedLocationId !== locationRef.current) return;
+
       if (waiting.error || serving.error || history.error) {
         const rootError = waiting.error || serving.error || history.error;
         const message = formatSupabaseError(rootError, 'Failed to load queue data.');
@@ -119,17 +128,27 @@ export function useQueueData(options: UseQueueDataOptions) {
         setHistoryEntries(sortHistoryEntries(historyRows));
       }
 
-      if (showLoading) {
-        setDataLoading(false);
-      }
+      setDataLoading(false);
     },
     [debugEnabled, onActionError, selectedLocationId]
   );
 
   useEffect(() => {
-    if (!selectedLocationId) return;
-    loadQueueId(selectedLocationId);
-    refreshQueueData({ showLoading: true, reason: 'location-change' });
+    locationRef.current = selectedLocationId;
+    setQueueId(null);
+    setWaitingEntries([]);
+    setServingEntries([]);
+    setHistoryEntries([]);
+    setDataLoading(Boolean(selectedLocationId));
+    if (selectedLocationId) {
+      void loadQueueId(selectedLocationId);
+      void refreshQueueData({ showLoading: true, reason: 'location-change' });
+    }
+    return () => {
+      locationRef.current = '';
+      requestRef.current += 1;
+      queueRequestRef.current += 1;
+    };
   }, [selectedLocationId, loadQueueId, refreshQueueData]);
 
   const updateEntryInLists = useCallback(

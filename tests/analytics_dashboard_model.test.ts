@@ -1,6 +1,7 @@
 import {
   applyComparisonBaseline,
   buildChainComparisonSummary,
+  buildDashboardInterpretation,
   buildSegmentComparisonModel,
   buildTrailingAverageBaselineKpis,
   buildExecutiveSummary,
@@ -121,6 +122,7 @@ describe('analytics dashboard model', () => {
     });
     const payload: AnalyticsDashboardPayload = {
       analytics,
+      workforce_analytics: null,
       location_analytics: [],
       segment_analytics: null,
       daily_repeat_share_rows: [],
@@ -431,14 +433,14 @@ describe('analytics dashboard model', () => {
     );
 
     expect(summary.status).toBe('attention');
-    expect(summary.headline).toContain('Adjusted completions totaled');
-    expect(summary.headline).toContain('up 1');
+    expect(summary.headline).toContain('100 settled visits');
+    expect(summary.headline).toContain('16 left unserved');
     expect(summary.watch_location).toBe('ATL B');
     expect(summary.signals[0]?.title).toContain('ATL B');
     expect(summary.signals[0]?.title).toContain('minutes of wait time');
     expect(summary.signals.some((signal) => signal.title.includes('Overall loss'))).toBe(true);
     expect(summary.summary).toContain('Completed visits totaled 78');
-    expect(summary.summary).toContain('overall loss rate');
+    expect(summary.summary).toContain('16 left before service');
     expect(summary.summary).toContain('ATL B averaged');
   });
 
@@ -693,6 +695,10 @@ describe('analytics dashboard model', () => {
     ]);
     expect(model.metrics[0]?.gap_value).toBeCloseTo(7, 5);
     expect(model.metrics[0]?.leading_segment).toBe('paying');
+    expect(model.metrics[1]?.label).toBe('Left unserved rate');
+    expect(model.metrics[1]?.paying_value).toBeCloseTo(3 / 60, 5);
+    expect(model.metrics[1]?.priority_value).toBeCloseTo(11 / 40, 5);
+    expect(model.metrics[1]?.leading_segment).toBe('paying');
     expect(model.metrics[2]?.leading_segment).toBe('paying');
     expect(model.insights[0]?.title).toBe('Wait gap');
     expect(
@@ -766,5 +772,74 @@ describe('analytics dashboard model', () => {
     expect(model.insights).toHaveLength(1);
     expect(model.insights[0]?.title).toBe('Segment gaps are narrow');
     expect(model.insights[0]?.tone).toBe('good');
+  });
+
+  it('uses one semantic status even when volume improves while service is urgent', () => {
+    const analytics = makeAnalyticsResponse({
+      kpis: {
+        wait_avg_minutes: 31,
+        adjusted_completed_total: 80,
+      },
+      previous_period: {
+        kpis: {
+          wait_avg_minutes: 14,
+          adjusted_completed_total: 68,
+        },
+      },
+      series: [
+        {
+          local_date: '2026-03-16',
+          arrivals_total: 100,
+          arrivals_paying: 60,
+          arrivals_non_paying: 40,
+          served_total: 82,
+          completed_total: 78,
+          cancelled_total: 22,
+          cancelled_before_served_total: 16,
+          completion_rate: 0.78,
+          dropoff_rate: 0.22,
+          wait_avg_minutes: 31,
+          time_in_system_avg_minutes: 40,
+        },
+      ],
+    });
+    const rows = buildLocationComparisonRows([
+      {
+        location: {
+          id: 'loc-1',
+          display_name: 'ATL A',
+          airport_code: 'ATL',
+          code: 'a',
+        },
+        analytics,
+      },
+    ]);
+    const summary = buildExecutiveSummary(
+      analytics,
+      rows,
+      'Active-location performance'
+    );
+    const interpretation = buildDashboardInterpretation(
+      analytics,
+      rows,
+      [
+        {
+          local_date: '2026-03-16',
+          arrivals_total: 100,
+          repeat_total: 40,
+          repeat_share: 0.4,
+          classified_total: 100,
+        },
+      ],
+      summary,
+      'all'
+    );
+
+    expect(summary.status).toBe('urgent');
+    expect(interpretation.summary_status).toBe(summary.status);
+    expect(interpretation.peak_wait_day).toEqual({
+      local_date: '2026-03-16',
+      value: 31,
+    });
   });
 });

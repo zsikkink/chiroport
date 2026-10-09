@@ -1,0 +1,22 @@
+sequenceDiagram
+  autonumber
+  participant R1 as Staff request A
+  participant R2 as Staff request B
+  participant DB as PostgreSQL
+
+  R1->>DB: staff_queue_entry_action(entry, serving)
+  rect rgb(232, 244, 255)
+    Note over R1,DB: Transaction A
+    DB->>DB: SELECT entry FOR UPDATE
+    DB->>DB: Recheck status = waiting
+    R2->>DB: staff_queue_entry_action(entry, serving)
+    Note over R2,DB: Transaction B waits on same row lock
+    DB->>DB: UPDATE status/timestamps
+    DB->>DB: INSERT event; trigger INSERTs SMS outbox
+    DB-->>R1: Commit success
+  end
+  rect rgb(255, 242, 232)
+    Note over R2,DB: Transaction B resumes with current row
+    DB->>DB: Recheck now sees status = serving
+    DB-->>R2: Raise invalid transition; rollback
+  end

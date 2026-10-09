@@ -1,0 +1,36 @@
+erDiagram
+  LOCATIONS ||--o{ LOCATION_HOURS : has
+  LOCATIONS ||--o{ QUEUES : has
+  QUEUES ||--o{ QUEUE_ENTRIES : contains
+  CUSTOMERS ||--o{ QUEUE_ENTRIES : makes
+  SERVICE_OFFERINGS ||--o{ QUEUE_ENTRIES : classifies
+  CONSENT_VERSIONS ||--o{ QUEUE_ENTRIES : accepted_at_join
+  QUEUE_ENTRIES ||--o{ QUEUE_EVENTS : records
+  QUEUE_ENTRIES ||--o{ SMS_OUTBOX : schedules
+  QUEUE_ENTRIES o|--o{ SMS_INBOUND : associates_when_unambiguous
+  QUEUE_ENTRIES ||--|| QUEUE_ENTRIES_LEGAL_ARCHIVE : snapshots
+  CUSTOMER_CONTACT_SNAPSHOTS ||--o{ QUEUE_ENTRIES_LEGAL_ARCHIVE : supplies_contact
+  LOCATIONS o|--o{ EMPLOYEE_PROFILES : optional_home_location
+
+  QUEUE_ENTRIES {
+    uuid id PK
+    uuid public_token UK
+    enum customer_type
+    enum status
+    bigint sort_key
+    timestamptz created_at
+    timestamptz served_at
+    timestamptz completed_at
+    timestamptz cancelled_at
+  }
+  CUSTOMERS {
+    uuid id PK
+    text phone_e164 UK
+  }
+  SMS_OUTBOX {
+    uuid id PK
+    text idempotency_key UK
+    text status
+    int attempt_count
+    text provider_message_id
+  }

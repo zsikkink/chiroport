@@ -3,6 +3,7 @@ export const MESSAGE_TYPES = {
   NEXT: 'next',
   SERVING: 'serving',
   CANCEL_ACK: 'cancel_ack',
+  CANCEL_REASON_PROMPT: 'cancel_reason_prompt',
 } as const;
 
 export type MessageType = (typeof MESSAGE_TYPES)[keyof typeof MESSAGE_TYPES];
@@ -26,18 +27,4 @@ export function buildFinalOutboundSmsBody(params: {
   }
 
   return `${AUTOMATED_SMS_PREFIX}${params.body}`;
-}
-
-export function buildCancelAck() {
-  return buildFinalOutboundSmsBody({
-    body: "You've removed yourself from The Chiroport queue. Thanks for letting us know.",
-    messageType: MESSAGE_TYPES.CANCEL_ACK,
-  });
-}
-
-export function buildServingNotification() {
-  return buildFinalOutboundSmsBody({
-    body: "It's your turn! Please come back to The Chiroport - we're ready for you!",
-    messageType: MESSAGE_TYPES.SERVING,
-  });
 }

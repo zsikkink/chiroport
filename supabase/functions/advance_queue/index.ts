@@ -2,7 +2,10 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { withCorsHeaders, buildCorsHeaders } from '../_shared/cors.ts';
 import { requireEmployee } from '../_shared/employeeAuth.ts';
 import { MESSAGE_TYPES } from '../_shared/messages.ts';
-import { sendOutboxForEntry } from '../_shared/outbox.ts';
+import {
+  isSettledOutboxResult,
+  sendOutboxForEntry,
+} from '../_shared/outbox.ts';
 import {
   buildRateLimitResponse,
   checkRateLimit,
@@ -64,7 +67,7 @@ serve(async (req) => {
     );
   }
 
-  const { authed, service, userId } = auth;
+  const { service, userId } = auth;
 
   const locationId = await getLocationIdForQueue(service, payload.queueId);
   if (locationId) {
@@ -97,7 +100,9 @@ serve(async (req) => {
     }
   }
 
-  const { data, error } = await authed.rpc('advance_queue', {
+  // Compatibility boundary only. The database function delegates to the same
+  // authoritative next-entry command used by automatic notification.
+  const { data, error } = await service.rpc('advance_queue', {
     p_queue_id: payload.queueId,
   });
 
@@ -113,11 +118,17 @@ serve(async (req) => {
   const result = data[0];
   if (result?.out_queue_entry_id) {
     try {
-      await sendOutboxForEntry(
+      const delivery = await sendOutboxForEntry(
         service,
         result.out_queue_entry_id,
         MESSAGE_TYPES.NEXT
       );
+      if (!isSettledOutboxResult(delivery)) {
+        console.error('advance_queue immediate send incomplete', {
+          queueEntryId: result.out_queue_entry_id,
+          delivery,
+        });
+      }
     } catch (error) {
       console.error('advance_queue immediate send failed', error);
     }

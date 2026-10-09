@@ -1,14 +1,20 @@
-/**
- * Health Check API Route
- * 
- * GET /api/health
- * Provides system health status and security metrics for monitoring.
- */
-
-import { NextRequest, NextResponse } from 'next/server';
-import { config, env } from '@/server';
+import { type NextRequest, NextResponse } from 'next/server';
+import { env } from '@/server';
 import { checkRateLimit, getClientIp, rateLimitResponse } from '@/server/rateLimit';
 
+function errorResponse(
+  code: 'unauthorized' | 'not_found' | 'internal_error' | 'validation_error',
+  message: string,
+  status: number
+) {
+  return NextResponse.json({ error: { code, message } }, { status });
+}
+
+/**
+ * Compatibility liveness endpoint. It deliberately checks only that the
+ * process can respond and reports configuration presence; it does not claim
+ * that Supabase, Realtime, cron, or Twilio are reachable.
+ */
 export async function GET(request: NextRequest) {
   try {
     const ip = getClientIp(request.headers);
@@ -22,95 +28,60 @@ export async function GET(request: NextRequest) {
       ],
       { context: { ip, path: '/api/health' } }
     );
-    if (!rateLimit.allowed) {
-      return rateLimitResponse(rateLimit.retryAfterSeconds);
-    }
+    if (!rateLimit.allowed) return rateLimitResponse(rateLimit.retryAfterSeconds);
 
-    const healthCheckSecret = env.HEALTH_CHECK_SECRET;
     const providedSecret = request.headers.get('x-health-secret');
-    const isProduction = env.NODE_ENV === 'production';
-
-    // Basic authentication for health endpoint
-    if (isProduction && !healthCheckSecret) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (env.NODE_ENV === 'production' && !env.HEALTH_CHECK_SECRET) {
+      return errorResponse('not_found', 'Not found', 404);
+    }
+    if (
+      env.HEALTH_CHECK_SECRET &&
+      providedSecret !== env.HEALTH_CHECK_SECRET
+    ) {
+      return errorResponse('unauthorized', 'Unauthorized', 401);
     }
 
-    if (healthCheckSecret && providedSecret !== healthCheckSecret) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    // Check environment configuration
-    const envChecks = {
-      supabaseUrl: !!config.api.supabase.url,
-      supabaseAnonKey: !!config.api.supabase.anonKey,
-      twilioAccountSid: !!config.messaging.twilio.accountSid,
-      rateLimit: {
-        api: config.security.rateLimit.api,
-        submit: config.security.rateLimit.submit
-      }
-    };
-
-    // System health metrics
-    const health = {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      environment: env.NODE_ENV,
-      uptime: process.uptime(),
-      memory: {
-        used: Math.round((process.memoryUsage().heapUsed / 1024 / 1024) * 100) / 100,
-        total: Math.round((process.memoryUsage().heapTotal / 1024 / 1024) * 100) / 100
-      },
-      security: {
-        rateLimitingEnabled: true,
-        apiProtected: envChecks.supabaseUrl && envChecks.supabaseAnonKey,
-        rateLimit: envChecks.rateLimit
-      },
-      services: {
-        supabase: {
-          configured: envChecks.supabaseUrl && envChecks.supabaseAnonKey
-        },
-        twilio: {
-          configured: envChecks.twilioAccountSid
-        }
-      }
-    };
+    const supabaseConfigured = Boolean(
+      env.NEXT_PUBLIC_SUPABASE_URL && env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
+    const twilioConfigured = Boolean(
+      env.TWILIO_ACCOUNT_SID &&
+        (env.TWILIO_MESSAGING_SERVICE_SID || env.TWILIO_FROM_NUMBER)
+    );
 
     return NextResponse.json({
       success: true,
-      data: health
+      data: {
+        status: 'live',
+        scope: 'process_and_configuration_only',
+        dependencies_checked: false,
+        timestamp: new Date().toISOString(),
+        environment: env.NODE_ENV,
+        uptime_seconds: process.uptime(),
+        memory_mb: {
+          heap_used:
+            Math.round((process.memoryUsage().heapUsed / 1024 / 1024) * 100) /
+            100,
+          heap_total:
+            Math.round((process.memoryUsage().heapTotal / 1024 / 1024) * 100) /
+            100,
+        },
+        configuration: {
+          supabase: supabaseConfigured,
+          twilio: twilioConfigured,
+        },
+      },
     });
-
-  } catch {
-    return NextResponse.json({
-      success: false,
-      status: 'unhealthy',
-      error: 'Health check failed',
-      timestamp: new Date().toISOString()
-    }, { status: 500 });
+  } catch (error) {
+    console.error('health endpoint failed', error);
+    return errorResponse('internal_error', 'Health check failed', 500);
   }
 }
 
-// Handle unsupported methods
-export async function POST() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  );
+function methodNotAllowed() {
+  return errorResponse('validation_error', 'Method not allowed', 405);
 }
 
-export async function PUT() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  );
-}
-
-export async function DELETE() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  );
-} 
+export const POST = methodNotAllowed;
+export const PUT = methodNotAllowed;
+export const DELETE = methodNotAllowed;

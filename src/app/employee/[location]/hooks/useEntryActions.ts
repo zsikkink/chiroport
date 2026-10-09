@@ -65,6 +65,7 @@ export function useEntryActions(options: UseEntryActionsOptions) {
       action: () => Promise<void>,
       context?: Record<string, unknown>
     ) => {
+      if (!queueId) return false;
       let success = false;
       setBusyAction(key);
       setActionError('');
@@ -106,6 +107,7 @@ export function useEntryActions(options: UseEntryActionsOptions) {
       action: () => Promise<void>,
       context?: Record<string, unknown>
     ) => {
+      if (!queueId) return false;
       optimistic();
       const success = await runAction(key, action, context);
       if (!success) {
@@ -116,7 +118,7 @@ export function useEntryActions(options: UseEntryActionsOptions) {
       }
       return success;
     },
-    [queueState, runAction]
+    [queueId, queueState, runAction]
   );
 
   const callQueueEntryAction = useCallback(
@@ -159,12 +161,14 @@ export function useEntryActions(options: UseEntryActionsOptions) {
   );
 
   const handleCancel = useCallback(
-    async (entryId: string) => {
+    async (entryId: string, departureReason: string | null) => {
       await runOptimisticAction(
         `cancel:${entryId}`,
         () => queueState.applyOptimisticHistory(entryId, 'cancelled'),
         async () => {
-          await callQueueEntryAction('cancel', entryId);
+          await callQueueEntryAction('cancel', entryId, {
+            departureReason,
+          });
         },
         { entryId }
       );
@@ -260,11 +264,7 @@ export function useEntryActions(options: UseEntryActionsOptions) {
             consent: true,
             offeringCode: form.offeringCode,
           });
-          if (!parsed || (parsed as { error?: string }).error) {
-            throw new Error(
-              (parsed as { error?: string })?.error || 'Failed to create entry'
-            );
-          }
+          if (!parsed) throw new Error('Failed to create entry');
           const entryId = (parsed as { queueEntryId?: string }).queueEntryId;
           if (!entryId) {
             throw new Error('Queue entry was not created.');

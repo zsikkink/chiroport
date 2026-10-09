@@ -1,14 +1,18 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { withCorsHeaders, buildCorsHeaders } from '../_shared/cors.ts';
 import { requireEmployee } from '../_shared/employeeAuth.ts';
-import { enqueueAndSendOutboxMessage } from '../_shared/outbox.ts';
-import { MESSAGE_TYPES, buildServingNotification } from '../_shared/messages.ts';
+import {
+  isSettledOutboxResult,
+  sendOutboxForEntry,
+} from '../_shared/outbox.ts';
+import { MESSAGE_TYPES } from '../_shared/messages.ts';
 import {
   buildRateLimitResponse,
   checkRateLimit,
   getRateLimitConfig,
 } from '../_shared/rateLimit.ts';
 import { getLocationIdForQueueEntry } from '../_shared/queue.ts';
+import { errorResponse } from '../_shared/httpError.ts';
 
 const ALLOWED_ACTIONS = new Set([
   'complete',
@@ -23,7 +27,15 @@ type Payload = {
   queueEntryId?: string;
   action?: string;
   targetLocationId?: string;
+  departureReason?: string | null;
 };
+
+const DEPARTURE_REASONS = new Set([
+  'priority_pass_declined',
+  'no_staff_available',
+  'customer_left',
+  'other',
+]);
 
 serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -35,20 +47,14 @@ serve(async (req) => {
   if (req.method !== 'POST') {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers,
-    });
+    return errorResponse('validation_error', 'Method not allowed', 405, headers);
   }
 
   const authHeader = req.headers.get('authorization');
   if (!authHeader) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers,
-    });
+    return errorResponse('unauthorized', 'Unauthorized', 401, headers);
   }
 
   let payload: Payload = {};
@@ -61,19 +67,25 @@ serve(async (req) => {
   if (!payload.queueEntryId) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Queue entry id is required' }), {
-      status: 400,
-      headers,
-    });
+    return errorResponse(
+      'validation_error',
+      'Queue entry id is required',
+      400,
+      headers
+    );
   }
 
   if (!payload.action || !ALLOWED_ACTIONS.has(payload.action)) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Action is invalid' }), {
-      status: 400,
-      headers,
-    });
+    return errorResponse('validation_error', 'Action is invalid', 400, headers);
+  }
+
+  if (payload.departureReason != null &&
+    (payload.action !== 'cancel' || !DEPARTURE_REASONS.has(payload.departureReason))) {
+    const headers = new Headers();
+    withCorsHeaders(headers, origin, path);
+    return errorResponse('validation_error', 'Cancellation reason is invalid', 400, headers);
   }
 
   let auth;
@@ -82,13 +94,26 @@ serve(async (req) => {
   } catch (error) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unauthorized' }),
-      { status: 403, headers }
+    return errorResponse(
+      'forbidden',
+      error instanceof Error ? error.message : 'Forbidden',
+      403,
+      headers
     );
   }
 
-  const { service, userId } = auth;
+  const { service, userId, role } = auth;
+
+  if (payload.action === 'delete' && role !== 'admin') {
+    const headers = new Headers();
+    withCorsHeaders(headers, origin, path);
+    return errorResponse(
+      'forbidden',
+      'Admin access is required',
+      403,
+      headers
+    );
+  }
 
   const locationId =
     payload.targetLocationId ||
@@ -135,6 +160,7 @@ serve(async (req) => {
       p_action: payload.action,
       p_target_location_id: payload.targetLocationId ?? null,
       p_actor_user_id: userId,
+      p_departure_reason: payload.departureReason ?? null,
     });
     if (error) throw error;
     result = data?.[0];
@@ -142,33 +168,37 @@ serve(async (req) => {
       throw new Error('Queue entry action failed');
     }
   } catch (error) {
-    const err = error as { message?: string; details?: string; hint?: string };
+    const err = error as {
+      code?: string;
+      message?: string;
+      details?: string;
+      hint?: string;
+    };
     const message = [err.message, err.details, err.hint].filter(Boolean).join(' | ') ||
       'Action failed';
     console.error('queue_entry_action failed', error);
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: message }), {
-      status: 400,
-      headers,
-    });
+    const expectedDomainError = err.code === 'P0001';
+    return errorResponse(
+      expectedDomainError ? 'invalid_transition' : 'dependency_unavailable',
+      message,
+      expectedDomainError ? 409 : 503,
+      headers
+    );
   }
 
-  if (payload.action === 'serving' && result?.out_customer_type === 'paying') {
+  if (payload.action === 'serving') {
     try {
-      const { data: customerRow } = await service
-        .from('customers')
-        .select('phone_e164, full_name')
-        .eq('id', result.out_customer_id)
-        .maybeSingle();
-      if (customerRow?.phone_e164) {
-        await enqueueAndSendOutboxMessage(service, {
-          queue_entry_id: result.out_queue_entry_id,
-          message_type: MESSAGE_TYPES.SERVING,
-          to_phone: customerRow.phone_e164,
-          body: buildServingNotification(),
-          status: 'queued',
-          idempotency_key: `serving:${result.out_queue_entry_id}`,
+      const delivery = await sendOutboxForEntry(
+        service,
+        result.out_queue_entry_id,
+        MESSAGE_TYPES.SERVING
+      );
+      if (!isSettledOutboxResult(delivery)) {
+        console.error('queue_entry_action immediate send incomplete', {
+          queueEntryId: result.out_queue_entry_id,
+          delivery,
         });
       }
     } catch (error) {

@@ -5,10 +5,14 @@ import type { CSSProperties, ReactNode } from 'react';
 import { AnimatePresence, motion, cubicBezier } from 'framer-motion';
 import { BodyText, ResponsiveCard } from '@/components/ui';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { parseApiError, parseApiErrorText } from '@/lib/apiError';
 import { detailsSchemaFactory } from '@/schemas/intake';
-import type { LocationDetailsProps, VisitCategory } from '@/features/location-details/types';
+import type {
+  LocationDetailsProps,
+  ServiceChoice,
+} from '@/features/location-details/types';
 import type { IntakeCategory } from '@/data/locationData';
-import { MASSAGE_OPTIONS, TREATMENTS } from '@/features/location-details/config';
+import { MASSAGE_OPTIONS } from '@/features/location-details/config';
 import { OFFERING_CODES, type OfferingCode } from '@/domain/services/catalog';
 import { createWizardInitialState, wizardReducer } from '@/features/location-details/reducer';
 import { ConsentField, InputField, PhoneField } from '@/features/location-details/components/fields';
@@ -26,9 +30,27 @@ interface SubmissionResponse {
 
 const createDetailsSchema = detailsSchemaFactory;
 
-const UNDECIDED_TREATMENT = TREATMENTS.find(
-  (treatment) => treatment.title === 'Undecided'
+const CANONICAL_OFFERING_CODES = new Set<OfferingCode>(
+  Object.values(OFFERING_CODES)
 );
+
+function isCanonicalOfferingCode(
+  choice: ServiceChoice | null
+): choice is OfferingCode {
+  return choice !== null && CANONICAL_OFFERING_CODES.has(choice as OfferingCode);
+}
+
+function isPriorityPassChoice(choice: ServiceChoice | null) {
+  return (
+    choice === 'priority_pass_pending' ||
+    choice === OFFERING_CODES.PRIORITY_PASS ||
+    choice === OFFERING_CODES.PRIORITY_PASS_ADJUSTMENTS
+  );
+}
+
+function isMassageChoice(choice: ServiceChoice | null) {
+  return choice === 'massage_pending' || choice?.startsWith('massage_') === true;
+}
 
 const sectionLabelClass = 'text-size-stable text-left text-[20px] leading-tight font-bold text-black';
 
@@ -109,7 +131,6 @@ export default function LocationDetails({
 }: LocationDetailsProps) {
   const supabase = getSupabaseBrowserClient();
   const intakeCategory: IntakeCategory = locationInfo.intakeCategory ?? 'standard';
-  const isOffersMassage = intakeCategory === 'offers_massage';
   const isMassageOnly = intakeCategory === 'massage_only';
   const [state, dispatch] = useReducer(
     wizardReducer,
@@ -151,122 +172,56 @@ export default function LocationDetails({
     dispatch({ type: 'RESET' });
   }, [airportCode, locationCode]);
 
-  const selectUndecidedTreatment = () => {
-    if (!UNDECIDED_TREATMENT) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn('Undecided treatment option not found in TREATMENTS list.');
-      }
-      return;
-    }
-    dispatch({ type: 'SELECT_TREATMENT', treatment: UNDECIDED_TREATMENT });
-  };
-
-  const handleCategorySelect = (category: VisitCategory) => {
-    if (!category) return;
-
-    dispatch({ type: 'SET_VISIT_CATEGORY', value: category });
-    dispatch({ type: 'SET_MEMBER', value: category === 'priority_pass' });
-    dispatch({ type: 'DESELECT_SPINAL' });
-
-    if (category === 'massage') {
-      dispatch({ type: 'CLEAR_SELECTED_TREATMENT' });
-      return;
-    }
-
-    if (category === 'chiropractor') {
-      selectUndecidedTreatment();
-      return;
-    }
-
-    dispatch({ type: 'CLEAR_SELECTED_TREATMENT' });
+  const selectService = (value: ServiceChoice) => {
+    dispatch({ type: 'SELECT_SERVICE', value });
   };
 
   const handleMembershipAnswer = (value: boolean) => {
-    dispatch({ type: 'SET_MEMBER', value });
-    if (!value) {
-      dispatch({ type: 'DESELECT_SPINAL' });
-    }
+    selectService(
+      value ? 'priority_pass_pending' : OFFERING_CODES.CHIROPRACTIC
+    );
   };
 
   const categoryOptions: Array<{
-    category: Exclude<VisitCategory, null>;
+    category: 'priority_pass' | 'massage';
     label: string;
     className: string;
-  }> = isMassageOnly
-    ? [
-        {
-          category: 'massage',
-          label: massageCategoryLabel,
-          className: 'min-h-[4.25rem]',
-        },
-        {
-          category: 'priority_pass',
-          label: 'Priority Pass / Lounge Key',
-          className: 'min-h-[4.25rem] leading-snug',
-        },
-      ]
-    : [
-        {
-          category: 'priority_pass',
-          label: 'Priority Pass / Lounge Key',
-          className: 'min-h-[4.25rem] leading-snug',
-        },
-        {
-          category: 'chiropractor',
-          label: 'Chiropractor',
-          className: 'min-h-[4.25rem]',
-        },
-        {
-          category: 'massage',
-          label: massageCategoryLabel,
-          className: 'min-h-[4.25rem]',
-        },
-      ];
+  }> = [
+    {
+      category: 'massage',
+      label: massageCategoryLabel,
+      className: 'min-h-[4.25rem]',
+    },
+    {
+      category: 'priority_pass',
+      label: 'Priority Pass / Lounge Key',
+      className: 'min-h-[4.25rem] leading-snug',
+    },
+  ];
 
-  const showUpsellQuestion = isOffersMassage
-    ? state.visitCategory === 'priority_pass'
-    : isMassageOnly
-      ? false
-      : state.isMember === true;
-
+  const showUpsellQuestion =
+    !isMassageOnly && isPriorityPassChoice(state.serviceChoice);
   const showMassageOptions =
-    (isMassageOnly && state.visitCategory === 'massage') ||
-    (isOffersMassage && state.visitCategory === 'massage');
+    isMassageOnly && isMassageChoice(state.serviceChoice);
 
   const missingFlowRequirement = (() => {
     if (isMassageOnly) {
-      if (!state.visitCategory) {
+      if (!state.serviceChoice) {
         return 'Choose Massage or Priority Pass before joining the queue.';
       }
 
-      if (showMassageOptions && !state.selectedTreatment) {
+      if (state.serviceChoice === 'massage_pending') {
         return 'Select a massage option before joining the queue.';
       }
 
       return null;
     }
 
-    if (isOffersMassage) {
-      if (!state.visitCategory) {
-        return 'Select a category before joining the queue.';
-      }
-
-      if (showUpsellQuestion && state.spinalAdjustment === null) {
-        return 'Answer the add-on question before joining the queue.';
-      }
-
-      if (showMassageOptions && !state.selectedTreatment) {
-        return 'Select a massage option before joining the queue.';
-      }
-
-      return null;
-    }
-
-    if (state.isMember === null) {
+    if (state.serviceChoice === null) {
       return 'Answer the membership question before joining the queue.';
     }
 
-    if (showUpsellQuestion && state.spinalAdjustment === null) {
+    if (state.serviceChoice === 'priority_pass_pending') {
       return 'Answer the add-on question before joining the queue.';
     }
 
@@ -307,17 +262,10 @@ export default function LocationDetails({
     dispatch({ type: 'SUBMIT_START' });
 
     try {
-      const isPriorityPass =
-        state.visitCategory === 'priority_pass' || state.isMember === true;
-      const wantsAdjustments = isPriorityPass && state.spinalAdjustment === true;
-      const offeringCode: OfferingCode = (() => {
-        if (wantsAdjustments) return OFFERING_CODES.PRIORITY_PASS_ADJUSTMENTS;
-        if (isPriorityPass) return OFFERING_CODES.PRIORITY_PASS;
-        if (state.visitCategory === 'massage' && state.selectedTreatment) {
-          return state.selectedTreatment.offeringCode;
-        }
-        return OFFERING_CODES.CHIROPRACTIC;
-      })();
+      if (!isCanonicalOfferingCode(state.serviceChoice)) {
+        throw new Error('Select a service before joining the queue.');
+      }
+      const offeringCode = state.serviceChoice;
 
       const { data, error } = await supabase.functions.invoke('queue_join', {
         body: {
@@ -340,8 +288,7 @@ export default function LocationDetails({
             const raw = await context.text();
             if (raw) {
               try {
-                const parsedError = JSON.parse(raw);
-                message = parsedError?.error || message;
+                message = parseApiErrorText(raw, message).message;
               } catch {
                 message = raw;
               }
@@ -355,7 +302,7 @@ export default function LocationDetails({
       }
 
       if (!data || data.error) {
-        throw new Error(data?.error || 'Submission failed');
+        throw new Error(parseApiError(data, 'Submission failed').message);
       }
 
       let responseData: SubmissionResponse;
@@ -392,7 +339,10 @@ export default function LocationDetails({
     return (
       <div className={className}>
         <ResponsiveCard className="overflow-hidden">
-          <SuccessStep submissionSuccess={state.submissionSuccess} />
+          <SuccessStep
+            submissionSuccess={state.submissionSuccess}
+            isPriorityPass={state.serviceChoice === OFFERING_CODES.PRIORITY_PASS}
+          />
         </ResponsiveCard>
       </div>
     );
@@ -403,7 +353,7 @@ export default function LocationDetails({
       <ResponsiveCard className="overflow-hidden [&_button]:!shadow-none [&_button:hover]:!shadow-none [&_button:active]:!shadow-none [&_button:hover]:!translate-y-0 [&_button:active]:!translate-y-0 [&_button]:[-webkit-tap-highlight-color:transparent]">
         <div className="space-y-8 py-4">
           <section className="space-y-4">
-            {isOffersMassage || isMassageOnly ? (
+            {isMassageOnly ? (
               <div className="space-y-3">
                 <p className={sectionLabelClass}>
                   Select category <span className="text-red-600">*</span>
@@ -412,15 +362,25 @@ export default function LocationDetails({
                   {categoryOptions.map((option) => (
                     <SelectionButton
                       key={option.category}
-                      onClick={() => handleCategorySelect(option.category)}
-                      selected={state.visitCategory === option.category}
+                      onClick={() =>
+                        selectService(
+                          option.category === 'massage'
+                            ? 'massage_pending'
+                            : OFFERING_CODES.PRIORITY_PASS
+                        )
+                      }
+                      selected={
+                        option.category === 'massage'
+                          ? isMassageChoice(state.serviceChoice)
+                          : state.serviceChoice === OFFERING_CODES.PRIORITY_PASS
+                      }
                       label={option.label}
                       className={option.className}
                     />
                   ))}
                 </div>
               </div>
-            ) : !isMassageOnly ? (
+            ) : (
               <div className="space-y-3">
                 <BodyText size="lg" className="text-black font-extrabold">
                   Priority Pass or Lounge Key member? <span className="text-red-600">*</span>
@@ -428,17 +388,17 @@ export default function LocationDetails({
                 <div className="grid grid-cols-2 gap-3">
                   <SelectionButton
                     onClick={() => handleMembershipAnswer(true)}
-                    selected={state.isMember === true}
+                    selected={isPriorityPassChoice(state.serviceChoice)}
                     label="Yes"
                   />
                   <SelectionButton
                     onClick={() => handleMembershipAnswer(false)}
-                    selected={state.isMember === false}
+                    selected={state.serviceChoice === OFFERING_CODES.CHIROPRACTIC}
                     label="No"
                   />
                 </div>
               </div>
-            ) : null}
+            )}
 
             <AnimatePresence initial={false}>
               {showUpsellQuestion ? (
@@ -459,13 +419,20 @@ export default function LocationDetails({
                   </BodyText>
                   <div className="grid grid-cols-2 gap-3">
                     <SelectionButton
-                      onClick={() => dispatch({ type: 'SET_SPINAL', value: true })}
-                      selected={state.spinalAdjustment === true}
+                      onClick={() =>
+                        selectService(OFFERING_CODES.PRIORITY_PASS_ADJUSTMENTS)
+                      }
+                      selected={
+                        state.serviceChoice ===
+                        OFFERING_CODES.PRIORITY_PASS_ADJUSTMENTS
+                      }
                       label="Yes"
                     />
                     <SelectionButton
-                      onClick={() => dispatch({ type: 'SET_SPINAL', value: false })}
-                      selected={state.spinalAdjustment === false}
+                      onClick={() => selectService(OFFERING_CODES.PRIORITY_PASS)}
+                      selected={
+                        state.serviceChoice === OFFERING_CODES.PRIORITY_PASS
+                      }
                       label="No"
                     />
                   </div>
@@ -490,8 +457,8 @@ export default function LocationDetails({
                     {MASSAGE_OPTIONS.map((option) => (
                       <SelectionButton
                         key={option.title}
-                        onClick={() => dispatch({ type: 'SELECT_TREATMENT', treatment: option })}
-                        selected={state.selectedTreatment?.title === option.title}
+                        onClick={() => selectService(option.offeringCode)}
+                        selected={state.serviceChoice === option.offeringCode}
                         ariaLabel={`${option.title.replace('Minutes', 'mins')} ${option.price}`}
                         label={
                           (() => {

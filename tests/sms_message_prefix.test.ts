@@ -1,16 +1,9 @@
 import {
   AUTOMATED_SMS_PREFIX,
-  buildCancelAck,
   buildFinalOutboundSmsBody,
-  buildServingNotification,
 } from '../supabase/functions/_shared/messages';
 
 describe('automated SMS prefixing', () => {
-  it('builds automated cancel acknowledgements and serving notifications with the prefix', () => {
-    expect(buildCancelAck().startsWith(AUTOMATED_SMS_PREFIX)).toBe(true);
-    expect(buildServingNotification().startsWith(AUTOMATED_SMS_PREFIX)).toBe(true);
-  });
-
   it('adds the Chiroport prefix to automated outbound messages that still reach the send boundary unprefixed', () => {
     expect(
       buildFinalOutboundSmsBody({

@@ -1,28 +1,6 @@
 {
   "airports": [
     {
-      "name": "Atlanta",
-      "code": "ATL",
-      "slug": "atlanta",
-      "concourses": [
-        {
-          "name": "concourse-a",
-          "slug": "concourse-a",
-          "displayName": "Concourse A",
-          "locationInfo": {
-            "gate": "A18",
-            "landmark": "Delta Help Desk",
-            "airportCode": "ATL",
-            "imageUrl": "/images/stores/atl-a.webp",
-            "customLocation": "Located near the main rotunda of Concourse A next to In Motion and the Delta Help Desk.",
-            "customHours": "7am - 7pm ET",
-            "displayName": "Concourse A",
-            "intakeCategory": "standard"
-          }
-        }
-      ]
-    },
-    {
       "name": "Houston",
       "code": "HOU",
       "slug": "houston",
@@ -36,7 +14,7 @@
             "gate": "A-9",
             "landmark": "Common Bond",
             "airportCode": "HOU",
-            "imageUrl": "/images/stores/hou-w.webp",
+            "imageUrl": "/images/title.webp",
             "customLocation": "Located in the West Concourse near the Common Bond restaurant and Gate 1.",
             "customHours": "8am - 6pm CT",
             "displayName": "West Concourse",
@@ -50,26 +28,6 @@
       "code": "LAS",
       "slug": "las-vegas",
       "concourses": [
-        {
-          "name": "concourse-b",
-          "slug": "concourse-b",
-          "displayName": "Concourse B",
-          "locationInfo": {
-            "gate": "B-15",
-            "landmark": "Starbucks",
-            "airportCode": "LAS",
-            "imageUrl": "/images/stores/las-b.webp",
-            "customLocation": "Located across from Starbucks and near the walkway to Concourse C.",
-            "customHours": "8am - 6pm PT",
-            "displayName": "Concourse B",
-            "intakeCategory": "standard",
-            "uiOverrides": {
-              "massageCategoryLabel": "Massage Therapist",
-              "massageOptionsTitle": "Body Work",
-              "joinServiceSummary": "Service includes stretching, muscle work, and vibration massager."
-            }
-          }
-        },
         {
           "name": "concourse-c",
           "slug": "concourse-c",

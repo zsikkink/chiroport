@@ -7,11 +7,7 @@ import type {
   WaitingRow,
   WithEntryId,
 } from './types';
-
-export const CUSTOMER_TYPE_PRIORITY: Record<string, number> = {
-  paying: 0,
-  priority_pass: 1,
-};
+import { parseApiErrorText } from '@/lib/apiError';
 
 export function toEpoch(value: string | null | undefined) {
   if (!value) return 0;
@@ -21,10 +17,11 @@ export function toEpoch(value: string | null | undefined) {
 
 export function sortWaitingEntries(rows: WithEntryId<WaitingRow>[]) {
   return [...rows].sort((a, b) => {
-    const priorityA =
-      CUSTOMER_TYPE_PRIORITY[a.customer_type ?? 'priority_pass'] ?? 1;
-    const priorityB =
-      CUSTOMER_TYPE_PRIORITY[b.customer_type ?? 'priority_pass'] ?? 1;
+    const positionA = a.queue_position ?? Number.MAX_SAFE_INTEGER;
+    const positionB = b.queue_position ?? Number.MAX_SAFE_INTEGER;
+    if (positionA !== positionB) return positionA - positionB;
+    const priorityA = a.priority_rank ?? Number.MAX_SAFE_INTEGER;
+    const priorityB = b.priority_rank ?? Number.MAX_SAFE_INTEGER;
     if (priorityA !== priorityB) return priorityA - priorityB;
     const sortA = Number(a.sort_key ?? 0);
     const sortB = Number(b.sort_key ?? 0);
@@ -185,14 +182,7 @@ export async function resolveActionError(error: unknown, fallback: string) {
     try {
       const raw = await err.context.text();
       if (raw) {
-        try {
-          const parsed = JSON.parse(raw) as { error?: string };
-          if (parsed?.error) {
-            return parsed.error;
-          }
-        } catch {
-          return raw;
-        }
+        return parseApiErrorText(raw, fallback).message;
       }
     } catch {
       // Ignore response parsing failures.

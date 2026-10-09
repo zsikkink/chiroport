@@ -8,6 +8,7 @@ import {
   getRateLimitConfig,
 } from '../_shared/rateLimit.ts';
 import { getLocationIdForQueueEntry } from '../_shared/queue.ts';
+import { errorResponse } from '../_shared/httpError.ts';
 
 type Payload = {
   queueEntryId?: string;
@@ -29,20 +30,14 @@ serve(async (req) => {
   if (req.method !== 'POST') {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers,
-    });
+    return errorResponse('validation_error', 'Method not allowed', 405, headers);
   }
 
   const authHeader = req.headers.get('authorization');
   if (!authHeader) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers,
-    });
+    return errorResponse('unauthorized', 'Unauthorized', 401, headers);
   }
 
   let payload: Payload = {};
@@ -55,10 +50,12 @@ serve(async (req) => {
   if (!payload.queueEntryId) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Queue entry id is required' }), {
-      status: 400,
-      headers,
-    });
+    return errorResponse(
+      'validation_error',
+      'Queue entry id is required',
+      400,
+      headers
+    );
   }
 
   const requestedOfferingCode = payload.offeringCode?.trim();
@@ -66,20 +63,24 @@ serve(async (req) => {
   if (!requestedOfferingCode && !legacyServiceLabel) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Service offering is required' }), {
-      status: 400,
-      headers,
-    });
+    return errorResponse(
+      'validation_error',
+      'Service offering is required',
+      400,
+      headers
+    );
   }
 
   const phoneE164 = normalizePhoneToE164(payload.phone ?? '');
   if (!phoneE164) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Valid phone number is required' }), {
-      status: 400,
-      headers,
-    });
+    return errorResponse(
+      'validation_error',
+      'Valid phone number is required',
+      400,
+      headers
+    );
   }
 
   let auth;
@@ -88,9 +89,11 @@ serve(async (req) => {
   } catch (error) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unauthorized' }),
-      { status: 403, headers }
+    return errorResponse(
+      'forbidden',
+      error instanceof Error ? error.message : 'Forbidden',
+      403,
+      headers
     );
   }
 
@@ -143,10 +146,12 @@ serve(async (req) => {
     if (legacyOfferingError || !legacyOffering?.code) {
       const headers = new Headers();
       withCorsHeaders(headers, origin, path);
-      return new Response(JSON.stringify({ error: 'Service offering is invalid' }), {
-        status: 400,
-        headers,
-      });
+      return errorResponse(
+        'validation_error',
+        'Service offering is invalid',
+        400,
+        headers
+      );
     }
     offeringCode = legacyOffering.code;
   }
@@ -169,24 +174,19 @@ serve(async (req) => {
       queueEntryId: payload.queueEntryId,
     });
     const message = updateError?.message || 'Queue entry was not updated';
-    const status = message.includes('not found')
-      ? 404
-      : message.includes('No changes')
-        ? 409
-        : message.includes('invalid') ||
-            message.includes('required') ||
-            updateError?.code === '23505'
-          ? 400
-          : 500;
+    const expectedConflict =
+      updateError?.code === 'P0001' || updateError?.code === '23505';
     const publicMessage = updateError?.code === '23505'
       ? 'Phone number already in use.'
       : message;
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: publicMessage }), {
-      status,
-      headers,
-    });
+    return errorResponse(
+      expectedConflict ? 'conflict' : 'dependency_unavailable',
+      publicMessage,
+      expectedConflict ? 409 : 503,
+      headers
+    );
   }
 
   const headers = new Headers();

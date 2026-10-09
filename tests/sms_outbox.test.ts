@@ -15,27 +15,17 @@ describe('sms_outbox claim guard', () => {
       .limit(1)
       .maybeSingle();
 
-    const { data: consent } = await service
-      .from('consent_versions')
-      .select('id')
-      .eq('key', 'queue_join_consent_bodywork')
-      .eq('is_active', true)
-      .maybeSingle();
-
     expect(location).toBeTruthy();
-    expect(consent).toBeTruthy();
 
     const phone = randomPhone();
 
-    const { data: joinRows } = await service.rpc('join_queue', {
+    const { data: joinRows } = await service.rpc('join_queue_with_offering', {
       p_airport_code: location!.airport_code,
       p_location_code: location!.code,
       p_full_name: 'Test User',
       p_phone_e164: phone,
       p_email: 'test@example.com',
-      p_customer_type: 'paying',
-      p_consent_version_id: consent!.id,
-      p_service_label: 'Paying',
+      p_offering_code: 'chiropractic',
     });
 
     const entryId = joinRows?.[0]?.out_queue_entry_id as string | undefined;
@@ -43,15 +33,9 @@ describe('sms_outbox claim guard', () => {
 
     const { data: confirmRow } = await service
       .from('sms_outbox')
-      .insert({
-        queue_entry_id: entryId,
-        message_type: 'confirm',
-        to_phone: phone,
-        body: 'confirm test',
-        status: 'queued',
-        idempotency_key: `confirm:${entryId}`,
-      })
       .select('id')
+      .eq('queue_entry_id', entryId)
+      .eq('message_type', 'confirm')
       .maybeSingle();
 
     await service.from('sms_outbox').upsert(

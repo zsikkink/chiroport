@@ -1,7 +1,10 @@
 import type { LocationInfo } from '@/lib';
-import type { IntakeTreatmentOption } from '@/domain/services/catalog';
+import type { OfferingCode } from '@/domain/services/catalog';
 
-export type TreatmentOption = IntakeTreatmentOption;
+export type ServiceChoice =
+  | OfferingCode
+  | 'priority_pass_pending'
+  | 'massage_pending';
 
 export interface WizardDetails {
   name: string;
@@ -18,10 +21,7 @@ export interface SubmissionMeta {
 }
 
 export interface WizardState {
-  isMember: boolean | null;
-  spinalAdjustment: boolean | null;
-  selectedTreatment: TreatmentOption | null;
-  visitCategory: 'priority_pass' | 'chiropractor' | 'massage' | null;
+  serviceChoice: ServiceChoice | null;
   details: WizardDetails;
   submitAttempted: boolean;
   isSubmitting: boolean;
@@ -30,12 +30,7 @@ export interface WizardState {
 }
 
 export type WizardAction =
-  | { type: 'SET_MEMBER'; value: boolean }
-  | { type: 'SET_SPINAL'; value: boolean }
-  | { type: 'DESELECT_SPINAL' }
-  | { type: 'SELECT_TREATMENT'; treatment: TreatmentOption }
-  | { type: 'SET_VISIT_CATEGORY'; value: WizardState['visitCategory'] }
-  | { type: 'CLEAR_SELECTED_TREATMENT' }
+  | { type: 'SELECT_SERVICE'; value: ServiceChoice }
   | { type: 'UPDATE_FIELD'; field: keyof WizardState['details']; value: string | boolean }
   | { type: 'ATTEMPT_SUBMIT' }
   | { type: 'SUBMIT_START' }
@@ -49,5 +44,3 @@ export interface LocationDetailsProps {
   locationCode: string;
   className?: string;
 }
-
-export type VisitCategory = WizardState['visitCategory'];
