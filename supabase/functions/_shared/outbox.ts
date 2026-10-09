@@ -38,7 +38,8 @@ async function updateMessage(
   messageId: string,
   payload: Record<string, unknown>,
   operation: string,
-  attemptCount: number
+  attemptCount: number,
+  claimedBody: string
 ) {
   const preflight = operation === 'persist normalized SMS body';
   const now = Date.now();
@@ -52,7 +53,7 @@ async function updateMessage(
   // must not overwrite a later claim or treat a deleted row as persisted.
   if (preflight) {
     // Renew a still-valid lease before external I/O, not one already expired.
-    update.gte('locked_at', new Date(now - 5 * 60_000).toISOString());
+    update.gte('locked_at', new Date(now - 5 * 60_000).toISOString()).eq('body', claimedBody);
   }
   const { error } = await update.select('id').single();
   if (error) {
@@ -63,7 +64,8 @@ async function updateMessage(
 async function buildDeliveryStore(
   supabase: SupabaseClient,
   dependencies: OutboxDependencies,
-  attemptCount: number
+  attemptCount: number,
+  claimedBody: string
 ): Promise<OutboxDeliveryStore> {
   const sendSms = dependencies.sendSms ?? sendTwilioSms;
   const checkLimit = dependencies.checkLimit ?? checkRateLimit;
@@ -81,7 +83,30 @@ async function buildDeliveryStore(
       return Boolean(data?.id);
     },
     updateMessage: (messageId, payload, operation) =>
-      updateMessage(supabase, messageId, payload, operation, attemptCount),
+      updateMessage(supabase, messageId, payload, operation, attemptCount, claimedBody),
+    async isMessageCurrent(message) {
+      const expectedStatuses: Record<string, string[]> = {
+        next: ['waiting'], serving: ['serving'],
+        cancel_ack: ['cancelled'], cancel_reason_prompt: ['cancelled'],
+      };
+      const statuses = expectedStatuses[message.message_type];
+      if (!statuses) return true; // Confirmation is also the prerequisite for cancellation delivery.
+      const { data: entry, error } = await supabase.from('queue_entries')
+        .select('status,queue_id').eq('id', message.queue_entry_id).maybeSingle();
+      if (error) throw new Error('Current visit lookup failed');
+      if (!entry || !statuses.includes(entry.status)) return false;
+      if (message.message_type !== 'next') return true;
+      const { data: events, error: eventError } = await supabase.from('queue_events')
+        .select('event_type,payload').eq('queue_entry_id', message.queue_entry_id)
+        .in('event_type', ['next_notified', 'moved_by_staff'])
+        .order('created_at', { ascending: false });
+      if (eventError) throw new Error('Notification context lookup failed');
+      const notification = events?.find(event => event.event_type === 'next_notified');
+      const queueId = notification?.payload?.queue_id;
+      // Legacy notifications have no queue identity. They remain compatible
+      // until a move makes their original location unsafe to infer.
+      return queueId ? queueId === entry.queue_id : !events?.some(event => event.event_type === 'moved_by_staff');
+    },
     async checkRateLimit(message) {
       const rules = [
         {
@@ -141,7 +166,7 @@ export async function sendClaimedMessage(
   message: OutboxRow,
   dependencies: OutboxDependencies = {}
 ): Promise<OutboxSendResult> {
-  const store = await buildDeliveryStore(supabase, dependencies, message.attempt_count);
+  const store = await buildDeliveryStore(supabase, dependencies, message.attempt_count, message.body);
   return deliverClaimedMessage(store, message);
 }
 
@@ -153,12 +178,20 @@ export async function sendOutboxForEntry(
 ): Promise<OutboxSendResult> {
   const { data: row, error: rowError } = await supabase
     .from('sms_outbox')
-    .select('id, queue_entry_id, attempt_count, message_type, to_phone, body')
+    .select('id, queue_entry_id, attempt_count, message_type, to_phone, body, status, provider_message_id, last_error')
     .eq('queue_entry_id', queueEntryId)
     .eq('message_type', messageType)
     .maybeSingle();
   const lookupResult = mapOutboxRowLookup(row as OutboxRow | null, rowError);
   if (lookupResult) return lookupResult;
+  if (row?.status === 'sent') {
+    return { status: 'sent', providerMessageId: row.provider_message_id, alreadySent: true };
+  }
+  if (row?.status === 'dead') {
+    return row.last_error === 'opted_out'
+      ? { status: 'opted_out' }
+      : { status: 'permanent_failure', code: 'outbox_dead', error: 'Message requires operator review before replay.' };
+  }
 
   let claimed: OutboxRow | null;
   try {

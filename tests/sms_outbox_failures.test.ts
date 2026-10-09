@@ -37,6 +37,7 @@ function createStore(options: StoreOptions = {}) {
     };
   });
   const store: OutboxDeliveryStore = {
+    async isMessageCurrent() { return true; },
     async isOptedOut() {
       if (options.optOutError) throw options.optOutError;
       return options.optedOut ?? false;

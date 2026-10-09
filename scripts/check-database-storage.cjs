@@ -96,7 +96,7 @@ function monitorQuery(policy) {
       'oldest_pending',(select min(created_at) from public.sms_outbox where status in ('queued','failed')),
       'sending_count',(select count(*) from public.sms_outbox where status='sending'),
       'oldest_sending',(select min(locked_at) from public.sms_outbox where status='sending'),
-      'dead_count',(select count(*) from public.sms_outbox where status='dead' and last_error is distinct from 'opted_out'),
+      'dead_count',(select count(*) from public.sms_outbox where status='dead' and (last_error is null or last_error not in ('opted_out','superseded_queue_state','superseded_queue_move'))),
       'new_anomalies',(select count(*) from public.queue_rollup_anomalies where detected_at>'${since}'::timestamptz)
     )) as snapshot from storage_snapshot;`;
 }

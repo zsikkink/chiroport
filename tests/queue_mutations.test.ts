@@ -1,6 +1,7 @@
 /** @jest-environment node */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { loadEdge } from './helpers/edge-runtime.cjs';
 import {
   createAnonClient,
   createServiceClient,
@@ -88,6 +89,127 @@ async function deleteVisits(service: SupabaseClient, visits: JoinedVisit[]) {
 }
 
 describe('authoritative queue mutation commands', () => {
+  itIf.each(['CANCEL', '\tCANCEL\n', '\u00a0CANCEL\ufeff'])('a durable SMS receipt %s does not cancel a later staff return', async body => {
+    const service = createServiceClient(env!);
+    const visit = await joinVisit(service, 'chiropractic');
+    try {
+      const inbound = await service.rpc('record_sms_inbound', { p_from_phone: visit.phone, p_to_phone: '+12025550124', p_body: body, p_provider_message_id: `SM_SYNTHETIC_${crypto.randomUUID()}`, p_raw: {} });
+      expect(inbound.error).toBeNull();
+      const request = { p_entry_id: visit.entryId, p_source: 'twilio_webhook', p_enqueue_ack: true, p_inbound_id: inbound.data![0].out_sms_inbound_id };
+      const cancelled = await Promise.all([service.rpc('customer_cancel_queue_entry', request), service.rpc('customer_cancel_queue_entry', request)]);
+      expect(cancelled.every(result => !result.error)).toBe(true);
+      const returned = await service.rpc('staff_queue_entry_action', { p_entry_id: visit.entryId, p_action: 'return', p_actor_user_id: null });
+      expect(returned.error).toBeNull();
+      const retry = await service.rpc('customer_cancel_queue_entry', request);
+      expect(retry.error).toBeNull();
+      expect(retry.data![0].out_status).toBe('waiting');
+      const events = await service.from('queue_events').select('event_type').eq('queue_entry_id', visit.entryId).eq('event_type', 'sms_cancel_processed');
+      expect(events.error).toBeNull();
+      expect(events.data).toHaveLength(1);
+      expect((await service.from('queue_entries').select('status').eq('id', visit.entryId).single()).data!.status).toBe('waiting');
+      expect((await service.rpc('customer_cancel_queue_entry', { ...request, p_inbound_id: crypto.randomUUID() })).error).not.toBeNull();
+    } finally { await deleteVisits(service, [visit]); }
+  });
+
+  itIf.each([false, true])('moving a queue head notifies its successor and reconciles next work (claimed=%s)', async claimed => {
+    const service = createServiceClient(env!);
+    const locations = await service.from('locations').select('id,airport_code,code,display_name').eq('is_open', true);
+    expect(locations.error).toBeNull();
+    const source = locations.data!.find(row => locations.data!.some(other => other.airport_code === row.airport_code && other.id !== row.id));
+    if (!source) throw new Error('Two open locations at one airport are required');
+    const target = locations.data!.find(row => row.airport_code === source.airport_code && row.id !== source.id)!;
+    const head = await joinVisit(service, 'chiropractic', randomPhone(), source);
+    const successor = await joinVisit(service, 'chiropractic', randomPhone(), source);
+    try {
+      expect((await service.from('queue_entries').select('next_notified_at').eq('id', successor.entryId).single()).data!.next_notified_at).toBeNull();
+      const { sendOutboxForEntry, claimOutboxMessage, sendClaimedMessage } = loadEdge('_shared/outbox.ts');
+      const sendSms = jest.fn(async () => ({ response: { ok: true }, payload: { sid: 'SM_SYNTHETIC_MOVE' } }));
+      const dependencies = { sendSms, checkLimit: async () => ({ allowed: true, retryAfterSeconds: 0 }), getLocationId: async () => null };
+      expect((await sendOutboxForEntry(service, head.entryId, 'confirm', dependencies)).status).toBe('sent');
+      sendSms.mockClear();
+      const original = await service.from('sms_outbox').select('id').eq('queue_entry_id', head.entryId).eq('message_type', 'next').single();
+      const activeClaim = claimed ? await claimOutboxMessage(service, original.data!.id) : null;
+      const move = await service.rpc('staff_queue_entry_action', { p_entry_id: head.entryId, p_action: 'move', p_target_location_id: target.id, p_actor_user_id: null });
+      expect(move.error).toBeNull();
+      expect((await service.from('queue_entries').select('next_notified_at').eq('id', successor.entryId).single()).data!.next_notified_at).not.toBeNull();
+      const notification = await service.from('sms_outbox').select('status,body').eq('queue_entry_id', head.entryId).eq('message_type', 'next').single();
+      expect(notification.error).toBeNull();
+      if (claimed) {
+        expect(notification.data).toMatchObject({ status: 'sending', body: expect.stringContaining(source.display_name) });
+        expect(await sendClaimedMessage(service, activeClaim, dependencies)).toMatchObject({ status: 'permanent_failure', code: 'superseded_queue_state' });
+        expect(sendSms).not.toHaveBeenCalled();
+      } else {
+        expect(notification.data).toMatchObject({ status: 'queued', body: expect.stringContaining(target.display_name) });
+        expect((await sendOutboxForEntry(service, head.entryId, 'next', dependencies)).status).toBe('sent');
+        expect(sendSms).toHaveBeenCalledWith(expect.objectContaining({ body: expect.stringContaining(target.display_name) }));
+      }
+    } finally { await deleteVisits(service, [head, successor]); }
+  });
+
+  itIf('retries token cancellation without duplicating events or changing the first reason', async () => {
+    const service = createServiceClient(env!);
+    const anon = createAnonClient(env!);
+    const visit = await joinVisit(service, 'priority_pass');
+    try {
+      const first = await anon.rpc('cancel_visit_with_reason', {
+        p_public_token: visit.publicToken,
+        p_departure_reason: 'plans_changed',
+      });
+      expect(first.error).toBeNull();
+      const retry = await anon.rpc('cancel_visit_with_reason', {
+        p_public_token: visit.publicToken,
+        p_departure_reason: 'other',
+      });
+      expect(retry.error).toBeNull();
+      expect(retry.data).toEqual(first.data);
+      const legacyRetry = await anon.rpc('cancel_visit', { p_public_token: visit.publicToken });
+      expect(legacyRetry.error).toBeNull();
+      expect(legacyRetry.data).toEqual(first.data);
+      const entry = await service.from('queue_entries').select('departure_reason').eq('id', visit.entryId).single();
+      expect(entry.data?.departure_reason).toBe('plans_changed');
+      const events = await service.from('queue_events').select('id').eq('queue_entry_id', visit.entryId).eq('event_type', 'cancelled_by_customer');
+      expect(events.error).toBeNull();
+      expect(events.data).toHaveLength(1);
+      const invalid = await anon.rpc('cancel_visit_with_reason', { p_public_token: crypto.randomUUID(), p_departure_reason: 'other' });
+      expect(invalid.error).toBeTruthy();
+    } finally {
+      await deleteVisits(service, [visit]);
+    }
+  });
+
+  itIf('deduplicates concurrent staff retries and rejects operation ID reuse with different content', async () => {
+    const service = createServiceClient(env!);
+    const visit = await joinVisit(service, 'chiropractic');
+    const actor = await service.auth.admin.createUser({ email: `idempotent-${crypto.randomUUID()}@example.invalid`, password: 'Synthetic-Only-2468!', email_confirm: true });
+    expect(actor.error).toBeNull();
+    const actorId = actor.data.user!.id;
+    const request = { p_entry_id: visit.entryId, p_actor_user_id: actorId, p_body: 'Please return to the front desk.', p_request_id: crypto.randomUUID() };
+    try {
+      const results = await Promise.all(Array.from({ length: 8 }, () => service.rpc('staff_enqueue_message', request)));
+      expect(results.every(result => !result.error)).toBe(true);
+      expect(results[0]?.error).toBeNull();
+      expect(results[1]?.error).toBeNull();
+      expect(results[0]?.data).toEqual(results[1]?.data);
+      const conflict = await service.rpc('staff_enqueue_message', { ...request, p_body: 'Different message' });
+      expect(conflict.error?.code).toBe('P0001');
+      const outbox = await service.from('sms_outbox').select('id,body').eq('queue_entry_id', visit.entryId).like('message_type', 'staff_%');
+      expect(outbox.error).toBeNull();
+      expect(outbox.data).toHaveLength(1);
+      expect(outbox.data?.[0]?.body).toBe(request.p_body);
+      const events = await service.from('queue_events').select('id').eq('queue_entry_id', visit.entryId).eq('event_type', 'staff_message_queued');
+      expect(events.error).toBeNull();
+      expect(events.data).toHaveLength(1);
+      const anon = createAnonClient(env!);
+      expect((await anon.rpc('staff_enqueue_message', request)).error).toBeTruthy();
+      const next = await service.rpc('staff_enqueue_message', { ...request, p_request_id: crypto.randomUUID() });
+      expect(next.error).toBeNull();
+      expect(next.data?.[0]?.out_outbox_id).not.toBe(results[0]?.data?.[0]?.out_outbox_id);
+    } finally {
+      await deleteVisits(service, [visit]);
+      await service.auth.admin.deleteUser(actorId);
+    }
+  });
+
   itIf('uses one priority rule for join position, staff order, and automatic next selection', async () => {
     const service = createServiceClient(env!);
     const location = await getOpenLocation(service);

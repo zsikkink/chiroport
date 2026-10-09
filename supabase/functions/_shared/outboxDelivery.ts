@@ -8,7 +8,7 @@ export type OutboxRow = {
 };
 
 export type OutboxSendResult =
-  | { status: 'sent'; providerMessageId: string | null }
+  | { status: 'sent'; providerMessageId: string | null; alreadySent?: boolean }
   | { status: 'durably_queued'; reason: 'rate_limited' | 'already_claimed' }
   | {
       status: 'retryable_failure';
@@ -29,6 +29,7 @@ export type ProviderSendResult = {
 
 export type OutboxDeliveryStore = {
   isOptedOut: (phone: string) => Promise<boolean>;
+  isMessageCurrent: (message: OutboxRow) => Promise<boolean>;
   updateMessage: (
     messageId: string,
     payload: Record<string, unknown>,
@@ -219,6 +220,21 @@ export async function deliverClaimedMessage(
         error: errorMessage(error, 'Failed to persist rate limit'),
       };
     }
+  }
+
+  // Delayed automated messages must still describe the authoritative visit.
+  // This is a last check before provider I/O; a subsequent state change or an
+  // ambiguous provider acceptance still requires operator reconciliation.
+  try {
+    if (!(await store.isMessageCurrent(message))) {
+      await store.updateMessage(message.id, {
+        status: 'dead', last_error: 'superseded_queue_state', locked_at: null,
+      }, 'mark superseded message');
+      return { status: 'permanent_failure', code: 'superseded_queue_state', error: 'Visit state changed before delivery.' };
+    }
+  } catch (error) {
+    return recordRetryableFailure(store, message, 'queue_state_lookup_failed',
+      errorMessage(error, 'Failed to validate current visit state'));
   }
 
   const finalBody = store.normalizeBody(message);

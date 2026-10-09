@@ -31,7 +31,7 @@ function getClientIp(req: Request) {
 const joinSchema = z.object({
   airportCode: z.string().min(1),
   locationCode: z.string().min(1),
-  name: z.string().min(1),
+  name: z.string().trim().min(1),
   phone: z.string().min(1),
   email: z.string().email(),
   consent: z.boolean(),
@@ -190,7 +190,7 @@ serve(async (req) => {
       const expectedDomainError = joinError?.code === 'P0001';
       return errorResponse(
         expectedDomainError ? 'validation_error' : 'dependency_unavailable',
-        joinError?.message || 'Failed to join queue',
+        expectedDomainError ? joinError!.message : 'Queue service is unavailable. Please try again.',
         expectedDomainError ? 400 : 503,
         headers
       );
@@ -216,9 +216,8 @@ serve(async (req) => {
     const locationDisplayName =
       queueLocation?.display_name ?? 'The Chiroport';
     const customerType = entryData?.customer_type;
-    if (customerType !== 'paying' && customerType !== 'priority_pass') {
-      throw new Error('Queue entry has an invalid customer type');
-    }
+    // The join RPC has already committed. Metadata/latency optimizations must
+    // not turn that durable success into a failed check-in acknowledgement.
 
     try {
       const delivery = await sendOutboxForEntry(
@@ -243,6 +242,7 @@ serve(async (req) => {
           if (serviceRoleKey && supabaseUrl) {
             await fetch(`${supabaseUrl}/functions/v1/send_sms`, {
               method: 'POST',
+              signal: AbortSignal.timeout(5_000),
               headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${serviceRoleKey}`,
@@ -274,12 +274,12 @@ serve(async (req) => {
       { status: 200, headers }
     );
   } catch (error) {
-    console.error('queue_join failed', error);
+    console.error('queue_join failed', { code: error && typeof error === 'object' && 'code' in error ? error.code : 'unknown' });
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
     return errorResponse(
       'internal_error',
-      error instanceof Error ? error.message : 'Queue join failed',
+      'Queue join could not be confirmed. Please try again.',
       500,
       headers
     );

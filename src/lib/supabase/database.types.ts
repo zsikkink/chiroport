@@ -1417,15 +1417,34 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      customer_cancel_queue_entry: {
-        Args: { p_enqueue_ack?: boolean; p_entry_id: string; p_source: string }
-        Returns: {
-          out_cancelled_at: string
-          out_outbox_id: string
-          out_queue_entry_id: string
-          out_status: Database["public"]["Enums"]["queue_status"]
-        }[]
-      }
+      customer_cancel_queue_entry:
+        | {
+            Args: {
+              p_enqueue_ack?: boolean
+              p_entry_id: string
+              p_source: string
+            }
+            Returns: {
+              out_cancelled_at: string
+              out_outbox_id: string
+              out_queue_entry_id: string
+              out_status: Database["public"]["Enums"]["queue_status"]
+            }[]
+          }
+        | {
+            Args: {
+              p_enqueue_ack: boolean
+              p_entry_id: string
+              p_inbound_id: string
+              p_source: string
+            }
+            Returns: {
+              out_cancelled_at: string
+              out_outbox_id: string
+              out_queue_entry_id: string
+              out_status: Database["public"]["Enums"]["queue_status"]
+            }[]
+          }
       get_admin_analytics: {
         Args: {
           p_customer_type?: string
@@ -1618,13 +1637,30 @@ export type Database = {
           out_service_label: string
         }[]
       }
-      staff_enqueue_message: {
-        Args: { p_actor_user_id: string; p_body: string; p_entry_id: string }
-        Returns: {
-          out_message_type: string
-          out_outbox_id: string
-        }[]
-      }
+      staff_enqueue_message:
+        | {
+            Args: {
+              p_actor_user_id: string
+              p_body: string
+              p_entry_id: string
+            }
+            Returns: {
+              out_message_type: string
+              out_outbox_id: string
+            }[]
+          }
+        | {
+            Args: {
+              p_actor_user_id: string
+              p_body: string
+              p_entry_id: string
+              p_request_id: string
+            }
+            Returns: {
+              out_message_type: string
+              out_outbox_id: string
+            }[]
+          }
       staff_queue_entry_action:
         | {
             Args: {

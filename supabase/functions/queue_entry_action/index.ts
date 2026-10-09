@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { z } from 'npm:zod@3.25.76';
 import { withCorsHeaders, buildCorsHeaders } from '../_shared/cors.ts';
 import { requireEmployee } from '../_shared/employeeAuth.ts';
 import {
@@ -23,12 +24,12 @@ const ALLOWED_ACTIONS = new Set([
   'serving',
 ]);
 
-type Payload = {
-  queueEntryId?: string;
-  action?: string;
-  targetLocationId?: string;
-  departureReason?: string | null;
-};
+const payloadSchema = z.object({
+  queueEntryId: z.string().uuid(),
+  action: z.enum(['complete', 'cancel', 'return', 'delete', 'move', 'serving']),
+  targetLocationId: z.string().uuid().nullish(),
+  departureReason: z.string().nullish(),
+});
 
 const DEPARTURE_REASONS = new Set([
   'priority_pass_declined',
@@ -57,12 +58,13 @@ serve(async (req) => {
     return errorResponse('unauthorized', 'Unauthorized', 401, headers);
   }
 
-  let payload: Payload = {};
-  try {
-    payload = (await req.json()) as Payload;
-  } catch {
-    payload = {};
+  const parsed = payloadSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    const headers = new Headers();
+    withCorsHeaders(headers, origin, path);
+    return errorResponse('validation_error', 'Invalid payload', 400, headers);
   }
+  const payload = parsed.data;
 
   if (!payload.queueEntryId) {
     const headers = new Headers();
@@ -174,9 +176,10 @@ serve(async (req) => {
       details?: string;
       hint?: string;
     };
-    const message = [err.message, err.details, err.hint].filter(Boolean).join(' | ') ||
-      'Action failed';
-    console.error('queue_entry_action failed', error);
+    const message = err.code === 'P0001'
+      ? err.message || 'Action failed'
+      : 'Queue action could not be completed. Refresh the queue before retrying.';
+    console.error('queue_entry_action failed', { code: err.code ?? 'unknown', action: payload.action, queueEntryId: payload.queueEntryId });
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
     const expectedDomainError = err.code === 'P0001';

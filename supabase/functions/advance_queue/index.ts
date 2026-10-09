@@ -1,6 +1,8 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { z } from 'npm:zod@3.25.76';
 import { withCorsHeaders, buildCorsHeaders } from '../_shared/cors.ts';
 import { requireEmployee } from '../_shared/employeeAuth.ts';
+import { errorResponse } from '../_shared/httpError.ts';
 import { MESSAGE_TYPES } from '../_shared/messages.ts';
 import {
   isSettledOutboxResult,
@@ -12,6 +14,8 @@ import {
   getRateLimitConfig,
 } from '../_shared/rateLimit.ts';
 import { getLocationIdForQueue } from '../_shared/queue.ts';
+
+const payloadSchema = z.object({ queueId: z.string().uuid() });
 
 serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -39,12 +43,13 @@ serve(async (req) => {
     });
   }
 
-  let payload: { queueId?: string } = {};
-  try {
-    payload = (await req.json()) as { queueId?: string };
-  } catch {
-    payload = {};
+  const parsed = payloadSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    const headers = new Headers();
+    withCorsHeaders(headers, origin, path);
+    return errorResponse('validation_error', 'Invalid payload', 400, headers);
   }
+  const payload = parsed.data;
 
   if (!payload.queueId) {
     const headers = new Headers();

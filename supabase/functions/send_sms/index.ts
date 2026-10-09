@@ -87,18 +87,12 @@ serve(async (req) => {
 
   const url = new URL(req.url);
   const limitParam = url.searchParams.get('limit');
-  const limit = Math.max(1, Math.min(Number(limitParam ?? 25), 100));
-
-  const { data: queued, error } = await supabase.rpc('claim_sms_outbox', {
-    p_limit: limit,
-    p_lock_minutes: 5,
-  });
-
-  if (error) {
+  const requestedLimit = Number(limitParam ?? 25);
+  if (!Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 100) {
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(JSON.stringify({ error: 'Failed to load outbox' }), {
-      status: 500,
+    return new Response(JSON.stringify({ error: 'Limit must be an integer between 1 and 100' }), {
+      status: 400,
       headers,
     });
   }
@@ -110,7 +104,20 @@ serve(async (req) => {
     providerAccepted?: boolean;
   }> = [];
 
-  for (const message of queued ?? []) {
+  // Claim only the row about to be processed. Slow provider calls or a runtime
+  // restart must not consume leases/attempts for the rest of the batch.
+  for (let index = 0; index < requestedLimit; index++) {
+    const { data: queued, error } = await supabase.rpc('claim_sms_outbox', {
+      p_limit: 1,
+      p_lock_minutes: 5,
+    });
+    if (error) {
+      const headers = new Headers();
+      withCorsHeaders(headers, origin, path);
+      return new Response(JSON.stringify({ error: 'Failed to load outbox', processed: results.length, results }), { status: 503, headers });
+    }
+    const message = queued?.[0];
+    if (!message) break;
     const result = await sendClaimedMessage(supabase, message);
     const processed: {
       id: string;

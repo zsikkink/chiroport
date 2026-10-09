@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { z } from 'npm:zod@3.25.76';
 import { withCorsHeaders, buildCorsHeaders } from '../_shared/cors.ts';
 import { requireEmployee } from '../_shared/employeeAuth.ts';
 import { normalizePhoneToE164 } from '../_shared/phone.ts';
@@ -10,15 +11,15 @@ import {
 import { getLocationIdForQueueEntry } from '../_shared/queue.ts';
 import { errorResponse } from '../_shared/httpError.ts';
 
-type Payload = {
-  queueEntryId?: string;
-  fullName?: string;
-  email?: string;
-  phone?: string;
-  offeringCode?: string;
-  // Kept during the rolling deployment so an older employee UI can still edit.
-  serviceLabel?: string;
-};
+const payloadSchema = z.object({
+  queueEntryId: z.string().uuid(),
+  fullName: z.string().optional(),
+  email: z.string().trim().email().or(z.literal('')).optional(),
+  phone: z.string(),
+  offeringCode: z.string().optional(),
+  // Keep the older employee UI's label field during a rolling deployment.
+  serviceLabel: z.string().optional(),
+});
 
 serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -40,12 +41,13 @@ serve(async (req) => {
     return errorResponse('unauthorized', 'Unauthorized', 401, headers);
   }
 
-  let payload: Payload = {};
-  try {
-    payload = (await req.json()) as Payload;
-  } catch {
-    payload = {};
+  const parsed = payloadSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    const headers = new Headers();
+    withCorsHeaders(headers, origin, path);
+    return errorResponse('validation_error', 'Invalid payload', 400, headers);
   }
+  const payload = parsed.data;
 
   if (!payload.queueEntryId) {
     const headers = new Headers();
@@ -170,10 +172,12 @@ serve(async (req) => {
 
   if (updateError || !updatedRows?.length) {
     console.error('update_queue_entry command failed', {
-      error: updateError,
+      code: updateError?.code ?? 'missing_result',
       queueEntryId: payload.queueEntryId,
     });
-    const message = updateError?.message || 'Queue entry was not updated';
+    const message = updateError?.code === 'P0001'
+      ? updateError.message
+      : 'Queue entry could not be updated. Please try again.';
     const expectedConflict =
       updateError?.code === 'P0001' || updateError?.code === '23505';
     const publicMessage = updateError?.code === '23505'

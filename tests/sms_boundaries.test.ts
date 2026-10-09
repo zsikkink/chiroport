@@ -37,3 +37,26 @@ it.each([
   expect((await handler(new Request('http://127.0.0.1/functions/v1/send_sms', { method: 'POST', headers }))).status).toBe(status);
   expect(rpc).toHaveBeenCalledTimes(status === 200 ? 1 : 0);
 });
+
+
+it.each(['0', '101', '-1', '1.5', 'invalid'])('worker rejects an invalid batch limit %s before claiming', async limit => {
+  const rpc = jest.fn();
+  const { handler } = loadEdge('send_sms/index.ts', { service: { rpc }, env: config, overrides: { '../_shared/rateLimit.ts': rateLimit } });
+  expect((await handler(new Request(`http://127.0.0.1/functions/v1/send_sms?limit=${limit}`, { method: 'POST', headers: { 'x-sms-secret': secret } }))).status).toBe(400);
+  expect(rpc).not.toHaveBeenCalled();
+});
+
+it('worker waits for provider completion before claiming the next row', async () => {
+  let finishSend!: () => void;
+  const send = jest.fn(() => new Promise(resolve => { finishSend = () => resolve({ status: 'sent' }); }));
+  const rpc = jest.fn().mockResolvedValueOnce({ data: [{ id: 'first' }], error: null }).mockResolvedValueOnce({ data: [], error: null });
+  const { handler } = loadEdge('send_sms/index.ts', { service: { rpc }, env: config, overrides: { '../_shared/rateLimit.ts': rateLimit, '../_shared/outbox.ts': { sendClaimedMessage: send } } });
+  const request = handler(new Request('http://127.0.0.1/functions/v1/send_sms?limit=2', { method: 'POST', headers: { 'x-sms-secret': secret } }));
+  for (let index = 0; index < 10 && !send.mock.calls.length; index++) await Promise.resolve();
+  expect(send).toHaveBeenCalledTimes(1);
+  expect(rpc).toHaveBeenCalledTimes(1);
+  expect(rpc).toHaveBeenCalledWith('claim_sms_outbox', { p_limit: 1, p_lock_minutes: 5 });
+  finishSend();
+  expect((await request).status).toBe(200);
+  expect(rpc).toHaveBeenCalledTimes(2);
+});

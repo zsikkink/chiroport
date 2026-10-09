@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { z } from 'npm:zod@3.25.76';
 import { withCorsHeaders, buildCorsHeaders } from '../_shared/cors.ts';
 import { requireEmployee } from '../_shared/employeeAuth.ts';
 import { sendOutboxForEntry } from '../_shared/outbox.ts';
@@ -11,10 +12,11 @@ import {
 import { getLocationIdForQueueEntry } from '../_shared/queue.ts';
 import { errorResponse } from '../_shared/httpError.ts';
 
-type Payload = {
-  queueEntryId?: string;
-  body?: string;
-};
+const payloadSchema = z.object({
+  queueEntryId: z.string().uuid(),
+  body: z.string().trim().min(1),
+  requestId: z.string().uuid().optional(),
+});
 
 serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -36,12 +38,13 @@ serve(async (req) => {
     return errorResponse('unauthorized', 'Unauthorized', 401, headers);
   }
 
-  let payload: Payload = {};
-  try {
-    payload = (await req.json()) as Payload;
-  } catch {
-    payload = {};
+  const parsed = payloadSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    const headers = new Headers();
+    withCorsHeaders(headers, origin, path);
+    return errorResponse('validation_error', 'Invalid payload', 400, headers);
   }
+  const payload = parsed.data;
 
   const messageBody = payload.body?.trim() ?? '';
   if (!payload.queueEntryId) {
@@ -121,24 +124,22 @@ serve(async (req) => {
       p_entry_id: payload.queueEntryId,
       p_actor_user_id: userId,
       p_body: messageBody,
+      ...(payload.requestId ? { p_request_id: payload.requestId } : {}),
     }
   );
   const queued = queuedRows?.[0];
   if (queueError || !queued?.out_outbox_id || !queued.out_message_type) {
     console.error('send_employee_message durable enqueue failed', {
-      error: queueError,
+      code: queueError?.code ?? 'missing_result',
       queueEntryId: payload.queueEntryId,
     });
     const headers = new Headers();
     withCorsHeaders(headers, origin, path);
-    return new Response(
-      JSON.stringify({
-        error: {
-          code: 'dependency_unavailable',
-          message: 'Message could not be durably queued.',
-        },
-      }),
-      { status: 500, headers }
+    return errorResponse(
+      queueError?.code === 'P0001' ? 'conflict' : 'dependency_unavailable',
+      queueError?.code === 'P0001' ? queueError.message : 'Message could not be durably queued.',
+      queueError?.code === 'P0001' ? 409 : 503,
+      headers
     );
   }
 
@@ -148,7 +149,7 @@ serve(async (req) => {
     queued.out_message_type
   );
 
-  if (delivery.status === 'sent') {
+  if (delivery.status === 'sent' && !delivery.alreadySent) {
     const { error: eventError } = await service.from('queue_events').insert({
       queue_entry_id: payload.queueEntryId,
       actor_user_id: userId,

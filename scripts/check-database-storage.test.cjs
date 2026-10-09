@@ -91,6 +91,7 @@ test('workflow SQL is opt-in, aggregate-only, and normalizes its review checkpoi
   const sql = monitorQuery(workflowPolicy);
   assert(sql.includes('oldest_pending'));
   assert(sql.includes('detected_at>'));
+  assert(sql.includes("last_error is null or last_error not in ('opted_out','superseded_queue_state','superseded_queue_move')"));
   assert(!sql.includes('to_phone'));
   assert(!sql.includes('body'));
   assert.throws(() => monitorQuery({ ...workflowPolicy, anomaliesSince: "'); delete from customers; --" }), /checkpoint/);

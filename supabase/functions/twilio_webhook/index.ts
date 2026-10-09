@@ -202,8 +202,8 @@ serve(async (req) => {
     return new Response(null, { status: 204 });
   }
 
-  if (!fromE164) {
-    return new Response(null, { status: 204 });
+  if (!fromE164 || !messageSid?.trim()) {
+    return new Response(null, { status: 400 });
   }
 
   if (!associatedEntryId) {
@@ -216,6 +216,7 @@ serve(async (req) => {
       p_entry_id: associatedEntryId,
       p_source: 'twilio_webhook',
       p_enqueue_ack: true,
+      p_inbound_id: inboundRows?.[0]?.out_sms_inbound_id,
     }
   );
 
@@ -223,6 +224,9 @@ serve(async (req) => {
     console.error('twilio_webhook cancel command failed', cancelError);
     return new Response(null, { status: 500 });
   }
+
+  // An older receipt may already have been applied before a staff return.
+  if (cancelRows[0].out_status !== 'cancelled') return new Response(null, { status: 204 });
 
   try {
     const delivery = await sendOutboxForEntry(
