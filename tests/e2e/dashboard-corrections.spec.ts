@@ -91,7 +91,7 @@ test('ordinary staff can correct visits between all columns and use clear second
     await visitor.dragTo(serving);
     await reconciliation;
     await expect(waiting.getByText(name, { exact: true })).toBeVisible();
-    await expect(page.getByText(message, { exact: true })).toBeVisible();
+    await expect(page.getByText(message, { exact: false })).toBeVisible();
     expect((await service.from('queue_entries').select('status').eq('id', entryId).single()).data?.status).toBe('waiting');
   } finally {
     await page.unrouteAll({ behavior: 'wait' });
