@@ -1,5 +1,7 @@
 # Production hardening and continuity report — October 9, 2026
 
+This is the pre-release assessment. The subsequent authorized [October 11 production release](chiroport-production-release-2026-10-11.md) records the applied migrations, deployed artifacts, Atlanta correction, backup and hosted verification.
+
 ## A. Executive assessment
 
 The repository is materially more resilient to stale browser work, ambiguous manual-message retries, queue moves, malformed staff requests and repeated SMS cancellations. Critical persisted state remains database-owned; this work extends existing commands/triggers, preserves legacy APIs, and adds no new direct dependency, service, framework or table. No production infrastructure/data/access/billing changes, deployment, push or real SMS were performed.

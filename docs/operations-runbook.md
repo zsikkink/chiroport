@@ -1,10 +1,10 @@
 # Chiroport operations and maintenance
 
-Repository handoff, October 9, 2026. Read [system rules](system-architecture.md) for architecture and [the hardening report](audits/chiroport-production-hardening-2026-10-09.md) for evidence and remaining risks. These instructions are not evidence of a deployed release, configured alerts, or a production restore. No hosted changes were made during this work.
+Repository handoff, October 9, 2026. Read [system rules](system-architecture.md) for architecture and [the hardening report](audits/chiroport-production-hardening-2026-10-09.md) for evidence and remaining risks. These instructions are not evidence of a deployed release, configured alerts, or a production restore. No hosted changes were made during the October 9 hardening work. The subsequent authorized [October 11 release record](audits/chiroport-production-release-2026-10-11.md) documents current deployment and verification evidence.
 
 ## Ownership before unattended operation
 
-Assign a primary and backup operator, with organization-controlled access and recovery methods. Do not leave recovery tied to one developer's laptop, email, phone, or payment card.
+Zack Sikkink is the sole developer and maintainer. He can own the operational responsibilities below; a separate recovery contact is a continuity safeguard. Keep account access and recovery methods available independently of one laptop. Do not leave recovery tied to one developer's laptop, email, phone, or payment card.
 
 | Resource | What the successor needs | Verification status |
 | --- | --- | --- |
