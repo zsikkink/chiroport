@@ -92,3 +92,27 @@ it('does not invoke or optimistically mutate an unresolved queue context', async
   expect(setActionError).not.toHaveBeenCalled();
   expect(result.current.busyAction).toBeNull();
 });
+
+it('keeps an action error visible during a successful queue reconciliation', async () => {
+  const onActionError = jest.fn();
+  const { result } = renderHook(() => useQueueData({ selectedLocationId: 'A', debugEnabled: false, onActionError }));
+  await finish([...mockPending]);
+  onActionError.mockClear();
+  const count = mockPending.length;
+  let refresh: Promise<void>;
+  act(() => { refresh = result.current.refreshQueueData({ clearActionError: false }); });
+  await finish(mockPending.slice(count));
+  await refresh!;
+  expect(onActionError).not.toHaveBeenCalled();
+});
+
+it('reconciles failed staff moves without clearing the failure message', async () => {
+  const setActionError = jest.fn();
+  const refreshQueueData = jest.fn().mockResolvedValue(undefined);
+  const queueState = { applyOptimisticServing: jest.fn(), applyOptimisticHistory: jest.fn(), applyOptimisticWaiting: jest.fn(), applyOptimisticRemoval: jest.fn(), removeEntryFromLists: jest.fn(), fetchWaitingEntry: jest.fn(), refreshQueueData, setWaitingEntries: jest.fn() };
+  const invokeEmployeeFunction = jest.fn().mockRejectedValue(new Error('Synthetic move denied'));
+  const { result } = renderHook(() => useEntryActions({ queueId: 'queue-A', currentUserId: 'synthetic-staff', selectedLocationId: 'A', setActionError, queueState, invokeEmployeeFunction }));
+  await act(async () => { await result.current.handleSetServing('entry-A'); });
+  expect(setActionError).toHaveBeenLastCalledWith('Synthetic move denied');
+  expect(refreshQueueData).toHaveBeenCalledWith(expect.objectContaining({ clearActionError: false }));
+});

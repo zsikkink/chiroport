@@ -43,7 +43,7 @@ export function QueueColumn({
   );
 
   return (
-    <div onDragOver={onDragOver} onDrop={onDrop}>
+    <div role="region" aria-label={title} onDragOver={onDragOver} onDrop={onDrop}>
       {useCardTitle ? (
         <ResponsiveCard title={title} className={cardClassName}>
           {content}

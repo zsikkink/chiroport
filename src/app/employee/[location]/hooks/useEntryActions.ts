@@ -15,7 +15,7 @@ type QueueState = {
   applyOptimisticRemoval: (entryId: string) => void;
   removeEntryFromLists: (entryId: string) => void;
   fetchWaitingEntry: (entryId: string) => Promise<WithEntryId<WaitingRow> | null>;
-  refreshQueueData: (options?: { showLoading?: boolean; reason?: string }) => Promise<void>;
+  refreshQueueData: (options?: { showLoading?: boolean; reason?: string; clearActionError?: boolean }) => Promise<void>;
   setWaitingEntries: React.Dispatch<React.SetStateAction<WithEntryId<WaitingRow>[]>>;
 };
 
@@ -113,6 +113,7 @@ export function useEntryActions(options: UseEntryActionsOptions) {
       await queueState.refreshQueueData({
         showLoading: false,
         reason: `reconcile-${success ? 'completed' : 'failed'}-${key}`,
+        clearActionError: success,
       });
       return success;
     },

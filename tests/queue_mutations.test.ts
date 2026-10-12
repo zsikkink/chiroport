@@ -89,6 +89,69 @@ async function deleteVisits(service: SupabaseClient, visits: JoinedVisit[]) {
 }
 
 describe('authoritative queue mutation commands', () => {
+  itIf.each(['completed', 'cancelled', 'no_show'])('staff can move %s history entries back to serving or waiting', async status => {
+    const service = createServiceClient(env!);
+    const visit = await joinVisit(service, 'chiropractic');
+    const legalBefore = await service.from('queue_entries_legal_archive').select('*').eq('queue_entry_id', visit.entryId).single();
+    expect(legalBefore.error).toBeNull();
+    try {
+      const finish = async () => {
+        if (status === 'no_show') {
+          expect((await service.from('queue_entries').update({ status, no_show_at: new Date().toISOString() }).eq('id', visit.entryId)).error).toBeNull();
+        } else {
+          expect((await service.rpc('staff_queue_entry_action', {
+            p_entry_id: visit.entryId,
+            p_action: status === 'completed' ? 'complete' : 'cancel',
+            p_actor_user_id: null,
+            p_target_location_id: null, p_departure_reason: null,
+          })).error).toBeNull();
+        }
+      };
+      await finish();
+      const serving = await service.rpc('staff_queue_entry_action', { p_entry_id: visit.entryId, p_action: 'serving', p_actor_user_id: null, p_target_location_id: null, p_departure_reason: null });
+      expect(serving.error).toBeNull();
+      expect(serving.data![0].out_status).toBe('serving');
+      const active = await service.from('queue_entries').select('served_at,completed_at,cancelled_at,no_show_at,departure_reason').eq('id', visit.entryId).single();
+      expect(active.data).toMatchObject({ served_at: expect.any(String), completed_at: null, cancelled_at: null, no_show_at: null, departure_reason: null });
+      expect((await service.rpc('staff_queue_entry_action', { p_entry_id: visit.entryId, p_action: 'serving', p_actor_user_id: null, p_target_location_id: null, p_departure_reason: null })).error).not.toBeNull();
+      await finish();
+      const waiting = await service.rpc('staff_queue_entry_action', { p_entry_id: visit.entryId, p_action: 'return', p_actor_user_id: null, p_target_location_id: null, p_departure_reason: null });
+      expect(waiting.error).toBeNull();
+      expect(waiting.data![0].out_status).toBe('waiting');
+      const returned = await service.from('queue_entries').select('served_at,completed_at,cancelled_at,no_show_at,served_by_user_id,departure_reason').eq('id', visit.entryId).single();
+      expect(returned.data).toEqual({ served_at: null, completed_at: null, cancelled_at: null, no_show_at: null, served_by_user_id: null, departure_reason: null });
+      const events = await service.from('queue_events').select('event_type,payload').eq('queue_entry_id', visit.entryId);
+      expect(events.data).toEqual(expect.arrayContaining([
+        expect.objectContaining({ event_type: 'serving_by_staff', payload: expect.objectContaining({ from_status: status }) }),
+        expect.objectContaining({ event_type: 'returned_to_queue', payload: expect.objectContaining({ from_status: status }) }),
+      ]));
+      const legalAfter = await service.from('queue_entries_legal_archive').select('*').eq('queue_entry_id', visit.entryId).single();
+      expect(legalAfter.data).toEqual(legalBefore.data);
+    } finally { await deleteVisits(service, [visit]); }
+  });
+
+  itIf('keeps an existing active visit when staff tries to reopen another visit for the same customer', async () => {
+    const service = createServiceClient(env!);
+    const location = await getOpenLocation(service);
+    const history = await joinVisit(service, 'chiropractic', randomPhone(), location);
+    const visits = [history];
+    try {
+      expect((await service.rpc('staff_queue_entry_action', { p_entry_id: history.entryId, p_action: 'complete', p_actor_user_id: null })).error).toBeNull();
+      const active = await joinVisit(service, 'chiropractic', history.phone, location);
+      visits.push(active);
+      expect(active.entryId).not.toBe(history.entryId);
+      for (const action of ['serving', 'return']) {
+        const result = await service.rpc('staff_queue_entry_action', { p_entry_id: history.entryId, p_action: action, p_actor_user_id: null, p_target_location_id: null, p_departure_reason: null });
+        expect(result.error).toMatchObject({ code: 'P0001', message: expect.stringContaining('already has an active visit') });
+      }
+      const entries = await service.from('queue_entries').select('id,status').in('id', [history.entryId, active.entryId]);
+      expect(entries.data).toEqual(expect.arrayContaining([
+        { id: history.entryId, status: 'completed' },
+        { id: active.entryId, status: 'waiting' },
+      ]));
+    } finally { await deleteVisits(service, visits); }
+  });
+
   itIf.each(['CANCEL', '\tCANCEL\n', '\u00a0CANCEL\ufeff'])('a durable SMS receipt %s does not cancel a later staff return', async body => {
     const service = createServiceClient(env!);
     const visit = await joinVisit(service, 'chiropractic');

@@ -344,7 +344,6 @@ function EmployeeLocationWorkspace() {
 
   const {
     busyAction,
-    runOptimisticAction,
     handleSetServing,
     handleComplete,
     handleCancel,
@@ -561,21 +560,7 @@ function EmployeeLocationWorkspace() {
 
         if (target === 'serving') {
           if (fromStatus === 'serving') return;
-          if (fromStatus === 'waiting') {
-            await handleSetServing(payload.entryId);
-            return;
-          }
-          await runOptimisticAction(
-            `serving_move:${payload.entryId}`,
-            () => queueData.applyOptimisticServing(payload.entryId),
-            async () => {
-              await invokeEmployeeFunction('queue_entry_action', {
-                action: 'serving',
-                queueEntryId: payload.entryId,
-              });
-            },
-            { entryId: payload.entryId }
-          );
+          await handleSetServing(payload.entryId);
           return;
         }
 
@@ -589,9 +574,6 @@ function EmployeeLocationWorkspace() {
     [
       handleReturnToQueue,
       handleSetServing,
-      invokeEmployeeFunction,
-      queueData,
-      runOptimisticAction,
     ]
   );
 
@@ -868,18 +850,18 @@ function EmployeeLocationWorkspace() {
         </aside>
       </div>
       {moveEntry ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
-          <ResponsiveCard className="w-full max-w-md space-y-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-semibold">Move customer</h2>
+        <div role="dialog" aria-modal="true" aria-labelledby="move-customer-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+          <ResponsiveCard className="w-full max-w-md">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div className="min-w-0 space-y-1">
+                <h2 id="move-customer-title" className="text-xl font-semibold">Move customer</h2>
                 <p className="text-sm text-slate-500">
                   Move {moveEntry.full_name ?? 'this customer'} to another location.
                 </p>
               </div>
               <button
                 type="button"
-                className="rounded border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600 hover:bg-slate-50"
+                className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
                 onClick={handleCloseMove}
               >
                 Close
@@ -890,10 +872,10 @@ function EmployeeLocationWorkspace() {
                 No other locations available at this airport.
               </p>
             ) : (
-              <label className="block text-sm">
+              <label className="mb-5 block text-sm">
                 Target location
                 <select
-                  className="mt-1 w-full rounded-md bg-white text-black px-3 py-2"
+                  className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-black"
                   value={moveTargetLocationId}
                   onChange={(event) => setMoveTargetLocationId(event.target.value)}
                 >
@@ -905,11 +887,12 @@ function EmployeeLocationWorkspace() {
                 </select>
               </label>
             )}
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={handleCloseMove}>
+            <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
+              <Button variant="secondary" className="min-h-12 min-w-24 rounded-lg !border-slate-300 !bg-white !text-slate-700 hover:!bg-slate-100" onClick={handleCloseMove}>
                 Cancel
               </Button>
               <Button
+                className="min-h-12 min-w-24 rounded-lg"
                 onClick={handleMoveSubmit}
                 disabled={
                   !moveTargetLocationId ||
@@ -926,19 +909,18 @@ function EmployeeLocationWorkspace() {
       ) : null}
       {editEntry && editForm ? (
         <div
+          role="dialog" aria-modal="true" aria-labelledby="edit-customer-title"
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4"
-          onClick={handleCloseEdit}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) handleCloseEdit();
+          }}
         >
           <ResponsiveCard
-            className="w-full max-w-lg space-y-4"
-            onClick={(event) => event.stopPropagation()}
+            className="w-full max-w-lg"
           >
-            <div className="flex items-start justify-between">
+            <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold">Edit customer</h2>
-                <p className="text-sm text-slate-500">
-                  Update contact info and treatment selection.
-                </p>
+                <h2 id="edit-customer-title" className="text-xl font-semibold">Edit customer</h2>
               </div>
               <button
                 type="button"
@@ -948,7 +930,7 @@ function EmployeeLocationWorkspace() {
                 Close
               </button>
             </div>
-            <div className="grid gap-3">
+            <div className="mb-5 grid gap-3">
               <label className="block text-sm">
                 Name
                 <input
@@ -1013,11 +995,12 @@ function EmployeeLocationWorkspace() {
                 </select>
               </label>
             </div>
-            <div className="mt-6 flex justify-center gap-3">
-              <Button variant="secondary" onClick={handleCloseEdit}>
+            <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
+              <Button variant="secondary" className="min-h-12 min-w-24 rounded-lg !border-slate-300 !bg-white !text-slate-700 hover:!bg-slate-100" onClick={handleCloseEdit}>
                 Cancel
               </Button>
               <Button
+                className="min-h-12 min-w-24 rounded-lg"
                 onClick={handleEditSubmit}
                 disabled={busyAction === `edit:${editEntry.queue_entry_id}`}
               >
@@ -1031,16 +1014,18 @@ function EmployeeLocationWorkspace() {
       ) : null}
       {createEntryOpen && createForm ? (
         <div
+          role="dialog" aria-modal="true" aria-labelledby="add-customer-title"
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4"
-          onClick={handleCloseCreateEntry}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) handleCloseCreateEntry();
+          }}
         >
           <ResponsiveCard
-            className="w-full max-w-lg space-y-4"
-            onClick={(event) => event.stopPropagation()}
+            className="w-full max-w-lg"
           >
-            <div className="flex items-start justify-between">
+            <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold">Add customer</h2>
+                <h2 id="add-customer-title" className="text-xl font-semibold">Add customer</h2>
                 <p className="text-sm text-slate-500">
                   Create a new queue entry for this location.
                 </p>
@@ -1053,7 +1038,7 @@ function EmployeeLocationWorkspace() {
                 Close
               </button>
             </div>
-            <div className="grid gap-3">
+            <div className="mb-5 grid gap-3">
               <label className="block text-sm">
                 Name
                 <input
@@ -1146,11 +1131,12 @@ function EmployeeLocationWorkspace() {
                 </span>
               </label>
             </div>
-            <div className="mt-6 flex justify-center gap-3">
-              <Button variant="secondary" onClick={handleCloseCreateEntry}>
+            <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
+              <Button variant="secondary" className="min-h-12 min-w-24 rounded-lg !border-slate-300 !bg-white !text-slate-700 hover:!bg-slate-100" onClick={handleCloseCreateEntry}>
                 Cancel
               </Button>
               <Button
+                className="min-h-12 min-w-24 rounded-lg"
                 onClick={handleCreateSubmit}
                 disabled={busyAction === 'create-entry'}
               >

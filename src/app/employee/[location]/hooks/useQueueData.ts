@@ -72,7 +72,7 @@ export function useQueueData(options: UseQueueDataOptions) {
   }, [onActionError]);
 
   const refreshQueueData = useCallback(
-    (options?: { showLoading?: boolean; reason?: string }) => {
+    (options?: { showLoading?: boolean; reason?: string; clearActionError?: boolean }) => {
       if (!selectedLocationId || selectedLocationId !== locationRef.current) return Promise.resolve();
       const showLoading = options?.showLoading ?? false;
       refreshCountRef.current += 1;
@@ -87,7 +87,7 @@ export function useQueueData(options: UseQueueDataOptions) {
       if (showLoading) {
         setDataLoading(true);
       }
-      onActionError?.('');
+      if (options?.clearActionError !== false) onActionError?.('');
       if (refreshInFlightRef.current) {
         refreshPendingRef.current = true;
         return refreshInFlightRef.current;
