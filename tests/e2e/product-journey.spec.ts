@@ -57,19 +57,24 @@ test('synthetic visitor: browser intake → staff service → history → analyt
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Sign In', exact: true }).click();
     await expect(page.getByRole('heading', { name: /Employee Dashboard/ })).toBeVisible();
-    await expect(page.getByText(name, { exact: true })).toBeVisible();
+    // Other browser tests can have visits in this queue at the same time.
+    const visitor = page.locator('[draggable="true"]').filter({
+      has: page.getByText(name, { exact: true }),
+      hasText: phone,
+    });
+    await expect(visitor).toBeVisible();
     await shot(page, 'synthetic-queue.png');
     const serving = page.waitForResponse(response => response.url().includes('/functions/v1/queue_entry_action') && response.request().method() === 'POST');
-    await page.getByRole('button', { name: 'Move to serving', exact: true }).click();
+    await visitor.getByRole('button', { name: 'Move to serving', exact: true }).click();
     expect((await serving).ok()).toBeTruthy();
-    await expect(page.getByRole('button', { name: 'Mark completed', exact: true })).toBeVisible();
+    await expect(visitor.getByRole('button', { name: 'Mark completed', exact: true })).toBeVisible();
     await shot(page, 'synthetic-serving.png');
     const completed = page.waitForResponse(response => response.url().includes('/functions/v1/queue_entry_action') && response.request().method() === 'POST');
-    await page.getByRole('button', { name: 'Mark completed', exact: true }).click();
+    await visitor.getByRole('button', { name: 'Mark completed', exact: true }).click();
     expect((await completed).ok()).toBeTruthy();
-    await expect(page.getByRole('button', { name: 'Mark completed', exact: true })).toHaveCount(0);
-    await expect(page.getByText(name, { exact: true })).toBeVisible();
-    await expect(page.getByText(/completed at /)).toBeVisible();
+    await expect(visitor.getByRole('button', { name: 'Mark completed', exact: true })).toHaveCount(0);
+    await expect(visitor).toBeVisible();
+    await expect(visitor.getByText(/completed at /)).toBeVisible();
     await shot(page, 'synthetic-history.png');
     const entry = await service.from('queue_entries').select('status,created_at,served_at,completed_at,customer_id').eq('id', entryId!).single();
     expect(entry.data).toMatchObject({ status: 'completed', served_at: expect.any(String), completed_at: expect.any(String) });

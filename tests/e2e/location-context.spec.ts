@@ -24,14 +24,18 @@ for (const pending of ['action', 'realtime']) {
       await page.getByLabel('Email', { exact: true }).fill(email);
       await page.getByLabel('Password').fill(password);
       await page.getByRole('button', { name: 'Sign In', exact: true }).click();
-      await expect(page.getByText('Synthetic Context A', { exact: true })).toBeVisible();
+      const visitor = page.locator('[draggable="true"]').filter({
+        has: page.getByText('Synthetic Context A', { exact: true }),
+        hasText: phone,
+      });
+      await expect(visitor).toBeVisible();
       if (pending === 'action') {
         await page.route('**/functions/v1/queue_entry_action', async route => {
           if (route.request().method() !== 'POST') return route.continue();
           observed(); await gate;
           await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: { code: 'synthetic_failure', message: 'Delayed failure from old A' } }) });
         });
-        await page.getByRole('button', { name: 'Move to serving', exact: true }).click();
+        await visitor.getByRole('button', { name: 'Move to serving', exact: true }).click();
       } else {
         await page.route('**/rest/v1/employee_queue_serving_view?**', async route => {
           if (interceptedRefresh || !decodeURIComponent(route.request().url()).includes(`location_id=eq.${a!.id}`)) return route.continue();
@@ -51,18 +55,18 @@ for (const pending of ['action', 'realtime']) {
           expect((await service.rpc('staff_queue_entry_action', { p_entry_id: entryId, p_action: 'complete', p_actor_user_id: user.user!.id })).error).toBeNull();
         }
       }
-      if (pending === 'action') await expect(page.getByRole('button', { name: 'Move to serving', exact: true })).toBeEnabled();
+      if (pending === 'action') await expect(visitor.getByRole('button', { name: 'Move to serving', exact: true })).toBeEnabled();
       else {
-        await expect(page.getByText(/completed at /)).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Mark completed', exact: true })).toHaveCount(0);
+        await expect(visitor.getByText(/completed at /)).toBeVisible();
+        await expect(visitor.getByRole('button', { name: 'Mark completed', exact: true })).toHaveCount(0);
       }
       const delayed = page.waitForResponse(response => pending === 'action' ? response.url().includes('/functions/v1/queue_entry_action') : decodeURIComponent(response.url()).includes(`location_id=eq.${a!.id}`) && response.url().includes('employee_queue_serving_view'));
       release();
       await (await delayed).finished();
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       await expect(page.getByText('Delayed failure from old A', { exact: true })).toHaveCount(0);
-      await expect(page.getByText('Synthetic Context A', { exact: true })).toHaveCount(1);
-      if (pending === 'realtime') await expect(page.getByRole('button', { name: 'Mark completed', exact: true })).toHaveCount(0);
+      await expect(visitor).toHaveCount(1);
+      if (pending === 'realtime') await expect(visitor.getByRole('button', { name: 'Mark completed', exact: true })).toHaveCount(0);
     } finally {
       release();
       await page.unrouteAll({ behavior: 'wait' });
