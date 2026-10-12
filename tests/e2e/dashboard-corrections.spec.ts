@@ -87,10 +87,16 @@ test('ordinary staff can correct visits between all columns and use clear second
       if (route.request().method() !== 'POST') return route.continue();
       await route.fulfill({ status: 409, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin }, body: JSON.stringify({ error: { code: 'invalid_transition', message } }) });
     });
+    const rejected = actionResponse();
     const reconciliation = page.waitForResponse(response => response.url().includes('/rest/v1/employee_queue_waiting_view'));
     await visitor.dragTo(serving);
+    expect((await rejected).status()).toBe(409);
     await reconciliation;
     await expect(waiting.getByText(name, { exact: true })).toBeVisible();
+    await expect(page.getByText(message, { exact: false })).toBeVisible();
+    const recovery = page.waitForResponse(response => response.url().includes('/rest/v1/employee_queue_waiting_view'));
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await (await recovery).finished();
     await expect(page.getByText(message, { exact: false })).toBeVisible();
     expect((await service.from('queue_entries').select('status').eq('id', entryId).single()).data?.status).toBe('waiting');
   } finally {

@@ -106,6 +106,26 @@ it('keeps an action error visible during a successful queue reconciliation', asy
   expect(onActionError).not.toHaveBeenCalled();
 });
 
+it.each(['realtime', 'browser'])('keeps a rejected action visible through %s recovery', async source => {
+  let message = '';
+  const onActionError = jest.fn((next: string) => { message = next; });
+  const { result, rerender } = renderHook(({ location }) => useQueueData({ selectedLocationId: location, debugEnabled: false, onActionError }), { initialProps: { location: 'A' } });
+  await finish([...mockPending]);
+  message = 'Synthetic move denied';
+  onActionError.mockClear();
+  const count = mockPending.length;
+  act(() => {
+    if (source === 'browser') window.dispatchEvent(new Event('online'));
+    else void result.current.refreshQueueData({ reason: 'realtime-queue-change' });
+  });
+  await finish(mockPending.slice(count));
+  expect(message).toBe('Synthetic move denied');
+  expect(onActionError).not.toHaveBeenCalled();
+  rerender({ location: 'B' });
+  expect(message).toBe('');
+  await finish(mockPending.filter(request => request.location === 'B'));
+});
+
 it('reconciles failed staff moves without clearing the failure message', async () => {
   const setActionError = jest.fn();
   const refreshQueueData = jest.fn().mockResolvedValue(undefined);

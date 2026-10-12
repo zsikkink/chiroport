@@ -87,7 +87,8 @@ export function useQueueData(options: UseQueueDataOptions) {
       if (showLoading) {
         setDataLoading(true);
       }
-      if (options?.clearActionError !== false) onActionError?.('');
+      // Background refreshes must not dismiss a rejected staff action.
+      if (options?.clearActionError === true) onActionError?.('');
       if (refreshInFlightRef.current) {
         refreshPendingRef.current = true;
         return refreshInFlightRef.current;
@@ -163,7 +164,7 @@ export function useQueueData(options: UseQueueDataOptions) {
     setDataLoading(Boolean(selectedLocationId));
     if (selectedLocationId) {
       void loadQueueId(selectedLocationId);
-      void refreshQueueData({ showLoading: true, reason: 'location-change' });
+      void refreshQueueData({ showLoading: true, reason: 'location-change', clearActionError: true });
     }
     return () => {
       locationRef.current = '';
