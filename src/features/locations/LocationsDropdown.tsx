@@ -24,7 +24,7 @@ export default function LocationsList() {
           <DropdownCard
             key={airport.slug}
             title={`${airport.name} Airport`}
-            className="mb-4"
+            className="mb-2 last:mb-0"
             {...(directDestination ? { onClick: directDestination } : {})}
           >
             <div className="space-y-2">
@@ -33,7 +33,7 @@ export default function LocationsList() {
                   key={concourse.slug}
                   fullWidth
                   onClick={() => openLocation(airport.slug, concourse.slug)}
-                  className="min-h-10 w-full overflow-hidden rounded-md border border-white/25 bg-[var(--color-header)] text-[clamp(0.9rem,3vw,1.25rem)] text-white shadow-[0_10px_20px_-16px_rgba(15,23,42,0.48)] transition-colors duration-200 hover:bg-[var(--color-primary-dark)]"
+                  className="min-h-10 w-full overflow-hidden rounded-md border border-white/25 bg-[var(--color-header)] text-[clamp(0.9rem,3vw,1.25rem)] text-white shadow-[0_10px_20px_-16px_rgba(15,23,42,0.48)] transition-colors duration-200 hover:bg-[var(--color-primary-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white motion-reduce:!transform-none motion-reduce:transition-none"
                 >
                   <span className="w-full overflow-hidden text-ellipsis whitespace-nowrap text-center font-medium text-white">
                     {concourse.displayName}

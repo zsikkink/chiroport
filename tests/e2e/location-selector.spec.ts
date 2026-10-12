@@ -55,6 +55,57 @@ test.describe('public location selector', () => {
     ).toBe(false);
   });
 
+  test('supports Space to open and Escape to close from inside the menu', async ({ page }) => {
+    await page.goto('/');
+    const trigger = page.getByRole('button', { name: 'Join queue', exact: true });
+    await trigger.focus();
+    await page.keyboard.press('Space');
+    await expect(page.getByRole('button', { name: 'Select location' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('button', { name: 'Houston Airport' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByRole('button', { name: 'Houston Airport' })).toHaveCount(0);
+
+    await page.keyboard.press('Space');
+    const airport = page.getByRole('button', { name: 'Minneapolis Airport' });
+    await airport.click();
+    await expect(airport).toHaveAttribute('aria-expanded', 'true');
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Escape');
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  test('reveals locations without animation when reduced motion is requested', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/');
+    const trigger = page.getByRole('button', { name: 'Join queue', exact: true });
+    await trigger.click();
+    const openTrigger = page.getByRole('button', { name: 'Select location' });
+    await expect(openTrigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByRole('button', { name: 'Houston Airport' })).toBeVisible();
+
+    const transitions = await openTrigger.evaluate((button) => {
+      const panel = document.getElementById(button.getAttribute('aria-controls')!);
+      if (!panel) throw new Error('Location disclosure must reference its panel');
+      return [button, button.parentElement!, panel, ...button.querySelectorAll('span, svg'),
+        ...panel.querySelectorAll('button, span, svg, div')]
+        .map((element) => {
+          const style = getComputedStyle(element);
+          return { property: style.transitionProperty, duration: style.transitionDuration };
+        });
+    });
+    expect(transitions.every(({ property, duration }) =>
+      property === 'none' || duration.split(',').every((value) => parseFloat(value) === 0)
+    )).toBe(true);
+  });
+
   for (const route of [
     '/locations/dallas/concourse-a',
     '/locations/atlanta/concourse-a',

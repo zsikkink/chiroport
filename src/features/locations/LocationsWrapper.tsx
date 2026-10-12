@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { PrimaryButton } from '@/components/ui';
+import { useId, useRef, useState } from 'react';
 import LocationsList from './LocationsDropdown';
 
 interface LocationsWrapperProps {
@@ -10,45 +9,70 @@ interface LocationsWrapperProps {
 
 export default function LocationsWrapper({ buttonText }: LocationsWrapperProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const panelId = useId();
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   return (
     <div
-      className={`mx-auto w-[90%] transition-[max-width] duration-300 ${
-        isOpen ? 'max-w-3xl' : 'max-w-lg'
-      }`}
+      className="mx-auto w-[90%] max-w-sm"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && isOpen) {
+          event.preventDefault();
+          event.stopPropagation();
+          setIsOpen(false);
+          buttonRef.current?.focus();
+        }
+      }}
     >
       <div
-        className={`w-full overflow-hidden rounded-2xl border border-transparent transition-colors duration-300 ${
+        className={`w-full overflow-hidden border border-white/30 bg-gradient-to-br from-[#657b6b] via-[var(--color-header)] to-[#3e5445] transition-[border-radius,box-shadow] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
           isOpen
-            ? 'bg-[var(--color-header)] shadow-[0_22px_42px_-26px_rgba(15,23,42,0.7)]'
-            : 'bg-white shadow-[0_14px_28px_-12px_rgba(15,23,42,0.46),0_4px_10px_-6px_rgba(15,23,42,0.28)]'
+            ? 'rounded-3xl shadow-[0_18px_36px_-16px_rgba(45,65,50,0.4)]'
+            : 'rounded-full shadow-[0_10px_24px_-8px_rgba(45,65,50,0.4)] hover:shadow-[0_14px_28px_-8px_rgba(45,65,50,0.5)]'
         }`}
       >
-        <PrimaryButton
+        <button
+          ref={buttonRef}
+          type="button"
           onClick={() => setIsOpen((open) => !open)}
-          className={`flex min-h-14 w-full items-center justify-center !rounded-none !border-0 px-3 text-[clamp(1.1rem,4.5vw,2rem)] font-bold tracking-tight transition-colors duration-300 sm:min-h-16 sm:px-4 ${
-            isOpen
-              ? '!bg-transparent !text-white !shadow-none !ring-0 hover:!bg-white/10 hover:!shadow-none'
-              : '!bg-[var(--color-header)] !text-white hover:!bg-[var(--color-primary-dark)]'
-          }`}
+          className="flex min-h-14 w-full items-center rounded-[inherit] bg-transparent p-3 font-lato text-[clamp(1.1rem,3.8vw,1.4rem)] font-bold leading-tight tracking-tight text-white !shadow-none transition-[background-color,transform] duration-200 hover:!translate-y-0 hover:bg-white/5 active:!translate-y-0 motion-safe:active:!scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white motion-reduce:!transform-none motion-reduce:transition-none"
           aria-expanded={isOpen}
-          aria-controls="locations-list-panel"
+          aria-controls={panelId}
         >
-          <span className="w-full overflow-hidden text-ellipsis whitespace-nowrap text-center">
-            {isOpen ? 'Select location' : buttonText}
+          <span className="grid min-w-0 flex-1 text-center">
+            <span
+              aria-hidden={isOpen}
+              className={`col-start-1 row-start-1 truncate transition-[opacity,transform] duration-200 motion-reduce:transform-none motion-reduce:transition-none ${
+                isOpen ? '-translate-y-2 opacity-0' : 'translate-y-0 opacity-100'
+              }`}
+            >
+              {buttonText}
+            </span>
+            <span
+              aria-hidden={!isOpen}
+              className={`col-start-1 row-start-1 truncate transition-[opacity,transform] duration-200 motion-reduce:transform-none motion-reduce:transition-none ${
+                isOpen ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+              }`}
+            >
+              Select location
+            </span>
           </span>
-        </PrimaryButton>
+        </button>
 
         <div
-          id="locations-list-panel"
+          id={panelId}
           aria-hidden={!isOpen}
           inert={!isOpen}
-          className={`grid bg-[var(--color-header)] transition-[grid-template-rows] duration-300 ${
+          className={`grid transition-[grid-template-rows] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
             isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
           }`}
         >
           <div className="min-h-0 overflow-hidden">
-            <div className="w-full p-4">
+            <div
+              className={`w-full px-3 pb-3 pt-1 transition-[opacity,transform] duration-150 motion-reduce:transform-none motion-reduce:transition-none ${
+                isOpen ? 'translate-y-0 opacity-100' : '-translate-y-3 opacity-0'
+              }`}
+            >
               <LocationsList />
             </div>
           </div>
