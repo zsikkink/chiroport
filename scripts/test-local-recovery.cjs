@@ -25,7 +25,7 @@ async function main() {
   // Explicit URL plus no libpq environment overrides; PGHOSTADDR can otherwise
   // redirect a localhost-looking connection to a different network address.
   const localEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('PG')));
-  const sql = (query, connection = target.toString()) => execFileSync('psql', [connection, '-X', '-At', '-v', 'ON_ERROR_STOP=1'], { env: localEnv, input: query, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+  const sql = (query, connection = target.toString()) => execFileSync('psql', [connection, '-X', '-qAt', '-v', 'ON_ERROR_STOP=1'], { env: localEnv, input: query, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
   const docker = args => execFileSync('docker', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   const dockerHost = process.env.DOCKER_HOST || docker(['context', 'inspect', '--format', '{{.Endpoints.docker.Host}}']);
   assert(dockerHost.startsWith('unix://') || dockerHost.startsWith('npipe://'), 'Local Docker socket required');
@@ -48,21 +48,34 @@ async function main() {
     entryId = joined[0].out_queue_entry_id;
     const { data: entry, error: entryError } = await service.from('queue_entries').select('customer_id').eq('id', entryId).single(); assert.ifError(entryError); customerId = entry.customer_id;
     // Own fresh database, no job definitions, Vault secrets or storage objects.
-    execFileSync('pg_dump', [adminUrl.toString(), '--format=custom', '--schema=public', '--schema=auth', '--file', archive], { env: localEnv, stdio: ['ignore', 'pipe', 'pipe'] });
+    execFileSync('pg_dump', [adminUrl.toString(), '--format=custom', '--schema=public', '--schema=auth', '--schema=supabase_migrations', '--file', archive], { env: localEnv, stdio: ['ignore', 'pipe', 'pipe'] });
     fs.chmodSync(archive, 0o600);
     sql(`create database ${database};`, adminUrl.toString()); createdDatabase = true;
     sql('drop schema public; create schema extensions; create extension pgcrypto with schema extensions; create extension "uuid-ossp" with schema extensions;');
     execFileSync('pg_restore', ['--exit-on-error', '--dbname', target.toString(), archive], { env: localEnv, stdio: ['ignore', 'pipe', 'pipe'] });
+    execFileSync(process.execPath, ['-e', "require('./check-database-privileges.cjs').checkDatabasePrivileges()"], {
+      cwd: __dirname, env: { ...localEnv, SUPABASE_DB_URL: target.toString() }, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const ledgerQuery = 'select jsonb_agg(version order by version)::text from supabase_migrations.schema_migrations;';
+    assert.equal(sql(ledgerQuery), sql(ledgerQuery, adminUrl.toString()), 'Complete migration ledger must survive unchanged');
+    assert.equal(sql("select to_regclass('cron.job') is null;"), 't', 'Restored database must have no scheduled dispatcher');
+    assert.equal(sql(`set role anon; select status from public.get_visit('${joined[0].out_public_token}');`), 'waiting', 'Restored public capability must retain its contract');
+    const literal = value => `'${value.replace(/'/g, "''")}'`;
+    assert.equal(sql(`set role service_role; select out_queue_entry_id from public.join_queue_with_offering(${literal(location.airport_code)},${literal(location.code)},'Synthetic Recovery Visitor','${phone}','restore-visitor@example.invalid','chiropractic');`), entryId, 'Restored active visit must deduplicate a retry');
     assert.equal(sql(`select status from public.queue_entries where id='${entryId}';`), 'waiting');
     const digestQuery = `select md5(string_agg(to_jsonb(t)::text,',' order by t.queue_entry_id)) from public.queue_entries_legal_archive t;`;
+    const contactDigestQuery = `select md5(string_agg(to_jsonb(t)::text,',' order by t.id)) from public.customer_contact_snapshots t;`;
     assert.equal(sql(digestQuery), sql(digestQuery, adminUrl.toString()), 'Legal snapshots must survive unchanged');
+    assert.equal(sql(contactDigestQuery), sql(contactDigestQuery, adminUrl.toString()), 'Captured contacts must survive unchanged');
     assert.equal(sql("select has_function_privilege('anon','public.staff_queue_entry_action(uuid,text,uuid,uuid)','execute');"), 'f');
     assert.equal(sql("select has_function_privilege('service_role','public.staff_queue_entry_action(uuid,text,uuid,uuid)','execute');"), 't');
-    sql(`select * from public.staff_queue_entry_action('${entryId}','serving','${userId}'); select * from public.staff_queue_entry_action('${entryId}','complete','${userId}');`);
+    sql(`select * from public.staff_queue_entry_action('${entryId}','serving',null,'${userId}'); select * from public.staff_queue_entry_action('${entryId}','complete',null,'${userId}');`);
     assert.equal(sql(`select status from public.queue_entries where id='${entryId}';`), 'completed');
     assert.equal(sql(`select count(*) from public.queue_events where queue_entry_id='${entryId}' and event_type in ('serving_by_staff','completed_by_staff');`), '2');
+    assert.equal(sql(`select count(*) from public.queue_events where queue_entry_id='${entryId}' and event_type in ('serving_by_staff','completed_by_staff') and actor_user_id='${userId}';`), '2', 'Both staff events must identify the restored actor');
     assert.equal(sql(`select count(*) from public.sms_outbox where queue_entry_id='${entryId}' and message_type='serving' and provider_message_id is null;`), '1');
     assert.equal(sql(digestQuery), sql(digestQuery, adminUrl.toString()), 'Commands must not rewrite legal snapshots');
+    assert.equal(sql(contactDigestQuery), sql(contactDigestQuery, adminUrl.toString()), 'Commands must not rewrite captured contacts');
     sql(fs.readFileSync(path.join(__dirname, '../tests/fixtures/rollup-conservation.sql'), 'utf8'));
 
     // Start only the existing Auth image against the restored DB, on a random
@@ -83,7 +96,7 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 200));
     }
     assert(signedIn, 'Restored synthetic account must authenticate through Auth');
-    console.log(JSON.stringify({ result: 'passed', restored: 'synthetic public/auth schema and data', login: true, queue_commands: true, legal_digests_match: true, effective_grants: true, rollup_conservation_replay_rebuild: true, provider_sends: 0, elapsed_seconds: (Date.now() - started) / 1000, archive, limitations: 'No production data, Vault, Storage objects, hosted configuration, cron activation, offsite custody, RPO or RTO assurance.' }));
+    console.log(JSON.stringify({ result: 'passed', restored: 'synthetic public/auth schema, data and migration ledger', login: true, migration_ledger_matches: true, public_capability: true, active_visit_deduplicates: true, dispatcher_absent: true, queue_commands: true, actor_attribution: true, legal_digests_match: true, contact_digests_match: true, effective_grants: true, rollup_conservation_replay_rebuild: true, provider_sends: 0, elapsed_seconds: (Date.now() - started) / 1000, archive, limitations: 'Existing local instance roles and provisioned extensions reused; no production data, Vault, Storage objects, hosted configuration, cron activation, offsite custody, RPO or RTO assurance.' }));
   } finally {
     const failures = [];
     for (const cleanup of [

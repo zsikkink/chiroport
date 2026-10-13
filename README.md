@@ -49,28 +49,40 @@ These numerical results are scoped to synthetic local verification on September 
 
 ## Safe local quick start
 
-Prerequisites: Node **22.x** (verified 22.22.0), npm (10.9.4), Deno **2.7.7**, Supabase CLI **2.67.1**, running local Docker, and PostgreSQL client tools (`psql`, `pg_dump`, `pg_restore`; verified **18.2** against the local **17.6** database). Internet access is needed to download locked packages, Chromium, and Docker images. Ports 3000 and 54321–54324 must be free.
+Prerequisites: Node **22.x** (verified 22.22.0), npm (10.9.4), Deno **2.7.7**, Supabase CLI **2.67.1**, running local Docker, and PostgreSQL client tools (`psql`, `pg_dump`, `pg_restore`; verified **18.2** against the local **17.6** database). The recipe uses macOS/Linux Unix process and Docker socket behavior; native Windows needs separate validation. Internet access is needed to download locked packages, Chromium, and Docker images. Ports 3000 and 54321–54324 must be free. Do not stop another project's services to free them without checking ownership.
 
-From this checkout, without creating an environment file:
-
-```bash
-node scripts/local-verify.cjs --demo
-```
-
-The runner copies source into a private temporary directory, installs locked dependencies and a fresh browser, rehearses the recorded migration upgrade, then creates a fresh database and runs the checks. It starts the actual Next/Edge application with local credentials and no provider configuration. Your checkout and existing database volumes are not reset.
-
-After verification, open [the local app](http://127.0.0.1:3000). Employee login: `demo-staff@example.invalid` / `Synthetic-Only-2468!`. These credentials exist only in the disposable demo. Use synthetic contact details; do not enter customer information. Ctrl-C stops its services and removes only its disposable database volumes. Logs and synthetic restore artifacts remain in the printed private temporary paths.
+Select Node 22 in each terminal (`nvm use` from the checkout if using nvm), then verify without a production environment file:
 
 ```bash
-node scripts/local-verify.cjs                 # Verify, then clean up
-node scripts/local-verify.cjs --capture-demo  # Also refresh screenshots/recording
+node scripts/local-verify.cjs
 ```
 
-For further development, the printed temporary copy is a starting point; the running demo is a production build, not a hot-reloading development server. [Environment and operational instructions](docs/system-architecture.md#verification-and-local-development) explain the lower-level commands and their risks.
+The runner copies source into a private temporary directory, installs locked dependencies and Chromium, rehearses the recorded migration upgrade, then creates a fresh database and runs the full checks. Required database/browser cases must pass without skips. It starts the actual Next/Edge application with local credentials and no provider configuration, then removes only its disposable volumes. Your checkout and existing database volumes are not reset. Retain the printed private evidence path.
+
+For an editable, persistent synthetic workspace:
+
+```bash
+node scripts/local-dev.cjs create
+cd "<the printed Editable source path>"
+node scripts/local-dev.cjs start
+```
+
+From that printed workspace, use two terminals with Node 22 selected:
+
+```bash
+node scripts/local-dev.cjs edge
+node scripts/local-dev.cjs web
+```
+
+Open [the local app](http://127.0.0.1:3000). Employee login: `demo-staff@example.invalid` / `Synthetic-Only-2468!`. Use synthetic contacts only. Source edits in the printed workspace hot reload. `create` excludes private configuration and Git state; `start` installs locked dependencies, creates only its unique local Supabase project, disables its cron jobs and seeds this synthetic admin once. Generated environment files and service logs are private; no production or Twilio credentials are needed.
+
+Ctrl-C in both service terminals, then run `node scripts/local-dev.cjs stop` in the workspace. Ordinary `start` resumes its saved synthetic database and does not repeat the seed. For fresh data, stop this workspace and run `create` from the original checkout to get another unique workspace. Never use `db:reset` or `--no-backup` for an ordinary restart. Review and port only intended source edits back to your working checkout; keep generated environment files, the local project ID and ownership manifest private. [Development commands and safety boundaries](docs/system-architecture.md#verification-and-local-development) explain the recipe and checks.
+
+`node scripts/local-verify.cjs --demo` remains the disposable **production-build demonstration**; Ctrl-C removes its owned volumes. It does not hot reload. `--capture-demo` deliberately updates repository images/recording and is not an onboarding command. Neither an agent's rehearsal nor a green runner establishes the successor's clean-machine independence.
 
 ## Operational handoff
 
-[Operations and maintenance](docs/operations-runbook.md) covers incidents, ownership, release sequencing, backups and recovery. [October 9 hardening report](docs/audits/chiroport-production-hardening-2026-10-09.md) records changes, validation, independent reviews and remaining owner actions. Repository safeguards do not establish hosted monitoring, backups or deployment readiness.
+[Current handoff plan and acceptance gates](docs/handoff/HANDOFF_PLAN.md) records current preparation, access, owner actions and readiness. Read [system rules](docs/system-architecture.md), then [operations and maintenance](docs/operations-runbook.md) for incidents, ownership, release sequencing, backups and recovery. The [October 13 audit](docs/handoff/HANDOFF_AUDIT.md) and [October 9 hardening report](docs/audits/chiroport-production-hardening-2026-10-09.md) are dated evidence. Repository safeguards do not establish hosted monitoring, backups or deployment readiness.
 
 ## Scope and limitations
 
